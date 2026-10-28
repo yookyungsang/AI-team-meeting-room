@@ -29,6 +29,19 @@ Preserve standing authorization only when it was verified from actual human mess
 5. Wait on active native tasks with bounded wait_threads and cursors. Check room_get(statusOnly:true) once when stored completion needs confirmation; read full content only for an actual decision or review. Previous unrelated messages are excluded unless includePrevious:true is necessary.
 6. Post the director's own decision/result after dependencies complete, without collecting others' text again. A successful tool receipt is sufficient completion. End without a posting acknowledgment; if host final text is necessary, keep only a brief substantive result and do not re-post it.
 
+## Persistent role ownership
+
+At task start, use the selected project's AGENTS.md and collaboration document for the human-approved responsibilities. Do not rely on chat memory alone. The director includes role, file ownership and validation ownership in the next necessary assignment; participants check those instructions before work. Keep configured names/routing unchanged. Apply these defaults only to roles already connected, and honor the human's project-specific overrides:
+
+- Director: overall design, planning approval, prioritization, assignment, conflict resolution, integration and final acceptance.
+- Planner: game systems, balance and level design; specify rules, numerical rationale, progression and acceptance criteria.
+- Designer: character, UI, background and 3D asset planning; provide visual specifications, layouts and asset requirements.
+- Programmer: implementation, defect fixes, compilation/static checks and lightweight developer self-checks; hand off changed files, reproduction steps and evidence to QA.
+- QA: test-case design, error reproduction, actual UI/behavior and regression validation; report expected/actual results, evidence and pass/fail/unverified scope.
+- Sound: sound direction, asset specifications/selection and playback conditions.
+
+Developer self-checks do not replace independent QA. After implementation, hand the shared application/Unity Editor operator role to QA for one consolidated change-relevant batch. Only one operator and one editor per file at a time. QA returns reproducible defects to the implementer, then retests only failed/newly affected cases; the director reviews and integrates. Do not repeat passing tests merely to change the operator. If QA is unavailable or lacks access, explicitly assign a substitute and disclose the independence/coverage limit. Do not silently label programmer-only checks as QA acceptance. Persist revised project responsibilities in project instructions; do not wake all participants merely to announce or confirm memory, and do not add recurring reminders.
+
 ## Collaboration efficiency
 
 - The director owns overall design, planning approval within the human's scope, prioritization, assignment, conflict resolution and result integration. Assign implementation/design/QA to the existing relevant participants, with one editor per file. Policy/documentation decisions belong to the director. Do not wake everyone just to announce these rules; include them in the next necessary assignment.

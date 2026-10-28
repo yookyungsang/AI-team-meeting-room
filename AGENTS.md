@@ -10,3 +10,5 @@
 - Run npm test for store/bridge changes. For layout changes run the documented browser harness when Playwright is available, and disclose if actual Codex display transitions remain unverified.
 
 - Apply docs/collaboration-efficiency.md to every collaboration: routine 1–2 discussion rounds, delta handoffs, event waiting instead of AI polling, change-focused review and deterministic local checks. Preserve explicit authorization and unresolved blockers. The director integrates; only needed existing participants are assigned.
+
+- Persist role ownership in project instructions and follow the role/handoff section of docs/collaboration-efficiency.md: planner owns game systems/balance/level design; designer owns character/UI/background/3D asset planning; QA owns test cases/error reproduction/validation. Programmer self-checks precede an explicit handoff to QA, including the single shared-editor operator role. The director approves and integrates. Honor project-specific human overrides; do not create missing staff, relabel self-checks as independent QA, repeat passing tests, or wake everyone just for policy notices.
