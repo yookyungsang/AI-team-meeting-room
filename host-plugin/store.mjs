@@ -40,27 +40,37 @@ export class RoomStore {
   const member=this.members.find(m=>m.id===memberId),job=request.jobs.find(j=>j.memberId===memberId);
   assert(member&&job,'이 요청의 받는 사람이 아닙니다.');return {request,member,job};
  }
- submit({id,text,recipients}){
+ submit({id,text,recipients,followUpTo}){
   assert(uuid.test(id||''),'올바른 요청 ID가 필요합니다.');
   assert(typeof text==='string'&&text.trim()&&text.length<=6000,'메시지는 1~6000자여야 합니다.');
   assert(Array.isArray(recipients)&&recipients.length>0&&recipients.length<=20&&recipients.every(id=>this.members.some(m=>m.id===id)),'이 프로젝트에 연결한 담당자만 선택할 수 있습니다.');
   const selected=[...new Set(recipients)].sort();text=text.trim();
+  assert(followUpTo===undefined||uuid.test(followUpTo),'추가 전달할 원래 요청 ID를 확인해 주세요.');
   const request=this.change(state=>{
    const old=state.requests.find(r=>r.id===id);
-   if(old){assert(old.text===text&&JSON.stringify(old.recipients)===JSON.stringify(selected),'같은 ID로 다른 요청을 보낼 수 없습니다.');return old;}
+   if(old){assert(old.text===text&&old.followUpTo===followUpTo&&JSON.stringify(old.recipients)===JSON.stringify(selected),'같은 ID로 다른 요청을 보낼 수 없습니다.');return old;}
    assert(selected.length===1&&selected[0]==='director','사용자 요청은 총괄 디렉터에게 전달합니다.');
    assert(!state.paused,'새 요청 접수가 일시정지되어 있습니다.');
+   const parent=followUpTo===undefined?null:state.requests.find(r=>r.id===followUpTo);
+   if(followUpTo!==undefined){
+    assert(parent&&!parent.followUpTo,'이 프로젝트의 원래 요청에만 추가 내용을 전달할 수 있습니다.');
+    assert(!['completed','failed'].includes(parent.status),'이미 끝난 요청입니다. 새 요청으로 보내 주세요.');
+   }
    assert(state.requests.filter(r=>!['completed','failed'].includes(r.status)).length<20,'진행 중인 요청을 먼저 확인해 주세요.');
-   const request={id,projectId:this.project.id,text,recipients:selected,status:'pending',createdAt:stamp(),jobs:selected.map(memberId=>({memberId,state:'pending'}))};
-   state.requests.push(request);state.messages.push({id:'user:'+id,requestId:id,authorId:'user',authorName:'사용자',text,createdAt:request.createdAt});return request;
+   const request={id,projectId:this.project.id,text,recipients:selected,...(parent?{followUpTo}:{}),status:'pending',createdAt:stamp(),jobs:selected.map(memberId=>({memberId,state:'pending'}))};
+   state.requests.push(request);state.messages.push({id:'user:'+id,requestId:id,authorId:'user',authorName:'사용자',text,...(parent?{kind:'follow-up',followUpTo}:{}),createdAt:request.createdAt});
+   if(parent)this.update(parent,state);
+   return request;
   });
-  return {request,state:this.snapshot(),wakePrompt:`[TEAM-ROOM ${this.project.id} ${id}]\n프로젝트: ${this.project.name}\n연결된 총괄: ${this.members.find(m=>m.id==='director').threadId} (host: ${this.members.find(m=>m.id==='director').hostId})\n팀 회의실 절차에 따라 해당 프로젝트 총괄에게만 요청을 처리하거나 한 번 전달해 주세요. 현재 대화가 총괄이면 직접 처리하세요. 새 대화창/에이전트를 만들거나 반복 자동 호출하지 마세요.\n받는 사람: ${selected.join(', ')}\n사용자 메시지:\n${text}`};
+  return {request,state:this.snapshot(),wakePrompt:`[TEAM-ROOM ${this.project.id} ${id}]\n프로젝트: ${this.project.name}\n연결된 총괄: ${this.members.find(m=>m.id==='director').threadId} (host: ${this.members.find(m=>m.id==='director').hostId})\n팀 회의실 절차에 따라 해당 프로젝트 총괄에게만 요청을 처리하거나 한 번 전달해 주세요. 현재 대화가 총괄이면 직접 처리하세요. 새 대화창/에이전트를 만들거나 반복 자동 호출하지 마세요.\n${request.followUpTo?`진행 중인 원래 요청: ${request.followUpTo}\n이번 메시지는 작업 중 추가된 사용자 지시입니다. 원래 작업을 다시 시작하거나 담당자에게 중복 배정하지 말고 현재 작업에 반영하세요. 추가 요청 자체의 처리 결과도 기록하세요.\n`:''}받는 사람: ${selected.join(', ')}\n사용자 메시지:\n${text}`};
  }
  get(requestId,{statusOnly=false,includePrevious=false}={}){
   assert(typeof statusOnly==='boolean'&&typeof includePrevious==='boolean','조회 옵션을 확인해 주세요.');
   const state=this.read(),request=state.requests.find(r=>r.id===requestId);assert(request,'회의 요청을 찾을 수 없습니다.');
-  if(statusOnly)return {request:{id:request.id,status:request.status,openQuestionCount:request.openQuestionCount||0,jobs:request.jobs.map(({memberId,state,error})=>({memberId,state,...(error?{error}:{})}))}};
-  return {request,members:this.members,messages:state.messages.filter(m=>m.requestId===requestId),...(includePrevious?{previousMessages:state.messages.filter(m=>m.requestId!==requestId).slice(-20)}:{})};
+  if(statusOnly)return {request:{id:request.id,status:request.status,openQuestionCount:request.openQuestionCount||0,openFollowUpCount:request.openFollowUpCount||0,jobs:request.jobs.map(({memberId,state,error})=>({memberId,state,...(error?{error}:{})}))}};
+  const parent=request.followUpTo&&state.requests.find(r=>r.id===request.followUpTo);
+  const summary=({id,text,status,createdAt})=>({id,text,status,createdAt});
+  return {request,members:this.members,messages:state.messages.filter(m=>m.requestId===requestId),followUps:state.requests.filter(r=>r.followUpTo===requestId).map(summary),...(parent?{parentRequest:summary(parent)}:{}),...(includePrevious?{previousMessages:state.messages.filter(m=>m.requestId!==requestId).slice(-20)}:{})};
  }
  claim({requestId,memberId}){
   return this.change(state=>{
@@ -107,6 +117,7 @@ export class RoomStore {
    const old=state.messages.find(m=>m.requestId===requestId&&m.authorId===memberId&&(!m.kind||m.kind==='final'));
    if(old){assert(old.text===text&&old.sourceTurnId===sourceTurnId&&old.sourceMessageId===sourceMessageId,'이미 기록한 답변은 덮어쓰지 않습니다.');return old;}
    assert(job.state==='reserved','먼저 요청을 확인하고 전달을 예약해야 합니다.');
+   if(memberId==='director')assert(!state.requests.some(r=>r.followUpTo===requestId&&r.status!=='completed'),'사용자가 추가로 보낸 요청을 확인하고 처리한 뒤 원래 요청을 완료해 주세요.');
    assert(!state.messages.some(m=>m.requestId===requestId&&m.authorId===memberId&&m.kind==='question'&&!state.messages.some(a=>a.requestId===requestId&&a.kind==='answer'&&a.replyTo===m.id)),'답변이 필요한 질문을 해결한 뒤 완료해 주세요.');
    const message={id:randomUUID(),requestId,authorId:memberId,authorName:member.name,kind:'final',text,sourceThreadId:member.threadId,...(sourceMessageId?{sourceTurnId,sourceMessageId,sourceType:'native-reference'}:{sourceType:'tool-authored'}),createdAt:stamp(),provenance:'participant-posted'};
    state.messages.push(message);job.state='completed';job.completedAt=stamp();
@@ -120,7 +131,10 @@ export class RoomStore {
  update(request,state){
   const openQuestions=state.messages.filter(m=>m.requestId===request.id&&m.kind==='question'&&!state.messages.some(a=>a.requestId===request.id&&a.kind==='answer'&&a.replyTo===m.id));
   request.openQuestionCount=openQuestions.length;
-  request.status=openQuestions.length?'processing':request.jobs.every(j=>j.state==='completed')?'completed':request.jobs.every(j=>['completed','failed'].includes(j.state))?'failed':'processing';
+  const followUps=state.requests.filter(r=>r.followUpTo===request.id);
+  request.openFollowUpCount=followUps.filter(r=>!['completed','failed'].includes(r.status)).length;
+  request.status=openQuestions.length||request.openFollowUpCount?'processing':request.jobs.every(j=>j.state==='completed')&&followUps.every(r=>r.status==='completed')?'completed':request.jobs.every(j=>['completed','failed'].includes(j.state))?'failed':'processing';
+  if(request.followUpTo){const parent=state.requests.find(r=>r.id===request.followUpTo);if(parent)this.update(parent,state);}
  }
  pause(paused){assert(typeof paused==='boolean','일시정지 값이 올바르지 않습니다.');this.change(state=>{state.paused=paused;});return this.snapshot();}
 }

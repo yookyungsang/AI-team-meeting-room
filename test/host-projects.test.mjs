@@ -61,3 +61,14 @@ test('existing data remains byte-identical after reopening the external registry
  assert.equal(result.requests[0].id,id);assert.equal(result.messages[0].text,'retained fixture');
  assert.ok(fs.readFileSync(registry.roomPath('alpha')).equals(before));assert.ok(fs.readFileSync(registry.file).equals(connections));
 });
+
+test('MCP follow-ups use only an active original request in their explicit project',t=>{
+ const registry=fixture(t);registry.configure(config('alpha'));registry.configure(config('beta'));
+ const root=randomUUID(),addition=randomUUID();ok(registry,'room_submit',{projectId:'alpha',id:root,text:'원래 작업',recipients:['director']});
+ assert.equal(call(registry,'room_submit',{projectId:'beta',id:addition,text:'외부 요청에 추가',recipients:['director'],followUpTo:root}).isError,true);
+ assert.equal(ok(registry,'room_state',{projectId:'beta'}).requests.length,0);
+ const saved=ok(registry,'room_submit',{projectId:'alpha',id:addition,text:'추가 조건',recipients:['director'],followUpTo:root});assert.equal(saved.request.followUpTo,root);
+ const found=ok(registry,'room_get',{projectId:'alpha',requestId:root});assert.equal(found.followUps[0].id,addition);assert.equal(found.followUps[0].text,'추가 조건');
+ assert.equal(ok(registry,'room_get',{projectId:'alpha',requestId:addition}).parentRequest.text,'원래 작업');
+ assert.equal(ok(registry,'room_get',{projectId:'alpha',requestId:root,statusOnly:true}).request.openFollowUpCount,1);
+});

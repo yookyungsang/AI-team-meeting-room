@@ -18,7 +18,16 @@ Preserve standing authorization only when it was verified from actual human mess
 - room_projects lists names/IDs without transcripts. room_open(projectId) opens a selected room; omission opens only the chooser. Prefer opening in that project's actual director chat to avoid an extra forwarding turn.
 - The UI always addresses the selected project's director. Selection/read/refresh does not invoke AI. It does NOT navigate the host to another Codex chat.
 - A human [TEAM-ROOM projectId requestId] first requires room_get(projectId,requestId) to confirm scope and the configured director. If the current chat is not that director, do NOT claim as director or handle work under the wrong identity. Forward the original explicit request once with its project/request marker to that exact threadId and hostId, then stop. Reconcile native history before any uncertain resend. Do not copy foreign project context into this request.
-- In the correct director chat, room_claim(projectId,requestId,memberId=director) once. Legacy markers require a verified, explicit mapping in that project’s documentation. Never infer a project from an unscoped marker.
+- In the correct director chat, inspect room_get first. If the request is already completed or failed, use the stored result and stop without restarting it. Otherwise room_claim(projectId,requestId,memberId=director) once. Legacy markers require a verified, explicit mapping in that project’s documentation. Never infer a project from an unscoped marker.
+
+## User additions during work
+
+The human may send more messages while the director works or a previous host receipt is pending. Each explicit send has its own request ID. A request with `followUpTo` is an addition to that project's original active request, not an instruction to restart or duplicate the original work. `room_get` includes its `parentRequest`; reading the original includes `followUps` with the additions' IDs, text and status.
+
+- In the configured director chat, claim the addition's director job once and apply the new human instruction to the ongoing work. Keep original participant reservations and file ownership; send only a necessary delta to an already authorized participant. Complete the addition with your own substantive `room_reply` explaining the actual result or constraint. Never just acknowledge receipt or pretend another participant has acted.
+- During an active original task, read that request at the next meaningful planning/integration checkpoint and immediately before the director's final reply. Process pending linked additions even if the host has queued their separate wake messages for a later turn. This is a local saved-state check during authorized work, not an idle AI poll or automatic wakeup. The store refuses the director's final reply while additions remain unhandled.
+- When a delayed/queued wake message arrives after its addition is already completed or failed, use the stored result and stop. Do not redispatch or repeat work. A failed addition remains a reported blocker; do not mark the original successful while ignoring it.
+- A saved addition and a host receipt are separate from actual in-flight model delivery. The host decides whether `ui/message` steers an active turn or queues a later turn. Do not promise immediate interruption, change app/model settings silently, create a runtime, or automatically resend. If the original has already ended, submit a new request instead.
 
 ## Minimal useful work
 

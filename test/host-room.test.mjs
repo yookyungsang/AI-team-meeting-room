@@ -27,6 +27,44 @@ test('new user submissions go only to director; delegation retains the original 
  assert.equal(store.get(r.id).request.jobs.find(j=>j.memberId==='planner').delegated,true);
  assert.throws(()=>store.claim({requestId:r.id,memberId:'outsider'}));
 });
+
+test('in-flight user additions preserve original dispatch and must be handled before director completion',t=>{
+ const store=fixture(t),root=request();store.submit(root);store.claim({requestId:root.id,memberId:'director'});store.claim({requestId:root.id,memberId:'programmer'});
+ const jobs=structuredClone(store.get(root.id).request.jobs);
+ const addition={...request(),text:'실행 중 바뀐 요구사항',followUpTo:root.id};const submitted=store.submit(addition);
+ assert.match(submitted.wakePrompt,/작업 중 추가된 사용자 지시/);assert.match(submitted.wakePrompt,new RegExp(root.id));
+ assert.equal(store.get(addition.id).parentRequest.id,root.id);assert.equal(store.get(addition.id).parentRequest.text,root.text);
+ assert.equal(store.get(root.id).followUps[0].text,addition.text);assert.equal(store.get(root.id,{statusOnly:true}).request.openFollowUpCount,1);
+ assert.deepEqual(store.get(root.id).request.jobs,jobs);assert.equal(store.claim({requestId:root.id,memberId:'programmer'}).dispatch,false);
+ assert.throws(()=>store.reply({requestId:root.id,memberId:'director',text:'놓친 추가 내용이 있는 완료'}),/추가로 보낸 요청/);
+ store.reply({requestId:root.id,memberId:'programmer',text:'원래 구현 결과'});
+ store.claim({requestId:addition.id,memberId:'director'});store.reply({requestId:addition.id,memberId:'director',text:'추가 조건을 기존 작업에 반영한 결과'});
+ assert.equal(store.get(root.id,{statusOnly:true}).request.openFollowUpCount,0);
+ store.reply({requestId:root.id,memberId:'director',text:'원래 요청과 추가 조건 통합 결과'});
+ assert.equal(store.get(root.id).request.status,'completed');assert.equal(store.submit(addition).request.id,addition.id);
+ assert.equal(store.snapshot().requests.length,2);assert.equal(store.snapshot().messages.filter(m=>m.authorId==='user').length,2);
+ assert.equal(store.claim({requestId:addition.id,memberId:'director'}).dispatch,false);
+});
+
+test('follow-up linkage cannot be changed, chained, cross-scoped, or added after completion/pause',t=>{
+ const store=fixture(t),root=request(),other=request();store.submit(root);store.submit(other);
+ const addition={...request(),followUpTo:root.id};store.submit(addition);
+ const before=fs.readFileSync(store.file);
+ for(const candidate of [{...addition,followUpTo:other.id},{...request(),followUpTo:addition.id},{...request(),followUpTo:randomUUID()},{...request(),followUpTo:'../other-room'},{...request(),followUpTo:root.id,recipients:['qa']}])assert.throws(()=>store.submit(candidate));
+ assert.ok(fs.readFileSync(store.file).equals(before));
+ store.pause(true);assert.throws(()=>store.submit({...request(),followUpTo:root.id}));store.pause(false);
+ store.claim({requestId:other.id,memberId:'director'});store.reply({requestId:other.id,memberId:'director',text:'완료된 원래 요청'});
+ assert.throws(()=>store.submit({...request(),followUpTo:other.id}),/이미 끝난 요청/);
+});
+
+test('a failed addition cannot silently produce a successful original result',t=>{
+ const store=fixture(t),root=request();store.submit(root);store.claim({requestId:root.id,memberId:'director'});
+ const addition={...request(),followUpTo:root.id};store.submit(addition);
+ store.fail({requestId:addition.id,memberId:'director',reason:'추가 요구 실행 불가'});
+ assert.throws(()=>store.reply({requestId:root.id,memberId:'director',text:'성공으로 숨김'}),/추가로 보낸 요청/);
+ store.fail({requestId:root.id,memberId:'director',reason:'추가 요구의 제한을 사용자에게 보고'});
+ assert.equal(store.get(root.id).request.status,'failed');
+});
 test('direct posts form a question/answer timeline without finishing assigned work',t=>{
  const store=fixture(t),r=request();store.submit(r);store.claim({requestId:r.id,memberId:'planner'});
  const progress=store.post(speech(r.id,'planner',{kind:'progress'}));

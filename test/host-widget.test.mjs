@@ -16,8 +16,8 @@ class Element {
  set innerHTML(value){throw new Error('unsafe HTML rendering');}
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
-async function widget(t,{capability={},messageFails=false,autoSelect=true}={}){
- const elements=new Map(),sent=[],callbacks={},intervals=[];
+async function widget(t,{capability={},messageFails=false,autoSelect=true,deferMessages=false,holdSubmit=false}={}){
+ const elements=new Map(),sent=[],callbacks={},intervals=[],messagePackets=[],timeouts=new Map();let timeoutSeq=0;
  const projects=[{id:'test',name:'Test',directorName:'테스트 총괄'},{id:'second',name:'Second',directorName:'다른 총괄'}];
  const state={project:{id:'test',name:'Test'},projects,members:[{id:'director',name:'테스트 총괄',role:'총괄'}],requests:[],messages:[],paused:false};
  const second={project:{id:'second',name:'Second'},projects,members:[{id:'director',name:'다른 총괄',role:'리더'},{id:'writer',name:'작가',role:'작가'}],requests:[],messages:[],paused:false};
@@ -30,22 +30,73 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true}={}){
   if(packet.method==='tools/call'){
    const {name,arguments:args}=packet.params;
    if(name==='room_state')result={structuredContent:args.projectId?states.get(args.projectId):chooser};
-   if(name==='room_submit'){const target=states.get(args.projectId);target.requests.push({...args,status:'pending',jobs:[]});result={structuredContent:{request:target.requests.at(-1),state:target,wakePrompt:'fixture '+args.id}};}
+   if(name==='room_submit'){const target=states.get(args.projectId);target.requests.push({...args,status:'pending',jobs:[]});result={structuredContent:{request:target.requests.at(-1),state:target,wakePrompt:'fixture '+args.id}};if(holdSubmit)return;}
   }
+  if(packet.method==='ui/message'&&deferMessages){messagePackets.push(packet);return;}
   queueMicrotask(()=>callbacks.message({source:parent,data:{jsonrpc:'2.0',id:packet.id,...(packet.method==='ui/message'&&messageFails?{error:{code:-1}}:{result})}}));
  }};
  const window={parent,addEventListener:(name,fn)=>callbacks[name]=fn};
- vm.runInNewContext(script,{window,document,crypto:{randomUUID},console,Intl,Date,Map,Set,Object,Array,JSON,setTimeout,clearTimeout,setInterval:fn=>{intervals.push(fn);return intervals.length;},clearInterval(){}});
+ vm.runInNewContext(script,{window,document,crypto:{randomUUID},console,Intl,Date,Map,Set,Object,Array,JSON,setTimeout:fn=>{const id=++timeoutSeq;timeouts.set(id,fn);return id;},clearTimeout:id=>timeouts.delete(id),setInterval:fn=>{intervals.push(fn);return intervals.length;},clearInterval(){}});
+ t.after(async()=>{callbacks.pagehide();await settle();});
  await settle();
  const notify=data=>callbacks.message({source:parent,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:data}}});
  if(autoSelect)notify(state);
  const receive=data=>callbacks.message({source:parent,data:{jsonrpc:'2.0',...data}});
- return {sent,elements,state,second,notify,callbacks,intervals,document,styles,receive,window};
+ const respondMessage=(index,result={})=>receive({id:messagePackets[index].id,result});
+ const expire=()=>{for(const [id,fn] of [...timeouts]){timeouts.delete(id);fn();}};
+ return {sent,elements,state,second,notify,callbacks,intervals,document,styles,receive,window,messagePackets,respondMessage,expire};
 }
 test('bridge initialization and repeated state reads never wake AI',async t=>{const w=await widget(t);for(let i=0;i<4;i++){await w.intervals[0]();await settle();}assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);assert.equal(w.sent.filter(p=>p.method==='tools/call'&&p.params.name==='room_submit').length,0);});
 test('explicit submit wakes current chat once and subsequent polls do not',async t=>{const w=await widget(t);w.elements.get('text').value='test';w.elements.get('text').events.input();assert.equal(w.elements.get('send').disabled,false);const first=w.elements.get('form').events.submit({preventDefault(){}});await w.elements.get('form').events.submit({preventDefault(){}});await first;await settle();await w.intervals[0]();const messages=w.sent.filter(p=>p.method==='ui/message');assert.equal(messages.length,1);assert.equal(messages[0].params._meta['openai/message'].target,'active');assert.equal(w.state.requests.length,1);});
 test('unsupported host keeps sending disabled',async t=>{const w=await widget(t,{capability:false});w.elements.get('text').value='test';w.elements.get('text').events.input();await w.elements.get('form').events.submit({preventDefault(){}});assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);assert.equal(w.elements.get('send').disabled,true);});
-test('failed host send locks uncertain request without automatic retry',async t=>{const w=await widget(t,{messageFails:true});w.elements.get('text').value='test';w.elements.get('text').events.input();await w.elements.get('form').events.submit({preventDefault(){}});await w.intervals[0]();await w.elements.get('form').events.submit({preventDefault(){}});assert.equal(w.sent.filter(p=>p.method==='ui/message').length,1);assert.equal(w.elements.get('send').disabled,true);assert.match(w.elements.get('result').textContent,/자동 재전송하지 않습니다/);});
+test('a rejected host message is not retried and does not lock other additions',async t=>{
+ const w=await widget(t,{messageFails:true}),input=w.elements.get('text');input.value='test';input.events.input();
+ await w.elements.get('form').events.submit({preventDefault(){}});await settle();await w.intervals[0]();
+ assert.equal(w.sent.filter(p=>p.method==='ui/message').length,1);assert.match(w.elements.get('result').textContent,/자동 재전송하지 않습니다/);
+ input.value='중간 추가 내용';input.events.input();assert.equal(input.readOnly,false);assert.equal(w.elements.get('send').disabled,false);
+ await w.elements.get('form').events.submit({preventDefault(){}});await settle();
+ assert.equal(w.sent.filter(p=>p.method==='ui/message').length,2);assert.equal(w.state.requests[1].followUpTo,w.state.requests[0].id);
+});
+
+test('a second user message reaches the host before the first receipt or job completes',async t=>{
+ const w=await widget(t,{deferMessages:true}),input=w.elements.get('text'),send=()=>w.elements.get('form').events.submit({preventDefault(){}});
+ input.value='원래 작업';input.events.input();await send();const root=w.state.requests[0];root.status='processing';
+ assert.equal(w.messagePackets.length,1);assert.equal(input.value,'');assert.equal(input.readOnly,false);
+ input.value='작업 중 바뀐 조건';input.events.input();await send();
+ assert.equal(w.messagePackets.length,2);assert.notEqual(w.state.requests[1].id,root.id);assert.equal(w.state.requests[1].followUpTo,root.id);
+ assert.equal(root.status,'processing');assert.equal(w.elements.get('project').disabled,false);
+ const before=w.sent.length;await w.intervals[0]();assert.ok(w.sent.length>before);assert.equal(w.messagePackets.length,2);
+ input.value='작성 중인 다음 내용';input.events.input();w.respondMessage(1);await settle();w.respondMessage(0);await settle();
+ assert.equal(input.value,'작성 중인 다음 내용');assert.equal(w.elements.get('send').disabled,false);assert.equal(w.messagePackets.length,2);
+});
+
+test('an overdue receipt isolates duplicate text, allows new additions and recovers on a late receipt',async t=>{
+ const w=await widget(t,{deferMessages:true}),input=w.elements.get('text');input.value='원래 작업';input.events.input();
+ await w.elements.get('form').events.submit({preventDefault(){}});w.expire();await settle();
+ assert.match(w.elements.get('result').textContent,/처리 여부 확인 필요/);assert.equal(input.readOnly,false);
+ input.value='원래 작업';input.events.input();assert.equal(w.elements.get('send').disabled,true);
+ await w.elements.get('form').events.submit({preventDefault(){}});assert.equal(w.messagePackets.length,1);
+ input.value='다른 추가 지시';input.events.input();assert.equal(w.elements.get('send').disabled,false);
+ await w.elements.get('form').events.submit({preventDefault(){}});assert.equal(w.messagePackets.length,2);
+ w.respondMessage(0);w.respondMessage(1);await settle();assert.doesNotMatch(w.elements.get('result').textContent,/처리 여부 확인 필요/);
+ assert.equal(w.messagePackets.length,2);
+});
+
+test('late delivery receipts cannot erase another project draft or change its selected room',async t=>{
+ const w=await widget(t,{deferMessages:true}),input=w.elements.get('text'),select=w.elements.get('project');
+ input.value='A 작업';input.events.input();await w.elements.get('form').events.submit({preventDefault(){}});
+ select.value='second';await select.events.change();input.value='B 작성 중';input.events.input();
+ w.respondMessage(0,{isError:true});await settle();
+ assert.equal(select.value,'second');assert.equal(input.value,'B 작성 중');assert.equal(w.elements.get('result').textContent,'');
+ assert.equal(w.elements.get('send').disabled,false);assert.equal(w.second.requests.length,0);
+});
+
+test('closing while a submit receipt is pending never dispatches a late wake message',async t=>{
+ const w=await widget(t,{holdSubmit:true});w.elements.get('text').value='저장 응답 대기';w.elements.get('text').events.input();
+ const saving=w.elements.get('form').events.submit({preventDefault(){}});const packet=w.sent.at(-1);
+ w.callbacks.pagehide();await saving;w.receive({id:packet.id,result:{structuredContent:{request:w.state.requests[0],state:w.state,wakePrompt:'late'}}});await settle();
+ assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);assert.equal(w.document.body.hidden,true);
+});
 test('hidden panel does not poll and reply text is rendered without HTML execution',async t=>{const w=await widget(t);const count=w.sent.length;w.document.hidden=true;await w.intervals[0]();assert.equal(w.sent.length,count);w.document.hidden=false;w.state.messages.push({id:'fixture',authorId:'director',authorName:'테스트 총괄',text:'<img src=x onerror=alert(1)>'});await w.intervals[0]();assert.equal(w.elements.get('messages').children.length,1);});
 
 const visibleText=n=>[n.textContent||'',...n.children.map(visibleText)].join(' ');

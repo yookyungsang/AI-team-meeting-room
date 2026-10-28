@@ -23,6 +23,7 @@ async function mount(page,html,width){
    const p=event.data;window.packets.push(p);
    if(p.method==='ui/notifications/size-changed' && p.params.height)iframe.style.height=p.params.height+'px';
    if(p.id===undefined||!p.method)return;
+   if(p.method==='ui/message'&&window.deferMessageReceipts){(window.delayedReceipts||=[]).push(p.id);return;}
    let result={};
    if(p.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostCapabilities:{message:{text:{}}},hostContext:{displayMode:'fullscreen',containerDimensions:{height:1000}}};
    if(p.method==='tools/call'){
@@ -99,6 +100,7 @@ try{
   await page.evaluate(()=>{
    const fixture={project:{id:'keyboard-fixture',name:'Keyboard fixture'},projects:[{id:'keyboard-fixture',name:'Keyboard fixture'}],members:[{id:'director',name:'Fixture director',role:'Director'}],requests:[],messages:[],paused:false};
    window.testRoomState=fixture;
+   window.deferMessageReceipts=true;
    document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:fixture}},'*');
   });
   await frame.locator('#text').fill('키보드 전송 fixture');
@@ -109,14 +111,24 @@ try{
   await page.waitForFunction(()=>window.packets.filter(p=>p.method==='ui/message').length===1);
   await frame.locator('#text').press('Enter');
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),1,'empty follow-up must not resend');
+  assert.equal(await frame.locator('#text').evaluate(el=>el.readOnly),false,'host receipt must not lock new input');
+  await frame.locator('#text').fill('진행 중 추가 조건');
+  await frame.locator('#text').press('Enter');
+  await page.waitForFunction(()=>window.packets.filter(p=>p.method==='ui/message').length===2);
+  const submissions=await page.evaluate(()=>window.packets.filter(p=>p.method==='tools/call'&&p.params.name==='room_submit').map(p=>p.params.arguments));
+  assert.equal(submissions[1].followUpTo,submissions[0].id);assert.notEqual(submissions[1].id,submissions[0].id);
+  await frame.locator('#text').fill('다음 내용 작성 중');
+  await page.evaluate(()=>{const target=document.querySelector('iframe').contentWindow;for(const id of window.delayedReceipts.reverse())target.postMessage({jsonrpc:'2.0',id,result:{}},'*');});
+  await page.waitForFunction(()=>document.querySelector('iframe').contentDocument.querySelector('#result').textContent.includes('호스트 전달 확인'));
+  assert.equal(await frame.locator('#text').inputValue(),'다음 내용 작성 중','late receipts must preserve new draft');
   await page.evaluate(()=>document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',id:'teardown-fixture',method:'ui/resource-teardown',params:{}},'*'));
   await page.waitForFunction(()=>window.packets.some(p=>p.id==='teardown-fixture'&&p.result));
   const calls=await page.evaluate(()=>window.packets.filter(p=>p.method==='tools/call').length);
   await page.waitForTimeout(4200);
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='tools/call').length),calls);
   assert.equal(await frame.evaluate(()=>document.body.hidden),true);
-  assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),1);
-  report.cases.push({width,transitions:20,heights,layout,teardown:'acknowledged; no polling for 4.2 seconds',sendButtonVisible:false,keyboardSubmit:true,simulatedHostMessages:1,modelCalls:0});
+  assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),2);
+  report.cases.push({width,transitions:20,heights,layout,teardown:'acknowledged; no polling for 4.2 seconds',sendButtonVisible:false,keyboardSubmit:true,inFlightAddition:true,outOfOrderReceiptsPreserveDraft:true,simulatedHostMessages:2,modelCalls:0});
   await page.close();
  }
  fs.writeFileSync(path.join(output,process.env.TEAM_ROOM_LAYOUT_NARROW_ONLY==='1'?'layout-report-narrow.json':'layout-report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));
