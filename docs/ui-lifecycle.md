@@ -28,3 +28,7 @@ Codex 앱에서 사용자가 겪은 빠른 상하 움직임이 완전히 사라�
 ## 프로토콜 근거
 
 [공식 MCP Apps 규격](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx)의 Container Dimensions, Host Context 변경 및 Resource Teardown 절차를 따릅니다. 호스트가 고정 높이를 주는 경우와 화면이 높이를 결정하는 경우를 구분하고, 닫기 전에 리소스를 정리하도록 정의되어 있습니다.
+
+## 0.3.2 · 하단 공간 확보
+
+팀과 회의 제어, 요청 처리 기록, 전송 안내를 상단 메뉴 버튼의 modal dialog로 옮겼습니다. 평상시 하단에는 입력창만 남으며 메뉴를 열어도 대화 영역의 높이나 입력창 위치는 바뀌지 않습니다. 닫기 버튼·Escape·바깥쪽 클릭으로 닫을 수 있고 키보드 포커스는 메뉴 버튼으로 돌아갑니다. 기존 프로젝트 연결과 전송/조회 정책은 그대로 유지합니다.

@@ -67,6 +67,17 @@ try{
   });
   assert.ok(layout.form.top>=layout.records.bottom-1);assert.ok(layout.form.bottom<=layout.shell.bottom+1);
   assert.ok(layout.form.right<=layout.width+1);
+  assert.ok(layout.shell.bottom-layout.form.bottom<=20,'composer must stay at bottom');
+  assert.ok(layout.records.height>450,'footer controls must not consume transcript height');
+  await frame.locator('#open-menu').click();
+  assert.equal(await frame.locator('#room-menu').evaluate(el=>el.open),true);
+  assert.equal(await frame.locator('.shell').evaluate(el=>el.getBoundingClientRect().height),720);
+  assert.equal(await frame.locator('.composer').evaluate(el=>el.getBoundingClientRect().top),layout.form.top);
+  await page.keyboard.press('Escape');
+  assert.equal(await frame.locator('#room-menu').evaluate(el=>el.open),false);
+  assert.equal(await frame.evaluate(()=>document.activeElement.id),'open-menu');
+  await frame.locator('#open-menu').click();await frame.locator('#close-menu').click();
+  assert.equal(await frame.locator('#room-menu').evaluate(el=>el.open),false);
   await page.screenshot({path:path.join(output,`layout-${width}.png`)});
   await page.evaluate(()=>document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',id:'teardown-fixture',method:'ui/resource-teardown',params:{}},'*'));
   await page.waitForFunction(()=>window.packets.some(p=>p.id==='teardown-fixture'&&p.result));
