@@ -8,3 +8,5 @@
 - Do not add idle AI calls, automatic resend, replacement chats or model runtimes. Native chat tools are used only within verified human authorization.
 - Inline layout must not depend on the iframe's viewport height. Handle display-mode context and teardown; late callbacks must never dispatch after closing.
 - Run npm test for store/bridge changes. For layout changes run the documented browser harness when Playwright is available, and disclose if actual Codex display transitions remain unverified.
+
+- Apply docs/collaboration-efficiency.md to every collaboration: routine 1–2 discussion rounds, delta handoffs, event waiting instead of AI polling, change-focused review and deterministic local checks. Preserve explicit authorization and unresolved blockers. The director integrates; only needed existing participants are assigned.
