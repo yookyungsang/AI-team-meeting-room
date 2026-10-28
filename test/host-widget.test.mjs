@@ -100,6 +100,28 @@ test('closing while a submit receipt is pending never dispatches a late wake mes
 test('hidden panel does not poll and reply text is rendered without HTML execution',async t=>{const w=await widget(t);const count=w.sent.length;w.document.hidden=true;await w.intervals[0]();assert.equal(w.sent.length,count);w.document.hidden=false;w.state.messages.push({id:'fixture',authorId:'director',authorName:'테스트 총괄',text:'<img src=x onerror=alert(1)>'});await w.intervals[0]();assert.equal(w.elements.get('messages').children.length,1);});
 
 const visibleText=n=>[n.textContent||'',...n.children.map(visibleText)].join(' ');
+const descendants=n=>[n,...n.children.flatMap(descendants)];
+test('meeting prose separates paragraphs and lists while keeping content and unsafe markup literal',async t=>{
+ const w=await widget(t);
+ const text=['## 진행 결과','','첫 번째  문장의 띄어쓰기입니다.','같은 문단의 다음 줄입니다.','','**중요한 변경**과 `inlineCode()`를 확인해 주세요.','','- 항목 하나','  - 하위 항목','- 항목 둘','','3. 세 번째 단계','4. 네 번째 단계','','```js','  const value = "<script>literal</script>";','\t//  공백과 들여쓰기 유지','```','','<img src=x onerror=alert(1)>'].join('\n');
+ w.state.messages.push({id:'readability-fixture',authorId:'director',text});w.notify(w.state);
+ const root=descendants(w.elements.get('messages')).find(n=>n.className==='text'),nodes=descendants(root);
+ assert.ok(nodes.some(n=>/^h[3-6]$/.test(n.tag)));assert.ok(root.children.filter(n=>n.tag==='p').length>=3);
+ assert.ok(nodes.some(n=>n.tag==='strong'));assert.equal(nodes.filter(n=>n.tag==='li').length,5);
+ assert.equal(nodes.find(n=>n.tag==='ol').start,3);
+ assert.ok(nodes.some(n=>n.textContent==='첫 번째  문장의 띄어쓰기입니다.\n같은 문단의 다음 줄입니다.'));
+ assert.equal(nodes.find(n=>n.tag==='pre').children[0].textContent,'  const value = "<script>literal</script>";\n\t//  공백과 들여쓰기 유지');
+ assert.equal(nodes.some(n=>['img','script','iframe'].includes(n.tag)),false);assert.match(visibleText(root),/<img src=x onerror=alert\(1\)>/);
+ assert.equal(w.state.messages[0].text,text);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+});
+
+test('deeply indented meeting lists remain bounded and preserve every item',async t=>{
+ const w=await widget(t),lines=Array.from({length:40},(_,index)=>'  '.repeat(index)+'- 예시 항목 '+index);
+ w.state.messages.push({id:'nested-fixture',authorId:'director',text:lines.join('\n')});w.notify(w.state);
+ const root=descendants(w.elements.get('messages')).find(n=>n.className==='text');
+ assert.ok(descendants(root).filter(n=>n.tag==='ul').length<=9);
+ for(let index=0;index<40;index++)assert.ok(visibleText(root).includes('예시 항목 '+index));
+});
 test('composer sends only to director and renders direct peer replies with context',async t=>{
  const w=await widget(t);w.elements.get('text').value='진행 요청';w.elements.get('text').events.input();await w.elements.get('form').events.submit({preventDefault(){}});
  assert.deepEqual(Array.from(w.sent.find(p=>p.params?.name==='room_submit').params.arguments.recipients),['director']);

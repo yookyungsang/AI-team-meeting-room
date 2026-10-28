@@ -95,7 +95,25 @@ try{
   assert.equal(await frame.evaluate(()=>document.activeElement.id),'open-menu');
   await frame.locator('#open-menu').click();await frame.locator('#close-menu').click();
   assert.equal(await frame.locator('#room-menu').evaluate(el=>el.open),false);
+  await page.evaluate(()=>{
+   const text=['## 진행 결과','','요청하신 화면을 읽기 편하게 정리했습니다.','문장 사이의 띄어쓰기와 원래 줄바꿈을 유지합니다.','','**달라진 점**','','- 답변을 짧은 문단으로 나눕니다.','- 중요한 내용은 목록으로 구분합니다.','  - 하위 설명도 여유 있게 읽을 수 있습니다.','','## 다음 단계','','1. 변경된 내용을 확인해 주세요.','2. 필요한 수정 사항을 추가로 남겨 주세요.','','```js','const note = "  공백을 유지합니다  ";','console.log(note);','```','','<img src=x onerror=alert(1)>'].join('\n');
+   const fixture={project:{id:'keyboard-fixture',name:'가독성 확인용 예시'},projects:[{id:'keyboard-fixture',name:'가독성 확인용 예시'}],members:[{id:'director',name:'예시 총괄',role:'총괄 디렉터'},{id:'planner',name:'예시 기획자',role:'기획자'}],requests:[],messages:[{id:'readability-user',authorId:'user',text:'현재 진행 상황과 다음 단계를 보기 좋게 정리해 주세요.'},{id:'readability-director',authorId:'director',kind:'progress',text}],paused:false};
+   window.testRoomState=fixture;
+   document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:fixture}},'*');
+  });
+  await frame.waitForSelector('.text h4');
+  const typography=await frame.locator('.message:not(.user) .text').evaluate(el=>{const style=getComputedStyle(el),p=el.querySelector('p');return {fontSize:parseFloat(style.fontSize),lineHeight:parseFloat(style.lineHeight),wordSpacing:parseFloat(style.wordSpacing),paragraphGap:parseFloat(getComputedStyle(p).marginBottom)};});
+  assert.ok(typography.fontSize>=14);assert.ok(typography.lineHeight>=typography.fontSize*1.8);assert.ok(typography.paragraphGap>=12);assert.ok(typography.wordSpacing>0);
+  assert.equal(await frame.locator('.text img,.text script,.text iframe').count(),0,'message markup must remain literal text');
+  assert.equal(await frame.locator('.text pre code').textContent(),'const note = "  공백을 유지합니다  ";\nconsole.log(note);');
+  assert.equal(await frame.locator('.text ol>li').count(),2);assert.equal(await frame.locator('.text ul ul>li').count(),1);
+  assert.equal(await frame.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'prose must not widen the page');
+  await frame.locator('#records').evaluate(el=>{el.scrollTop=0;});
   await page.screenshot({path:path.join(output,`layout-${width}.png`)});
+  await page.screenshot({path:path.join(output,`readability-${width}.png`),clip:{x:0,y:0,width,height:720}});
+  await frame.locator('#open-menu').click();await frame.locator('.guide').evaluate(el=>{el.open=true;});
+  await page.screenshot({path:path.join(output,`readability-menu-${width}.png`),clip:{x:0,y:0,width,height:720}});
+  await frame.locator('#close-menu').click();
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),0,'layout and menu reads must not wake AI');
   await page.evaluate(()=>{
    const fixture={project:{id:'keyboard-fixture',name:'Keyboard fixture'},projects:[{id:'keyboard-fixture',name:'Keyboard fixture'}],members:[{id:'director',name:'Fixture director',role:'Director'}],requests:[],messages:[],paused:false};
@@ -128,7 +146,7 @@ try{
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='tools/call').length),calls);
   assert.equal(await frame.evaluate(()=>document.body.hidden),true);
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),2);
-  report.cases.push({width,transitions:20,heights,layout,teardown:'acknowledged; no polling for 4.2 seconds',sendButtonVisible:false,keyboardSubmit:true,inFlightAddition:true,outOfOrderReceiptsPreserveDraft:true,simulatedHostMessages:2,modelCalls:0});
+  report.cases.push({width,transitions:20,heights,layout,typography,safeReadableMessages:true,teardown:'acknowledged; no polling for 4.2 seconds',sendButtonVisible:false,keyboardSubmit:true,inFlightAddition:true,outOfOrderReceiptsPreserveDraft:true,simulatedHostMessages:2,modelCalls:0});
   await page.close();
  }
  fs.writeFileSync(path.join(output,process.env.TEAM_ROOM_LAYOUT_NARROW_ONLY==='1'?'layout-report-narrow.json':'layout-report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));

@@ -38,6 +38,10 @@ The human may send more messages while the director works or a previous host rec
 5. Wait on active native tasks with bounded wait_threads and cursors. Check room_get(statusOnly:true) once when stored completion needs confirmation; read full content only for an actual decision or review. Previous unrelated messages are excluded unless includePrevious:true is necessary.
 6. Post the director's own decision/result after dependencies complete, without collecting others' text again. A successful tool receipt is sufficient completion. End without a posting acknowledgment; if host final text is necessary, keep only a brief substantive result and do not re-post it.
 
+## Readable meeting messages
+
+Write natural Korean with correct word spacing and complete sentences. Do not compress a reply into unspaced labels or a single dense paragraph. Lead with the result, use short paragraphs separated by a blank line, and separate decisions, next actions and blockers when the message needs that structure. Use a short Markdown heading for a long section, bullets for parallel items, numbered lists for steps, and bold only for key points. Preserve spaces and line breaks in examples and fenced code. The meeting view displays these structures; raw HTML and embedded images are treated as literal text. Keep handoffs concise without sacrificing readability or rewriting historical messages. Do not add acknowledgment-only posts or extra model calls to reformat text.
+
 ## Persistent role ownership
 
 At task start, use the selected project's AGENTS.md and collaboration document for the human-approved responsibilities. Do not rely on chat memory alone. The director includes role, file ownership and validation ownership in the next necessary assignment; participants check those instructions before work. Keep configured names/routing unchanged. Apply these defaults only to roles already connected, and honor the human's project-specific overrides:
