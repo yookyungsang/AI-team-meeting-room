@@ -11,7 +11,10 @@ const output=path.join(root,'.local');fs.mkdirSync(output,{recursive:true});
 const report={host:'isolated Chromium harness, not Codex',cases:[]};
 async function mount(page,html,width){
  await page.setViewportSize({width,height:1000});
- await page.setContent('<!doctype html><html><body style="margin:0"><iframe title="Test meeting" style="display:block;border:0;width:100%;height:1000px"></iframe></body></html>');
+ // Intercept the entire fixture origin: no external server or network request.
+ // A secure origin supplies native crypto.randomUUID used by explicit submits.
+ await page.route('https://team-room.invalid/',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><html><body style="margin:0"><iframe title="Test meeting" style="display:block;border:0;width:100%;height:1000px"></iframe></body></html>'}));
+ await page.goto('https://team-room.invalid/');
  await page.evaluate(html=>{
   window.packets=[];
   const iframe=document.querySelector('iframe');
@@ -22,7 +25,14 @@ async function mount(page,html,width){
    if(p.id===undefined||!p.method)return;
    let result={};
    if(p.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostCapabilities:{message:{text:{}}},hostContext:{displayMode:'fullscreen',containerDimensions:{height:1000}}};
-   if(p.method==='tools/call')result={structuredContent:{project:null,projects:[],members:[],requests:[],messages:[],paused:true}};
+   if(p.method==='tools/call'){
+    const empty={project:null,projects:[],members:[],requests:[],messages:[],paused:true};
+    if(p.params.name==='room_submit'){
+     const request={...p.params.arguments,status:'pending',jobs:[]};
+     window.testRoomState.requests.push(request);
+     result={structuredContent:{request,state:window.testRoomState,wakePrompt:'isolated keyboard fixture '+request.id}};
+    }else result={structuredContent:window.testRoomState||empty};
+   }
    event.source.postMessage({jsonrpc:'2.0',id:p.id,result},'*');
   });
   iframe.srcdoc=html;
@@ -54,7 +64,7 @@ try{
   report.baselineHeights=await measurements(page,frame);
   await page.close();
  }
- for(const width of [1280,420]){
+ for(const width of (process.env.TEAM_ROOM_LAYOUT_NARROW_ONLY==='1'?[420]:[1280,420])){
   const page=await browser.newPage(),frame=await mount(page,fs.readFileSync(path.join(root,'host-plugin/widget.html'),'utf8'),width);
   for(let i=0;i<10;i++){
    await context(page,{displayMode:'fullscreen',containerDimensions:{height:1000}});
@@ -69,6 +79,12 @@ try{
   assert.ok(layout.form.right<=layout.width+1);
   assert.ok(layout.shell.bottom-layout.form.bottom<=20,'composer must stay at bottom');
   assert.ok(layout.records.height>450,'footer controls must not consume transcript height');
+  assert.equal(await frame.locator('#send').isVisible(),false,'large send button must not be displayed');
+  assert.equal(await frame.locator('#send').getAttribute('tabindex'),'-1');
+  assert.equal(await frame.locator('#text').getAttribute('aria-describedby'),'send-hint');
+  assert.equal(await frame.locator('#text').getAttribute('aria-keyshortcuts'),'Enter');
+  assert.equal(await frame.locator('#send-hint').isVisible(),true);
+  assert.match(await frame.locator('#send-hint').textContent(),/Enter 전송.*Shift\+Enter 줄바꿈/);
   await frame.locator('#open-menu').click();
   assert.equal(await frame.locator('#room-menu').evaluate(el=>el.open),true);
   assert.equal(await frame.locator('.shell').evaluate(el=>el.getBoundingClientRect().height),720);
@@ -79,15 +95,29 @@ try{
   await frame.locator('#open-menu').click();await frame.locator('#close-menu').click();
   assert.equal(await frame.locator('#room-menu').evaluate(el=>el.open),false);
   await page.screenshot({path:path.join(output,`layout-${width}.png`)});
+  assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),0,'layout and menu reads must not wake AI');
+  await page.evaluate(()=>{
+   const fixture={project:{id:'keyboard-fixture',name:'Keyboard fixture'},projects:[{id:'keyboard-fixture',name:'Keyboard fixture'}],members:[{id:'director',name:'Fixture director',role:'Director'}],requests:[],messages:[],paused:false};
+   window.testRoomState=fixture;
+   document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:fixture}},'*');
+  });
+  await frame.locator('#text').fill('키보드 전송 fixture');
+  await frame.locator('#text').press('Shift+Enter');
+  assert.match(await frame.locator('#text').inputValue(),/\n/);
+  assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),0);
+  await frame.locator('#text').press('Enter');
+  await page.waitForFunction(()=>window.packets.filter(p=>p.method==='ui/message').length===1);
+  await frame.locator('#text').press('Enter');
+  assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),1,'empty follow-up must not resend');
   await page.evaluate(()=>document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',id:'teardown-fixture',method:'ui/resource-teardown',params:{}},'*'));
   await page.waitForFunction(()=>window.packets.some(p=>p.id==='teardown-fixture'&&p.result));
   const calls=await page.evaluate(()=>window.packets.filter(p=>p.method==='tools/call').length);
   await page.waitForTimeout(4200);
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='tools/call').length),calls);
   assert.equal(await frame.evaluate(()=>document.body.hidden),true);
-  assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),0);
-  report.cases.push({width,transitions:20,heights,layout,teardown:'acknowledged; no polling for 4.2 seconds',modelMessages:0});
+  assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),1);
+  report.cases.push({width,transitions:20,heights,layout,teardown:'acknowledged; no polling for 4.2 seconds',sendButtonVisible:false,keyboardSubmit:true,simulatedHostMessages:1,modelCalls:0});
   await page.close();
  }
- fs.writeFileSync(path.join(output,'layout-report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));
+ fs.writeFileSync(path.join(output,process.env.TEAM_ROOM_LAYOUT_NARROW_ONLY==='1'?'layout-report-narrow.json':'layout-report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));
 }finally{await browser.close();}
