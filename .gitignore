@@ -1,0 +1,10 @@
+.local/
+node_modules/
+.env
+.env.*
+!.env.example
+projects.json
+rooms/
+*.log
+*.lock
+*.next

@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark">
+<title>팀 회의실</title>
+<style>
+:root{font:14px/1.75 "Segoe UI","Malgun Gothic",system-ui,sans-serif;color:#f0f0f0;background:#111; color-scheme:dark}*{box-sizing:border-box}html,body{margin:0;overflow:hidden}button,textarea{font:inherit}button{cursor:pointer}button:disabled{opacity:.4;cursor:not-allowed}button:focus-visible,textarea:focus-visible,summary:focus-visible,.records:focus-visible{outline:2px solid #ddd;outline-offset:4px}[hidden]{display:none!important}.shell{max-width:1000px;margin:0 auto 0 0;padding:0 18px 12px;height:var(--room-height,720px);display:flex;flex-direction:column;overflow:hidden}.top{flex-shrink:0}.layout{flex:1;min-height:0;overflow:hidden}.main{height:100%;display:flex;flex-direction:column;overflow:auto}.main> :not(.records){flex-shrink:0}.top{padding:7px 0;border-bottom:1px solid #292929;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.brand{font-size:9px;letter-spacing:2px;color:#a0a0a0}.top h1{font-size:15px;font-weight:600;margin:0}.connection{font-size:10px;color:#aaa;margin-left:auto;overflow-wrap:anywhere}.main{min-width:0}.records{flex:1 0 120px;min-height:120px;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:16px 8px 20px 0}.messages{list-style:none;padding:0;margin:0;display:grid;gap:14px}.message{display:flex;gap:13px;min-width:0}.avatar{width:28px;height:28px;flex:none;border:1px solid #414141;border-radius:50%;display:grid;place-items:center;font-size:10px;color:#ddd;background:#222}.body{flex:1;min-width:0}.heading{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap;font-size:12px}.heading strong{font-weight:650}.heading time{color:#999;font-size:10px;margin-left:auto}.role{color:#aaa;font-size:10px}.message-meta{font-size:10px;color:#aaa;margin-top:1px;line-height:1.4}.text{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.6;margin:3px 0 0}.user .text{padding:8px 13px;background:#282828;border-radius:12px}.user .avatar{background:#333}.quote{border-left:2px solid #696969;padding:6px 10px;margin:6px 0;background:#1c1c1c;border-radius:0 5px 5px 0;font-size:11px;color:#bdbdbd;overflow-wrap:anywhere}.quote strong{font-size:10px}.quote p{white-space:pre-wrap;margin:3px 0;line-height:1.8}.small{font-size:10px;color:#a3a3a3;overflow-wrap:anywhere}.team,.requests,.guide{border-top:1px solid #292929;font-size:11px;color:#aaa;padding:10px 0}.team>summary,.requests>summary,.guide>summary{cursor:pointer;list-style-position:inside;width:fit-content}.members{list-style:none;padding:15px 0;margin:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}.member{display:flex;gap:9px;align-items:center;font-size:11px;color:#ddd}.member strong{display:block;font-weight:550}.member .role{display:block}.toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px}.team-note{font-size:10px;color:#999;margin:5px 0}.button{border:1px solid #424242;border-radius:9px;padding:9px 13px;background:#222;color:#eee;font-size:11px;white-space:nowrap}.button:hover:not(:disabled){background:#383838}.primary{background:#eee;color:#111;border-color:#eee;font-weight:650}.primary:hover:not(:disabled){background:#ccc}.request{padding:12px 0;border-bottom:1px solid #252525;overflow-wrap:anywhere}.request:last-child{border:0}.request p{white-space:pre-wrap;margin:4px 0;font-size:12px;color:#ddd}.badge{font-size:10px;padding:2px 6px;border:1px solid #444;border-radius:4px;color:#ddd}.badge.failed{color:#ffb0a6;border-color:#72443d}.notice{font-size:12px;line-height:1.8;border:1px solid #615e44;background:#25251f;color:#e4dfb8;padding:11px 14px;border-radius:8px;overflow-wrap:anywhere}.error{border-color:#75463e;background:#2c201e;color:#ffc1b5}.empty{text-align:left;padding:65px 12px;color:#aaa;font-size:12px}.empty strong{display:block;color:#eee;font-size:21px;font-weight:550;margin-bottom:12px}.composer{padding-top:10px;border-top:1px solid #292929}.input-label{display:block;font-size:11px;color:#bdbdbd;margin-bottom:8px}textarea{display:block;width:100%;resize:vertical;min-height:68px;max-height:300px;background:#222;border:1px solid #444;border-radius:13px;padding:13px 16px;color:#f4f4f4;font-size:14px;line-height:1.8}textarea::placeholder{color:#9b9b9b}.actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:10px}.actions>span{font-size:10px;color:#999}.status{font-size:11px;color:#ddd;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere;margin:12px 0}.status:empty{display:none}.guide{margin-top:16px;font-size:10px}.guide p{line-height:1.9;max-width:750px}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+@media(max-width:560px){.shell{padding:0 15px 18px}.top{gap:5px 10px;padding:6px 0}.connection{margin-left:auto;font-size:9px}.records{padding-top:12px}.message{gap:9px}.text{font-size:13px}.avatar{width:24px;height:24px;font-size:9px}.members{grid-template-columns:repeat(2,minmax(0,1fr))}.heading{gap:6px}.heading time{width:100%;margin:0}.empty{padding:50px 5px}.empty strong{font-size:19px}.actions>span{max-width:125px}.toolbar{flex-wrap:wrap}.button{padding:10px 12px}}
+.project-picker{display:flex;align-items:center;gap:7px;font-size:10px;color:#aaa;min-width:0}.project-picker select{font:inherit;background:#222;color:#eee;border:1px solid #444;border-radius:5px;padding:4px 7px;max-width:220px;min-width:100px}.project-picker select:focus-visible{outline:2px solid #ddd;outline-offset:3px}.project-picker select:disabled{opacity:.5}@media(max-width:560px){.project-picker select{max-width:170px}.connection{flex-basis:100%;margin:0}}
+</style></head>
+<body><div class="shell">
+<header class="top"><h1>팀 회의실</h1><label class="project-picker" for="project">프로젝트<select id="project" disabled><option value="">프로젝트 선택</option></select></label><span id="connection" class="connection" role="status">호스트 연결 확인 중…</span></header>
+<div class="layout"><main class="main">
+<p id="error" class="notice error" role="alert" hidden></p><p id="paused" class="notice" hidden>새 요청이 일시정지됐습니다. 진행 중인 작업을 취소하지는 않습니다.</p>
+<section id="records" class="records" aria-label="실제 회의 발언" tabindex="0"><div id="empty" class="empty"><strong>무엇을 함께 진행할까요?</strong>총괄 디렉터에게 목표나 질문을 남겨 주세요.<br>담당자들이 직접 기록한 질문·답변·진행을 이곳에서 확인합니다.</div><ol id="messages" class="messages"></ol></section>
+<form id="form" class="composer"><label id="input-label" class="input-label" for="text">프로젝트를 선택해 주세요</label><textarea id="text" maxlength="6000" rows="2" placeholder="목표, 질문 또는 수정 의견을 남겨 주세요." required></textarea><div class="actions"><span>Enter 전송 · Shift+Enter 줄바꿈</span><button id="send" class="button primary" type="submit" disabled>총괄에게 보내기 ↑</button></div><p id="result" class="status" role="status" aria-live="polite"></p></form>
+<details class="team" aria-label="담당자"><summary>팀과 회의 제어</summary><ul id="members" class="members"><li class="small">담당자 기록을 기다리고 있습니다.</li></ul><div class="toolbar"><p class="team-note">기존 대화창 연결 · 대기 중 AI 호출 없음</p><button id="pause" class="button" disabled type="button">새 요청 일시정지</button></div></details>
+<details class="requests"><summary id="request-count">요청 처리 기록 · 0건</summary><div id="requests"></div></details>
+<details class="guide"><summary>전송 방식과 사용량 안내</summary><p>프로젝트 선택은 표시할 기록만 바꾸며 AI를 호출하지 않습니다. 전송하면 먼저 이 패널을 연 호스트 채팅에 도착하고, 필요한 경우 선택한 프로젝트의 기존 총괄에게 한 번 전달됩니다. 총괄이 담당자에게 작업을 배분하며 참여자는 직접 발언을 기록합니다. 총괄과 담당자의 작업 처리에는 사용량이 발생합니다.</p><p>대기 중에는 4초마다 저장된 상태만 조회하며 AI를 호출하지 않습니다. 화면이 숨겨지면 조회를 멈춥니다. 전달 예약·처리 대기·완료·실패는 별개이며, 응답 기록은 실제 도구 결과만 표시합니다.</p><p>전송 실패나 시간초과 시 자동 재전송하지 않습니다. 표시된 프로젝트와 요청 ID로 해당 총괄에게 처리 여부를 확인해 주세요. 일시정지는 선택한 프로젝트의 새 요청만 막으며 진행 중 작업을 취소하지 않습니다.</p></details>
+</main></div></div>
+<script>
+'use strict';
+(() => {
+  const $ = id => document.getElementById(id);
+  const pending = new Map();
+  const statuses = {reserved:'전달 예약 · 결과 확인 중',pending:'처리 대기',processing:'처리 중',completed:'완료',failed:'실패',running:'처리 중',active:'처리 중',queued:'처리 대기'};
+  let seq = 0, initialized = false, canMessage = false, messageExtension = false, state = null;
+  let polling = false, sending = false, pausing = false, timer = null, uncertain = false;
+  let attempt = null, signature = '';
+  let projectId=null, projects=[], switching=false, selectionEpoch=0;
+  const drafts=new Map();
+  let disposed=false, hostContext={}, reportedHeight=null;
+  // Inline height must not depend on the iframe's own viewport. Otherwise a
+  // host measuring content can feed every resize back into the next height.
+  function applyLayout(update={}) {
+    if(disposed)return;
+    if(update.displayMode && update.displayMode!==hostContext.displayMode && !update.containerDimensions)delete hostContext.containerDimensions;
+    hostContext={...hostContext,...update};
+    const dimensions=hostContext.containerDimensions||{};
+    const positive=n=>Number.isFinite(n)&&n>0;
+    const fullscreen=hostContext.displayMode==='fullscreen';
+    let height=fullscreen && positive(window.innerHeight)?window.innerHeight:720;
+    if(positive(dimensions.height))height=fullscreen?dimensions.height:Math.min(height,dimensions.height);
+    else if(positive(dimensions.maxHeight))height=Math.min(height,dimensions.maxHeight);
+    height=Math.max(1,Math.round(height));
+    document.documentElement.style.setProperty('--room-height',height+'px');
+    if(initialized && !positive(dimensions.height) && height!==reportedHeight){
+      reportedHeight=height;
+      window.parent.postMessage({jsonrpc:'2.0',method:'ui/notifications/size-changed',params:{height}},'*');
+    }
+  }
+  function dispose() {
+    if(disposed)return;
+    disposed=true;initialized=false;canMessage=false;
+    if(timer)clearInterval(timer);timer=null;
+    for(const request of pending.values()){clearTimeout(request.timeout);request.reject(new Error('회의실이 닫혔습니다.'));}
+    pending.clear();document.body.hidden=true;controls();
+  }
+  window.addEventListener('pagehide',dispose);
+  window.addEventListener('resize',()=>applyLayout());
+  const make = (tag, cls, text) => { const n = document.createElement(tag); if(cls)n.className=cls; if(text!==undefined)n.textContent=String(text); return n; };
+  const name = id => state?.members?.find(m => m.id===id)?.name || '담당자';
+  const status = value => statuses[value] || '상태 확인 필요';
+  const kinds = {assignment:'업무 배정',question:'질문',answer:'답변',progress:'진행',decision:'결정',blocker:'진행 장애',final:'최종 보고'};
+  const role = id => state?.members?.find(m=>m.id===id)?.role || (id==='user'?'사용자':id==='system'?'회의 안내':'역할 미기록');
+  function showError(text) { $('error').textContent=text; $('error').hidden=!text; }
+  function controls() {
+    const loaded=Boolean(projectId && state?.project?.id===projectId && !switching);
+    $('send').disabled=!initialized || !canMessage || !loaded || state.paused || sending || uncertain || !$('text').value.trim();
+    $('send').textContent=sending?'요청 전달 중…':'총괄에게 보내기 ↑';
+    $('pause').disabled=!initialized || !loaded || pausing || sending;
+    $('pause').textContent=pausing?'변경 중…':state?.paused?'새 요청 재개':'새 요청 일시정지';
+    $('text').readOnly=sending || uncertain;
+    $('project').disabled=!initialized || sending || uncertain || pausing || switching;
+    $('input-label').textContent=loaded?name('director')+' · 총괄에게':'프로젝트를 선택해 주세요';
+  }
+  function rpc(method, params) {
+    return new Promise((resolve,reject)=>{
+      if(disposed){reject(new Error('회의실이 닫혔습니다.'));return;}
+      if(window.parent===window){reject(new Error('Codex 앱 패널에서 열어 주세요.'));return;}
+      const id=++seq;
+      const timeout=setTimeout(()=>{pending.delete(id);reject(new Error('15초 동안 응답이 없어 결과를 확인할 수 없습니다.'));},15000);
+      pending.set(id,{resolve,reject,timeout});
+      try{window.parent.postMessage({jsonrpc:'2.0',id,method,params},'*');}
+      catch(err){clearTimeout(timeout);pending.delete(id);reject(err);}
+    });
+  }
+  function extract(response) {
+    if(response?.isError){
+      const detail=(Array.isArray(response.content)?response.content:[]).filter(item=>item?.type==='text'&&typeof item.text==='string').map(item=>item.text).join('\n');
+      throw new Error(detail || '협업 도구가 요청을 처리하지 못했습니다.');
+    }
+    const data=response?.structuredContent;
+    if(!data || typeof data!=='object')throw new Error('협업 도구의 기록을 확인할 수 없습니다.');
+    return data;
+  }
+  async function tool(name,args){return extract(await rpc('tools/call',{name,arguments:args}));}
+  function time(value){const d=new Date(value);return Number.isNaN(d.getTime())?'':new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(d);}
+  function renderProjects(){
+    const select=$('project');select.replaceChildren();const placeholder=make('option','','프로젝트 선택');placeholder.value='';select.append(placeholder);
+    const rows=projects.slice();if(state?.project && !rows.some(p=>p.id===state.project.id))rows.push(state.project);
+    rows.forEach(p=>{const option=make('option','',p.name);option.value=p.id;select.append(option);});select.value=projectId||'';
+  }
+  function accept(data,{expected=projectId,allowOpen=false}={}){
+    if(disposed)return false;
+    const next=data?.state || data;
+    if(!Array.isArray(next?.members)||!Array.isArray(next?.messages)||!Array.isArray(next?.requests)||typeof next.paused!=='boolean')throw new Error('회의실 상태 형식이 올바르지 않습니다.');
+    if(Array.isArray(next.projects))projects=next.projects;
+    if(allowOpen && !projectId && !sending && !uncertain && next.project?.id){projectId=next.project.id;selectionEpoch++;expected=projectId;}
+    renderProjects();
+    if((next.project?.id||null)!==(expected||null) || projectId!==(expected||null))return false;
+    state=next;
+    renderProjects();
+    const current=JSON.stringify(next);
+    if(signature!==current){
+      $('members').replaceChildren();
+      next.members.forEach(m=>{
+        const li=make('li','member'),info=make('div');info.append(make('strong','',m.name),make('span','role',m.role));li.append(make('span','avatar',m.name?.slice(0,1)||'·'),info);$('members').append(li);
+      });
+      const records=$('records'),bottom=records.scrollHeight-records.scrollTop-records.clientHeight<80;
+      $('messages').replaceChildren();
+      next.messages.forEach(m=>{
+        const li=make('li','message'+(m.authorId==='user'?' user':'')),body=make('div','body'),heading=make('div','heading');
+        const author=m.authorName||(m.authorId==='user'?'나':name(m.authorId));
+        heading.append(make('strong','',next.members.some(member=>member.id===m.authorId)?author+' · '+role(m.authorId):author),make('time','',time(m.createdAt)));
+        body.append(heading,make('div','message-meta',(kinds[m.kind] || (m.kind?'종류 미분류':'기존 발언'))+' · '+(m.toMemberId?'대상 '+(m.toMemberId==='all'?'전체':name(m.toMemberId)):'공용 기록')));
+        if(m.replyTo){
+          const original=next.messages.find(item=>item.id===m.replyTo);
+          const quote=make('blockquote','quote');
+          if(original){quote.append(make('strong','',original.authorName||name(original.authorId)),make('p','',String(original.text||'').slice(0,180)+(String(original.text||'').length>180?'…':'')));}
+          else quote.append(make('p','','답변 대상 원문을 현재 기록에서 찾을 수 없습니다.'));
+          body.append(quote);
+        }
+        body.append(make('p','text',String(m.text||'').trimEnd()));
+        li.append(make('span','avatar',m.authorId==='user'?'나':(m.authorName||name(m.authorId)).slice(0,1)),body);$('messages').append(li);
+      });
+      $('empty').hidden=next.messages.length>0;
+      if(!next.project)$('empty').textContent='상단에서 프로젝트를 선택하면 해당 회의 기록을 확인할 수 있습니다.';
+      else if(!next.messages.length)$('empty').textContent='총괄에게 목표나 질문을 남겨 주세요. 참여자가 직접 기록한 발언이 이곳에 표시됩니다.';
+      if(bottom)records.scrollTop=records.scrollHeight;
+      $('request-count').textContent='요청 처리 기록 · '+next.requests.length+'건';$('requests').replaceChildren();
+      next.requests.slice().reverse().forEach(r=>{
+        const row=make('div','request');row.append(make('span','badge'+(r.status==='failed'?' failed':''),status(r.status)),make('p','',r.text||''),make('div','small','받는 사람 · '+(r.recipients||[]).map(name).join(', ')),make('div','small','요청 ID · '+r.id+' · '+time(r.createdAt)));
+        if(r.jobs?.length)row.append(make('div','small',r.jobs.map(j=>name(j.memberId)+' · '+status(j.state)).join(' / ')));
+        $('requests').append(row);
+      });
+      signature=current;
+    }
+    $('paused').hidden=!next.project || !next.paused;controls();return true;
+  }
+  window.addEventListener('message',event=>{
+    if(event.source!==window.parent || window.parent===window)return;
+    const message=event.data;if(!message || message.jsonrpc!=='2.0')return;
+    // Host requests have their own ID space: handle teardown before matching
+    // responses to our pending calls, even when the numeric IDs collide.
+    if(message.method==='ui/resource-teardown'){
+      dispose();
+      if(message.id!==undefined)window.parent.postMessage({jsonrpc:'2.0',id:message.id,result:{}},'*');
+      return;
+    }
+    if(disposed)return;
+    if(message.method==='ui/notifications/host-context-changed'){applyLayout(message.params||{});return;}
+    if(!message.method && pending.has(message.id)){
+      const request=pending.get(message.id);clearTimeout(request.timeout);pending.delete(message.id);
+      if(message.error)request.reject(new Error('호스트가 요청을 거절했습니다.'));else if(Object.hasOwn(message,'result'))request.resolve(message.result);else request.reject(new Error('호스트 응답을 확인할 수 없습니다.'));
+    }else if(message.method==='ui/notifications/tool-result' && message.params?.structuredContent){
+      try{accept(extract(message.params),{allowOpen:!projectId && !switching});}catch{/* unrelated tool results do not alter room data */}
+    }
+  });
+  async function poll(){
+    if(disposed||!initialized||polling||document.hidden||sending||pausing||switching)return;
+    polling=true;
+    const expected=projectId,epoch=selectionEpoch;
+    try{const data=await tool('room_state',expected?{projectId:expected}:{});if(disposed||document.hidden||epoch!==selectionEpoch)return;accept(data,{expected});$('connection').textContent=canMessage?'호스트 연결됨 · 전송 지원 확인':'조회 전용 · 호스트가 메시지 전송 기능을 제공하지 않습니다.';}
+    catch{ if(!disposed)$('connection').textContent='상태 조회 실패 · 기록이 최신이 아닐 수 있습니다.'; }
+    finally{polling=false;}
+  }
+  function schedule(){if(timer)clearInterval(timer);timer=null;if(!disposed&&initialized&&!document.hidden)timer=setInterval(poll,4000);}
+  document.addEventListener('visibilitychange',()=>{schedule();if(!document.hidden)poll();});
+  $('project').addEventListener('change',async()=>{
+    if(sending||uncertain||pausing||switching){renderProjects();return;}
+    if(projectId)drafts.set(projectId,$('text').value);
+    projectId=$('project').value||null;
+    $('text').value=drafts.get(projectId)||'';
+    const expected=projectId,epoch=++selectionEpoch;
+    switching=true;state=null;signature='';attempt=null;showError('');$('result').textContent='';
+    $('members').replaceChildren();$('messages').replaceChildren();$('requests').replaceChildren();
+    $('request-count').textContent='요청 처리 기록 · 0건';$('empty').hidden=false;$('empty').textContent='선택한 프로젝트 기록을 불러오고 있습니다.';$('paused').hidden=true;controls();
+    try{
+      const data=await tool('room_state',expected?{projectId:expected}:{});
+      if(epoch!==selectionEpoch)return;
+      const accepted=accept(data,{expected});
+      if(!accepted && expected)throw new Error('선택한 프로젝트의 기록을 확인하지 못했습니다.');
+      if(!expected)$('empty').textContent='상단에서 프로젝트를 선택해 주세요.';
+    }catch(err){if(epoch===selectionEpoch)showError('프로젝트 전환 실패 · '+err.message);}
+    finally{if(epoch===selectionEpoch){switching=false;controls();}}
+  });
+  $('text').addEventListener('input',controls);
+  let composing=false;
+  $('text').addEventListener('compositionstart',()=>{composing=true;});
+  $('text').addEventListener('compositionend',()=>{composing=false;});
+  $('text').addEventListener('keydown',event=>{
+    if(event.key!=='Enter'||event.shiftKey||event.ctrlKey||event.metaKey||event.altKey||event.isComposing||composing||event.keyCode===229)return;
+    event.preventDefault();controls();
+    if(!event.repeat&&!$('send').disabled)return $('form').requestSubmit($('send'));
+  });
+  $('form').addEventListener('submit',async event=>{
+    event.preventDefault();controls();if($('send').disabled)return;
+    sending=true;controls();showError('');
+    if(!attempt)attempt={projectId,id:crypto.randomUUID(),text:$('text').value.trim(),recipients:['director']};
+    $('result').textContent='요청 접수 중… · 요청 ID '+attempt.id;
+    try{
+      const data=await tool('room_submit',attempt);
+      if(data.state && !accept(data.state,{expected:attempt.projectId}))throw new Error('접수 결과의 프로젝트가 선택한 프로젝트와 일치하지 않습니다.');
+      if(data.request?.id!==attempt.id || typeof data.wakePrompt!=='string'||!data.wakePrompt.trim())throw new Error('접수 결과 또는 총괄 전달 내용을 확인할 수 없습니다.');
+      if(data.request.status==='failed')throw new Error('요청 접수가 실패했습니다.');
+      // This is the only ui/message call, reachable only after an explicit submit.
+      const response=await rpc('ui/message',{role:'user',content:[{type:'text',text:data.wakePrompt}],...(messageExtension?{_meta:{'openai/message':{target:'active',send:true}}}:{})});
+      if(response?.isError)throw new Error('총괄 호출이 거절되었습니다.');
+      $('result').textContent='총괄에게 요청을 전달했습니다. 작업 완료 여부는 실제 기록을 확인해 주세요.\n요청 ID · '+attempt.id;
+      drafts.delete(attempt.projectId);$('text').value='';attempt=null;
+    }catch(err){
+      uncertain=true;
+      $('result').textContent='처리 여부 확인이 필요합니다. 자동 재전송하지 않습니다.\n프로젝트 · '+(state?.project?.name||attempt.projectId)+'\n요청 ID · '+attempt.id+'\n해당 총괄 대화창에서 이 ID로 접수·전달 여부를 확인해 주세요.';
+      showError(err.message);
+    }finally{sending=false;controls();}
+  });
+  $('pause').addEventListener('click',async()=>{
+    if(pausing||!state?.project||!initialized||switching)return;pausing=true;controls();
+    const expected=projectId;
+    try{accept(await tool('room_pause',{projectId:expected,paused:!state.paused}),{expected});}
+    catch{showError('새 요청 일시정지 설정을 확인하지 못했습니다. 다음 상태 기록을 확인해 주세요. 자동 재시도하지 않습니다.');}
+    finally{pausing=false;controls();}
+  });
+  async function initialize(){
+    if(window.parent===window){$('connection').textContent='단독 창에서는 연결할 수 없습니다.';showError('기존 채팅의 MCP App 패널에서 팀 회의실을 열어 주세요.');return;}
+    try{
+      const result=await rpc('ui/initialize',{appInfo:{name:'team-room',version:'0.3.1'},appCapabilities:{availableDisplayModes:['inline','fullscreen']},protocolVersion:'2026-01-26'});
+      if(disposed)return;
+      if(result?.protocolVersion!=='2026-01-26')throw new Error('지원되는 호스트 통신 버전을 확인하지 못했습니다.');
+      messageExtension=Boolean(result.hostCapabilities?.experimental?.['openai/message'] || result.hostCapabilities?.extensions?.['openai/message']);
+      const textCapability=result.hostCapabilities?.message?.text;
+      canMessage=textCapability===true || (textCapability!==null && typeof textCapability==='object' && !Array.isArray(textCapability));
+      window.parent.postMessage({jsonrpc:'2.0',method:'ui/notifications/initialized',params:{}},'*');
+      initialized=true;applyLayout(result.hostContext||{});controls();await poll();schedule();
+    }catch(err){if(!disposed){showError('회의실 연결 실패 · '+err.message);$('connection').textContent='호스트 연결을 확인하지 못했습니다.';}}
+  }
+  initialize();
+})();
+</script></body></html>

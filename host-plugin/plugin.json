@@ -1,0 +1,23 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "jyfood-room",
+  "version": "0.3.1",
+  "description": "A local project-scoped meeting panel connecting existing director and participant chats.",
+  "author": {
+    "name": "yookyungsang"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "팀 회의실",
+        "shortDescription": "프로젝트별 기존 대화창 협업 회의실",
+        "category": "Productivity",
+        "capabilities": [
+          "Interactive",
+          "Read",
+          "Write"
+        ]
+      }
+    }
+  }
+}

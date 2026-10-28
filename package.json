@@ -1,0 +1,14 @@
+{
+  "name": "ai-team-meeting-room",
+  "version": "0.3.1",
+  "private": true,
+  "type": "module",
+  "description": "Project-scoped MCP meeting rooms for existing Codex chats",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node host-plugin/server.mjs",
+    "test": "node --test test/*.test.mjs"
+  }
+}

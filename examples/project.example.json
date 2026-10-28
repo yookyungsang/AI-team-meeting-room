@@ -1,0 +1,20 @@
+{
+  "projectId": "example-project",
+  "name": "예시 프로젝트",
+  "members": [
+    {
+      "id": "director",
+      "name": "총괄",
+      "role": "총괄 디렉터",
+      "threadId": "REPLACE_WITH_EXISTING_DIRECTOR_CHAT_ID",
+      "hostId": "local"
+    },
+    {
+      "id": "developer",
+      "name": "개발 담당",
+      "role": "프로그래머",
+      "threadId": "REPLACE_WITH_EXISTING_PARTICIPANT_CHAT_ID",
+      "hostId": "local"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "jyfood-room",
+  "version": "0.3.1",
+  "description": "Project-scoped meeting UI for existing chats. Explicit send only; no idle model invocation.",
+  "author": {
+    "name": "yookyungsang"
+  },
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "팀 회의실",
+    "shortDescription": "프로젝트별 기존 대화창 협업 회의실",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ]
+  }
+}

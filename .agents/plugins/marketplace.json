@@ -1,0 +1,10 @@
+{
+  "name": "jyfood-local",
+  "interface": {"displayName": "팀 협업 도구"},
+  "plugins": [{
+    "name": "jyfood-room",
+    "source": {"source": "local", "path": "./host-plugin"},
+    "policy": {"installation": "AVAILABLE", "authentication": "ON_USE"},
+    "category": "Productivity"
+  }]
+}
