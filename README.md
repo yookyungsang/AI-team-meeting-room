@@ -1,23 +1,25 @@
-# 팀 회의실 · AI Team Meeting Room
+# AI Team Meeting Room
 
-기존 Codex 대화창을 프로젝트별 회의실로 연결하는 로컬 MCP App입니다. 사용자는 총괄에게 요청하고, 담당자는 자신의 질문·답변·진행 상황을 직접 게시합니다.
+**English** | [한국어](README.ko.md)
 
-처음 사용한다면 [팀 회의실 사용 설명서](host-plugin/USER_GUIDE.ko.md)를 참고하세요. 설치·연결·메시지 전송·이미지·사용량·문제 해결 방법을 한 파일에 정리했습니다.
+A local Codex plugin that connects existing AI chats into project-based team meeting rooms. Send a goal to your project's director, then follow questions, progress reports, images and results from the participants doing the work.
 
-## 기능과 범위
+Start with the [English user guide](host-plugin/USER_GUIDE.en.md) or the [한국어 사용 설명서](host-plugin/USER_GUIDE.ko.md) for installation, setup, everyday use and troubleshooting.
 
-- 프로젝트마다 총괄 1명과 담당자 최대 19명을 기존 대화창에 연결합니다.
-- 프로젝트별 연결 설정, 회의 기록, 입력 초안을 분리합니다.
-- 검은 배경의 compact 채팅 화면, 이름·역할 표시, Enter 전송, Shift+Enter 줄바꿈, 한국어 IME 보호를 제공합니다.
-- 질문과 답변을 연결하며 중복 전달 예약과 변경된 재게시를 거부합니다.
-- 총괄이 작업 중이어도 추가 내용을 계속 보냅니다. 가장 최근의 진행 중인 원래 요청에 연결하고, 총괄은 추가 내용을 처리한 뒤 완료합니다. 메시지별 전송 확인이 늦어져도 다른 내용의 입력·전송은 유지합니다.
-- 회의실의 읽기·저장·화면 갱신 자체는 모델을 호출하지 않습니다. 사용자가 전송하고 총괄·담당자가 실제 작업할 때는 정상적인 AI 사용량이 발생합니다.
+## Features and scope
 
-이 앱이 모든 기존 대화를 자동으로 수집하거나 담당자에게 직접 네트워크 메시지를 보내지는 않습니다. 담당자의 직접 게시와 Codex의 기존 채팅 전달 도구를 조합합니다. 별도 API 키·새 에이전트·AI heartbeat는 필요하지 않습니다. 다른 MCP 호스트에서도 저장 도구는 사용할 수 있지만, 기존 Codex 채팅 협업에는 해당 호스트의 채팅 전달 기능이 필요합니다.
+- Connect one existing director chat and up to 19 existing participant chats per project.
+- Keep each project's chat connections, meeting history and input drafts separate.
+- Use a compact dark chat view with names and roles, Enter to send, Shift+Enter for a new line, and Korean IME composition protection.
+- Link questions to answers, reject duplicate delivery reservations, and preserve the original content on retries.
+- Send additions while the director is working. They link to the latest active original request and must be handled before the director completes it. A pending delivery receipt does not block new, different input.
+- Read, save and refresh the meeting view without invoking a model. Actual work and reporting by the director and participants use AI normally.
 
-## 설치
+The plugin combines participants' own posts with Codex's existing chat messaging tools. It does not collect every existing conversation or independently send network messages to participants. No separate API key, replacement agents or AI heartbeat is needed. Storage tools may be usable in other MCP hosts, but collaboration between existing Codex chats requires the host's chat messaging tools.
 
-Node.js 22 이상, Git, 로컬 플러그인과 MCP Apps를 지원하는 Codex가 필요합니다.
+## Install
+
+You need Node.js 22 or later, Git, and a Codex version that supports local plugins and MCP Apps.
 
 ```sh
 git clone https://github.com/yookyungsang/AI-team-meeting-room.git
@@ -26,78 +28,79 @@ codex plugin marketplace add .
 codex plugin add jyfood-room@jyfood-local
 ```
 
-Codex에 표시되는 이름은 **팀 회의실**, MCP 서버 이름은 **team-room**입니다. 기존 사용자의 설치를 유지하기 위해 내부 플러그인/마켓플레이스 ID는 jyfood-room@jyfood-local로 유지합니다. 이 이름은 프로젝트 제한을 뜻하지 않습니다. Codex가 이미 실행 중이면 완전히 종료한 뒤 다시 실행해 새 버전을 로드합니다.
+The display name in Codex is **팀 회의실** (Team Meeting Room), and the MCP server key is **team-room**. The installation ID remains `jyfood-room@jyfood-local` to preserve existing installations. It does not restrict the plugin to any particular project. If Codex is already running, finish active work and fully quit and reopen it to load the updated installation.
 
-원격 저장소가 비공개인 경우 저장소 접근 권한이 필요합니다. 원본 코드는 이 독립 저장소에서 수정하고 버전을 올린 뒤 같은 설치 명령으로 갱신합니다. 설치 캐시는 직접 수정하지 않습니다.
+A private repository requires GitHub access. Make source changes in this independent repository, update the version when releasing a plugin change, and reinstall from that source. Do not edit installed cache files directly.
 
-## 프로젝트 연결과 사용
+## Connect a project and use the room
 
-1. 원하는 프로젝트의 기존 총괄 채팅에서 “팀 회의실에 이 프로젝트와 기존 담당자 채팅들을 연결해 줘”라고 요청합니다.
-2. 총괄은 실제 채팅 ID·호스트·역할과 사용자가 허용한 협업 범위를 확인한 뒤 room_configure로 등록합니다. examples/project.example.json은 인수 형식만 보여 주며 실제 ID로 교체해야 합니다.
-3. “팀 회의실 열어 줘”라고 요청합니다. room_open(projectId)로 해당 회의실을 열거나 프로젝트 선택 화면을 사용할 수 있습니다.
-4. 입력창에서 총괄에게 작업을 요청합니다. 필요한 담당자만 참여하고 각자 의미 있는 답변을 직접 게시합니다.
+1. In the project's existing director chat, ask: **“Connect this project and its existing participant chats to Team Meeting Room.”** Specify the participants, roles and scope of collaboration you authorize.
+2. The director verifies the real chat IDs, hosts, roles and human authorization, then registers them with `room_configure`. The [example configuration](examples/project.example.json) illustrates the format; replace its synthetic values with verified connections in your local runtime data.
+3. Ask: **“Open Team Meeting Room.”** `room_open(projectId)` opens that room; omitting the ID opens the project chooser.
+4. Send your goal in the room's input field. The director assigns work to the needed participants, who post their own substantive contributions.
 
-프로젝트 선택은 기록 표시만 바꿉니다. 호스트 채팅 자체는 바뀌지 않으므로 가급적 해당 프로젝트의 총괄 채팅에서 여세요. 다른 채팅에서 요청하면 확인된 총괄에게 한 번 전달하는 추가 턴이 필요할 수 있습니다. 기존 연결은 기록과 진행 중 요청을 보호하기 위해 덮어쓸 수 없으며, 다른 구성은 새 projectId로 등록합니다.
+Selecting a project changes the displayed history and draft; it does not switch the current Codex chat. Open the room in that project's director chat when possible. A request sent from another chat may require one forwarding turn to the verified director. Existing routing cannot be overwritten, protecting history and active requests. Register a different roster under a new `projectId`.
 
-## 작업 중 이미지와 최종 결과
+## Progress images and final results
 
-담당자는 작업 중인 시안·생성 이미지·스크린샷을 진행 보고에 첨부할 수 있습니다. 완료를 기다릴 필요 없이 게시한 단계별 이미지가 회의실 대화에 표시되며, 누르면 크게 볼 수 있습니다. 같은 요청에 새 진행 보고를 게시해 다음 시안을 보여 줍니다. 최종 보고에도 첨부할 수 있습니다.
+Participants can attach saved drafts, generated images and screenshots to progress or final reports. Images appear in the meeting conversation and can be opened at a larger size.
 
-중간 이미지 보고는 사용자의 요청, 시각적 선택에 대한 판단, 글만으로 전달하기 어려운 오류·중요한 화면 변경을 확인해야 할 때로 제한합니다. 단계마다 보고하지 않고 기존 대표 이미지 1장을 우선 사용합니다. 작업 중 동일·유사 화면을 반복 첨부하거나 보고를 채우기 위한 추가 생성·캡처를 하지 않습니다. 필요한 작업과 QA 검증은 그대로 수행합니다.
+Keep intermediate images infrequent: use them when the user asks, a visual decision is needed, or an error or substantial visual change needs evidence that text alone cannot convey. Prefer one representative image already available. Avoid unchanged views and extra generation or capture merely to fill a report. Required implementation and QA checks still apply.
 
-화면·UI·디자인·생성 이미지·3D 결과처럼 시각적 결과물이 있는 작업은 완료 보고에 실제 최종 상태의 대표 이미지 1장을 함께 표시합니다. 중간에 같은 이미지를 보여 주었더라도 최종 결과 확인을 위해 첨부합니다. 최종 상태를 정확히 보여 주는 기존 이미지를 재사용하고, 없다면 허용된 작업 범위에서 한 번 캡처합니다. 캡처·파일 접근이 불가능하면 그 한계를 알리며 중간 시안을 완성 결과로 표시하지 않습니다. 글이나 비시각적 작업에는 장식용 이미지를 만들지 않습니다.
+For a completed visual deliverable, such as a screen, UI, design, generated image or 3D result, the collaboration instructions require one representative image of the actual final state in the final report. Reuse an accurate existing image; otherwise capture the final state once within the authorized workflow. Disclose unavailable capture or file access, and do not label an intermediate draft as a finished result. Text-only tasks do not need decorative images.
 
-`room_post`와 `room_reply`에 선택 인수 `images: [{path: 이미지의_절대_로컬_경로, caption: 설명}]`를 사용합니다. 한 발언당 PNG/JPEG/GIF/WebP 최대 4개, 파일당 8 MiB입니다. 파일은 회의실 서버가 실행되는 컴퓨터에서 읽을 수 있어야 합니다. 원본은 게시 시 복사하므로 이후 작업 파일이 바뀌거나 없어져도 게시한 시안은 유지됩니다. 동일 키의 재시도는 원래 첨부를 유지하고 새 단계에는 새 messageKey를 사용합니다.
+`room_post` and `room_reply` accept the optional field `images: [{path: ABSOLUTE_LOCAL_FILE, caption: DESCRIPTION}]`. A message supports up to 4 PNG, JPEG, GIF or WebP files, each up to 8 MiB. The meeting server must be able to read the files on its own computer. Images are copied at posting time, so later changes or deletion of the source do not change a posted snapshot. A retry with the same key keeps the original attachment; use a new `messageKey` for a new stage.
 
-이미지는 필요할 때 UI 전용 도구로 읽고 확대하며 별도 AI 호출은 없습니다. 원본 경로나 이미지 바이트는 모델이 읽는 회의 기록에 넣지 않습니다. 이미지 생성·분석과 진행 보고 작성에는 정상 사용량이 발생합니다. 다른 채팅의 기존 이미지를 자동 수집하거나 실시간 화면을 녹화·중계하는 기능은 아닙니다.
+The UI loads and enlarges images without extra AI calls. Source paths and image bytes are excluded from the model-facing meeting history. Image generation, analysis and report writing use AI normally. Native chat images are not mirrored automatically, and the plugin does not record or stream your screen.
 
-## 역할과 검증 책임
+## Roles and validation
 
-모든 회의실 프로젝트에 적용할 [협업 지침 전문](host-plugin/skills/team-room/references/collaboration-policy.md)을 플러그인 안에 포함합니다. 총괄 운영 12개 항목, 프로그래머 병렬 협업 9개 절, QA 오류 대응 8개 규칙과 역할·스킬 선택·파일/공유 앱 인계·모델 선택·보고·완료 기준을 담았습니다. 설치된 운영 스킬이 이 문서를 읽도록 연결되어 있어 다른 프로젝트의 폴더나 담당자 명단을 가져올 필요가 없습니다.
+The packaged [complete collaboration policy](host-plugin/skills/team-room/references/collaboration-policy.md) contains 12 director sections, 9 programmer collaboration sections, 8 QA error rules, and rules for roles, skill selection, file/shared-app handoffs, model selection, reporting and completion. The full policy is currently in Korean; the [operating skill](host-plugin/skills/team-room/SKILL.md) also summarizes the main rules in English. Neither requires another project's source directory or roster.
 
-실제 연결된 기존 담당자와 승인된 작업 범위에만 적용합니다. 프로그래머가 둘 이상이면 독립 업무의 병렬 처리를 우선하며 인원이 부족해도 새 담당자를 만들지 않습니다. 각 프로젝트의 사용자 지정 역할·보존 규칙과 실제 도구 제한이 우선입니다. 지침은 최초 협업 때 확인하고 같은 세션의 후속 작업에는 필요한 부분과 변경분만 전달합니다. 다른 프로젝트에 대한 일괄 파일 수정·공지용 호출·자동 모델 변경은 추가하지 않습니다.
+Apply the rules only to existing connected participants within human-authorized scope. Prefer independent parallel work when multiple programmers are already connected; do not create missing staff. Each project's human instructions, preservation rules and actual host/tool restrictions take precedence. Read the policy at the first collaboration, then consult only changed or relevant sections and hand off deltas. No mass edits to other projects, policy-only wakeups or automatic model changes are added.
 
-역할은 프로젝트 지침과 배포된 운영 스킬에 저장합니다. 기획자는 게임 시스템·밸런스·레벨 디자인, 디자이너는 캐릭터·UI·배경·3D 에셋 기획, QA는 테스트 케이스·오류 재현·검증을 맡습니다. 프로그래머는 구현과 가벼운 자체 점검 뒤 QA에게 인계하고, 총괄은 승인·배분·통합을 맡습니다. 실제 담당자 구성과 사용자의 역할 지정이 우선합니다.
+Persist ownership in project instructions. Planners own game systems, balance and level design; designers own character, UI, background and 3D asset planning; QA owns test cases, reproduction and validation. Programmers implement and perform lightweight self-checks before handing off to QA. The director approves, assigns and integrates. Follow the actual team's roles and human overrides.
 
-자세한 기준은 [협업 효율 및 역할 규칙](docs/collaboration-efficiency.md)을 따릅니다. 공유 Editor는 순서대로 인계하고 같은 통과 검사를 중복 실행하지 않습니다. 이 문서화는 새 담당자 생성이나 주기적인 AI 호출을 추가하지 않습니다.
+The [collaboration efficiency rules](docs/collaboration-efficiency.md) give additional detail in Korean. Hand off the shared editor explicitly, and do not repeat passing checks merely because the operator changes. These instructions do not create staff or periodic AI calls.
 
-## 저장 위치와 개인정보
+## Storage and privacy
 
-기본 데이터 위치는 사용자 홈의 ~/.codex/team-room입니다.
+Runtime data defaults to `~/.codex/team-room`, outside this repository.
 
-- projects.json: 프로젝트와 실제 기존 채팅 연결
-- rooms/<projectId>.json: 프로젝트별 요청, 메시지, 일시정지 상태
-- rooms/<projectId>.json.images/: 첨부한 이미지 사본 (내용 해시로 식별)
-- TEAM_ROOM_HOME 환경변수: 별도의 데이터 위치 지정
+- `projects.json`: project connections to verified existing chats.
+- `rooms/<projectId>.json`: requests, messages and pause state for each project.
+- `rooms/<projectId>.json.images/`: posted image copies, identified by content hash.
+- `TEAM_ROOM_HOME`: an environment variable for a different runtime data location.
 
-이 파일들은 소스나 설치 패키지에 포함하지 않습니다. 원본 저장소를 옮겨도 기본 데이터 위치가 같으면 기존 기록이 유지됩니다. 자동 클라우드 동기화나 외부 전송은 없습니다. 이 저장소의 예시와 테스트는 가상 정보만 사용합니다.
+Runtime files are not part of the source or installation package. Moving the source repository does not lose history if the data location remains the same. There is no automatic cloud sync or external upload. Examples and tests use synthetic data. Never commit real chat IDs, connection registries, transcripts, local user paths, tokens or conversation screenshots.
 
-## 개발과 검증
+## Development and checks
 
 ```sh
 npm test
 npm start
 ```
 
-npm start는 웹 서버가 아니라 JSON-RPC stdio MCP 서버를 실행합니다. 브라우저 주소로 직접 열 수 없습니다. 런타임은 Node 내장 모듈만 사용하며 npm install이 필요하지 않습니다.
+`npm start` launches a JSON-RPC stdio MCP server, not an HTTP website. It cannot be opened directly at a browser address. The runtime uses Node's built-in modules; `npm install` is not required to run it.
 
-- host-plugin/: MCP 서버, 프로젝트/메시지 저장소, UI, 운영 스킬, 호스트별 manifest
-- .agents/plugins/marketplace.json: 로컬 설치용 등록 파일
-- test/: 저장소와 브리지의 독립 회귀 검사
-- scripts/check-layout.mjs: 선택적 Playwright 브라우저 레이아웃 검사
-- docs/ui-lifecycle.md: 닫기/축소 오류 수정과 검증 한계
+- `host-plugin/`: MCP server, project/message storage, UI, operating skill and host manifests.
+- `.agents/plugins/marketplace.json`: local marketplace registration.
+- `test/`: isolated store and bridge regression checks.
+- `scripts/check-layout.mjs`: optional Playwright browser layout harness.
+- [UI lifecycle notes](docs/ui-lifecycle.md): teardown, inline height fixes and validation limits (Korean).
 
-브라우저 검사는 별도로 Playwright와 Chromium이 설치된 환경에서 실행합니다. PLAYWRIGHT_MODULE로 모듈 경로, BROWSER_EXECUTABLE로 Chromium 실행 파일을 지정할 수도 있습니다.
+For the browser harness, install Playwright and Chromium separately. You can set `PLAYWRIGHT_MODULE` to the module path and `BROWSER_EXECUTABLE` to the Chromium executable.
 
 ```sh
 node scripts/check-layout.mjs
 ```
 
-## 현재 제한
+## Current limitations
 
-- 연결 설정은 사용자 승인이나 호출자 인증의 대체물이 아닙니다. 운영 스킬과 실제 사용자의 승인 범위를 지켜야 합니다.
-- 실패·시간초과 시 자동 재전송하지 않습니다. 해당 프로젝트/요청 ID로 처리 여부를 확인합니다.
-- 실행 중인 턴에 메시지를 바로 반영할지 다음 턴으로 대기시킬지는 호스트의 후속 메시지 처리 방식에 따릅니다. 총괄은 활성 작업의 중간 판단·완료 전에 저장된 추가 요청도 확인합니다. 이는 유휴 AI 호출이나 별도 실행 환경을 추가하지 않습니다.
-- 일시정지는 새 요청과 새 배정만 막고 이미 실행 중인 Codex 턴을 취소하지 않습니다.
-- 전체 native 채팅 기록의 자동 미러링, 웹/모바일 원격 접속, 독립 모델 런타임은 제공하지 않습니다.
-- 0.3.1은 닫힘 정리와 inline 높이 순환 문제를 수정합니다. 독립 브라우저 검사는 Codex 실제 UI 전환 검증을 대신하지 않습니다.
+- The meeting UI and full collaboration policy currently use Korean. These English documents do not add automatic UI or report translation, location detection or a separate translation model.
+- Stored configuration is not a substitute for human authorization or caller authentication. Follow the operating skill and verified human scope.
+- Failed or uncertain delivery is not resent automatically. Check the exact project/request status first.
+- The host decides whether additions steer an active turn or wait for a later turn. The director also checks saved additions at meaningful checkpoints and before completion. This does not add an idle AI call or model runtime.
+- Pausing blocks new requests and assignments; it does not cancel active Codex turns.
+- Full native-history mirroring, remote web/mobile access and an independent model runtime are not provided.
+- Version 0.3.1 introduced teardown and inline height fixes. The standalone browser harness does not verify actual Codex display transitions or control the position of Codex's native floating composer.
