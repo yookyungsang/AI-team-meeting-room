@@ -12,6 +12,7 @@ Start with the [English user guide](host-plugin/USER_GUIDE.en.md) or the [한국
 - Keep each project's chat connections, meeting history and input drafts separate.
 - Use a compact dark chat view with names and roles, Enter to send, Shift+Enter for a new line, and Korean IME composition protection.
 - Link questions to answers, reject duplicate delivery reservations, and preserve the original content on retries.
+- Show plain-language reports first, with exact technical context available under **작업 상세 보기** (Show work details). Peers keep complete technical information and use natural questions/answers; no separate AI summarizer is added.
 - Send additions while the director is working. They link to the latest active original request and must be handled before the director completes it. A pending delivery receipt does not block new, different input.
 - Read, save and refresh the meeting view without invoking a model. Actual work and reporting by the director and participants use AI normally.
 - Protect managed text edits with persistent file/Editor ownership and hash checks, enforce recorded QA retry limits, and hand interrupted work to an existing participant using saved checkpoints.

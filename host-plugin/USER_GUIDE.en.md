@@ -4,7 +4,7 @@
 
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.4.1. You can use the plugin across projects, with separate connections and records for each. The current meeting UI and the reporting instructions use Korean. This guide includes the Korean control labels so you can find them; it does not add automatic translation or language switching to the app.
+This guide describes version 0.4.2. You can use the plugin across projects, with separate connections and records for each. The current meeting UI and the reporting instructions use Korean. This guide includes the Korean control labels so you can find them; it does not add automatic translation or language switching to the app.
 
 ## Get started
 
@@ -118,7 +118,11 @@ Apply these rules only to actual connected participants within human-authorized 
 
 ## Understand AI usage
 
-The current instructions ask authors of public meeting reports, including QA reports, to write plain Korean and lead with results and remaining issues. Long test names, code locations and raw logs belong in detailed evidence records. Participants retain the technical information needed to solve problems and hand work over. No separate AI translator or summary turn has been added. Report writing uses the original task's normal AI allowance; interpreting old records with a model is not guaranteed to be free.
+New reports explain **what is ready, what still needs checking, and what happens next**, in natural Korean understandable without coding knowledge. The same post can include exact filenames, settings and validation evidence in `details`, folded behind **작업 상세 보기** (Show work details). Expanding it invokes no tool or model. Participants' read tools still return both the plain `text` and exact `details` unchanged.
+
+Real peer questions and answers use natural colleague-to-colleague phrasing while preserving the exact technical context in details and authorized handoffs. Routing, work scope and required checks are unchanged. Failures, unchecked work, approval needs and authorization/safety constraints must remain visible in the plain text. Do not create extra questions, greetings or acknowledgments just to simulate conversation.
+
+The author writes both fields in the original reporting turn. Existing messages are not automatically translated or rewritten; an old message with all information in `text` retains its existing display. No summary model is added. Instructions, tool descriptions and authored/read text have normal context overhead, so identical token usage is not guaranteed.
 
 Viewing or refreshing meeting records and displaying or enlarging images do not invoke a separate model. Image bytes are also excluded from the model-facing meeting history.
 

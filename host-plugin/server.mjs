@@ -39,6 +39,8 @@ for(const definition of TOOLS){
  }
  if(definition.name==='room_submit')definition.inputSchema.properties.recipients.maxItems=20;
  if(['room_post','room_reply'].includes(definition.name)){
+  definition.inputSchema.properties.text.description='Everyday Korean for a nontechnical reader: result or real question first, short spaced paragraphs. Explain unfinished work, risks and needed decisions here. Put technical evidence in details.';
+  definition.inputSchema.properties.details={type:'string',minLength:1,maxLength:20000,description:'Optional exact technical context, file paths, settings, logs and evidence. Stored in the same post and fully readable by participants; folded as 작업 상세 in the UI. Never hide blockers or approval needs only here.'};
   definition.inputSchema.properties.images=images;
   definition.description+=' Optional images:[{path,caption}] attaches up to 4 existing local PNG/JPEG/GIF/WebP files (8 MiB each) from this server host, including work-in-progress previews. Files are copied once; use a new messageKey for a new stage.';
  }

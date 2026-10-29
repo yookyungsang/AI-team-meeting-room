@@ -155,6 +155,21 @@ test('meeting prose separates paragraphs and lists while keeping content and uns
  assert.equal(w.state.messages[0].text,text);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
 });
 
+test('technical details fold locally, preserve peer text and stay safe across refresh, project switch and teardown',async t=>{
+ const w=await widget(t),message={id:'same-fixture-id',authorId:'director',text:'그림을 만들었어요. 실제 화면에서의 확인은 아직 남아 있어요.',details:'정확한 기술 근거\n\n`FixtureAsset.png`\n\n<script>literal evidence</script> ![remote](https://example.invalid/x.png)'};
+ w.state.messages.push(message);w.notify(w.state);
+ const find=()=>descendants(w.elements.get('messages')).find(n=>n.className==='message-details');
+ let detail=find();assert.equal(detail.open,false);assert.equal(detail.children[0].textContent,'작업 상세 보기');
+ assert.match(visibleText(detail),/FixtureAsset/);assert.equal(descendants(detail).some(n=>['img','script','iframe'].includes(n.tag)),false);
+ const body=descendants(w.elements.get('messages')).find(n=>n.className==='body');assert.doesNotMatch(visibleText(body.children.find(n=>n.className==='text')),/FixtureAsset/);
+ const calls=w.sent.length;detail.open=true;detail.events.toggle();assert.equal(detail.children[0].textContent,'작업 상세 접기');assert.equal(w.sent.length,calls);
+ const stale=detail;w.state.messages.push({id:'refresh-trigger',authorId:'director',text:'확인 중이에요.'});w.notify(w.state);detail=find();assert.equal(detail.open,true);
+ stale.open=false;stale.events.toggle();w.state.messages.push({id:'second-trigger',authorId:'director',text:'다음 확인을 진행해요.'});w.notify(w.state);assert.equal(find().open,true,'late detached toggle must not overwrite current state');
+ w.second.messages.push({...message,details:'다른 프로젝트의 별도 기술 정보'});
+ w.elements.get('project').value='second';await w.elements.get('project').events.change();await settle();assert.equal(find().open,false);assert.doesNotMatch(visibleText(find()),/FixtureAsset/);
+ const current=find();w.callbacks.pagehide();current.open=true;current.events.toggle();assert.equal(current.children[0].textContent,'작업 상세 보기');
+ assert.equal(w.state.messages[0].details,message.details);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);assert.equal(w.imagePackets.length,0);
+});
 test('dense historical prose gains display breaks without changing its text or invoking AI',async t=>{
  const w=await widget(t);
  const text='화면이 빽빽해 보이는 이유를 확인했습니다. '+ '문장과 문단 사이에 여유를 두어 중요한 내용을 쉽게 찾을 수 있게 합니다. '.repeat(5)+'\n기존 기록은 그대로 보관합니다. 다음 작업도 같은 방식으로 확인합니다.';

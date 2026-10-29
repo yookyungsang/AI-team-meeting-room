@@ -151,3 +151,32 @@ test('compact status and write receipts omit transcripts while preserving stored
  assert.equal(compactResult('room_post',post).message.text,undefined);
  assert.equal(compactResult('room_post',post).created,true);
 });
+test('plain messages and exact technical details remain together, immutable and fully readable by peers',t=>{
+ const store=fixture(t),r=request();store.submit(r);store.claim({requestId:r.id,memberId:'director'});store.claim({requestId:r.id,memberId:'programmer'});
+ const question={requestId:r.id,memberId:'programmer',kind:'question',toMemberId:'qa',messageKey:'natural-question',text:'작은 화면에서 설명이 잘려요. 두 줄로 나눠도 될까요?',details:'Synthetic exact context:\nUI/FixturePanel.cs:42\nViewport 420x900; expected wrap=2.\nKeep binding FixtureLabel unchanged.'};
+ const posted=store.post(question);assert.equal(store.post(question).created,false);
+ for(const details of ['다른 기술 근거',undefined])assert.throws(()=>store.post({...question,details}),/덮어쓰지/);
+ const answer={requestId:r.id,memberId:'qa',kind:'answer',toMemberId:'programmer',replyTo:posted.message.id,messageKey:'natural-answer',text:'네. 두 줄로 나눠 주세요. 버튼 크기는 유지하고 작은 화면에서 다시 확인해 주세요.',details:'Acceptance: FixtureLabel wraps to two lines; FixtureButton hit area is unchanged.'};
+ store.post(answer);
+ const final={requestId:r.id,memberId:'programmer',text:'설명을 두 줄로 나눴어요. 작은 화면에서의 확인은 아직 남아 있어요.',details:'FixturePanel.cs changed. Self-check only; independent QA pending.\nreview/fixture-checks.json'};
+ const saved=store.reply(final);assert.equal(store.reply(final).id,saved.id);assert.throws(()=>store.reply({...final,details:'lost evidence'}),/덮어쓰지/);
+ const reopened=new RoomStore(store.file,project),messages=reopened.get(r.id).messages;
+ assert.equal(messages.find(m=>m.id===posted.message.id).details,question.details);
+ assert.equal(messages.find(m=>m.kind==='answer').details,answer.details);
+ assert.equal(messages.find(m=>m.id===saved.id).details,final.details);
+ assert.equal(reopened.snapshot().messages.find(m=>m.id===saved.id).text,final.text);
+ assert.equal(compactResult('room_post',posted).message.details,undefined);assert.equal(compactResult('room_reply',saved).details,undefined);
+});
+test('technical detail validation rejects malformed payloads without changing old or new records',t=>{
+ const store=fixture(t),r=request();store.submit(r);store.claim({requestId:r.id,memberId:'director'});
+ const args={requestId:r.id,memberId:'director',text:'검사 결과는 아직 확인 중이에요.'};
+ const before=fs.readFileSync(store.file);
+ for(const details of ['', '   ',null,{},'a'.repeat(20001)]){
+  assert.throws(()=>store.post({...args,kind:'progress',messageKey:'invalid-detail',details}),/작업 상세/);
+  assert.throws(()=>store.reply({...args,details}),/작업 상세/);
+ }
+ assert.ok(fs.readFileSync(store.file).equals(before));
+ const message=store.reply(args);assert.equal(Object.hasOwn(message,'details'),false);
+ assert.equal(store.reply(args).id,message.id);
+ for(const name of ['room_post','room_reply'])assert.equal(TOOLS.find(t=>t.name===name).inputSchema.properties.details.maxLength,20000);
+});

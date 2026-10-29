@@ -132,6 +132,38 @@ try{
   await frame.locator('#close-menu').click();
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),0,'layout and menu reads must not wake AI');
   await page.evaluate(()=>{
+   const fixture={project:{id:'keyboard-fixture',name:'쉬운 보고와 대화 · 가상 예시'},projects:[{id:'keyboard-fixture',name:'쉬운 보고와 대화 · 가상 예시'}],members:[{id:'director',name:'예시 총괄',role:'총괄'},{id:'designer',name:'예시 디자이너',role:'디자이너'},{id:'programmer',name:'예시 개발자',role:'프로그래머'}],requests:[],messages:[
+    {id:'plain-final',authorId:'designer',kind:'final',text:'설정 화면에 쓸 그림 세 가지를 만들었어요.\n\n기존 그림과 이미 승인받은 내용은 그대로 유지했어요. 새 그림은 아직 승인 전인 시안이에요.\n\n다음에는 실제 화면에 넣어 크기와 글자 가독성을 확인해야 해요.',details:'가상 검증 자료 · 실제 프로젝트 기록이 아닙니다.\n\n원본: fixture-assets/settings-art/\n검사 근거: review/fixture-checks.json\n설정: RGBA, sRGB, Clamp\n\n기존 승인 상태 보존. 실제 기기 검증은 아직 미수행.\n\n<script>이 문자열은 코드로 실행하지 않습니다.</script>'},
+    {id:'plain-question',authorId:'designer',kind:'question',toMemberId:'programmer',text:'작은 화면에서 설명이 잘려요. 두 줄로 나눠도 될까요?',details:'FixtureLabel: viewport 420px, wrap=2. Keep FixtureButton size unchanged.'},
+    {id:'plain-answer',authorId:'programmer',kind:'answer',toMemberId:'designer',replyTo:'plain-question',text:'네. 두 줄로 나눠 주세요. 버튼 크기는 그대로 유지하면 돼요.'}
+   ],paused:false};
+   window.testRoomState=fixture;
+   document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:fixture}},'*');
+  });
+  await frame.waitForSelector('.message-details');
+  const detail=frame.locator('.message-details').first();
+  assert.equal(await detail.evaluate(el=>el.open),false);
+  assert.equal(await detail.locator('.text').isVisible(),false);
+  assert.match(await frame.locator('.message').first().locator('.body>.text').innerText(),/기존 그림/);
+  assert.equal(await frame.locator('.message-details script,.message-details img,.message-details iframe').count(),0);
+  const detailCalls=await page.evaluate(()=>window.packets.length);
+  await detail.locator('summary').click();await frame.waitForFunction(()=>document.querySelector('.message-details summary').textContent==='작업 상세 접기');
+  assert.equal(await detail.locator('.text').isVisible(),true);assert.match(await detail.innerText(),/review\/fixture-checks.json/);
+  assert.equal(await page.evaluate(()=>window.packets.length),detailCalls,'opening technical details must not call tools or AI');
+  await page.evaluate(()=>{
+   window.testRoomState.requests.push({id:'plain-refresh',text:'가상 새로고침',status:'processing',recipients:['director'],jobs:[]});
+   document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:window.testRoomState}},'*');
+  });
+  await frame.waitForFunction(()=>document.querySelector('.message-details').open);
+  await frame.locator('#records').evaluate(el=>{el.scrollTop=0;});
+  assert.equal(await frame.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'expanded details must not widen the page');
+  await page.screenshot({path:path.join(output,`plain-report-details-${width}.png`),clip:{x:0,y:0,width,height:720}});
+  await detail.locator('summary').click();await frame.waitForFunction(()=>!document.querySelector('.message-details').open);
+  assert.equal(await frame.locator('.composer').evaluate(el=>el.getBoundingClientRect().top),layout.form.top);
+  await frame.locator('#records').evaluate(el=>{el.scrollTop=0;});
+  await page.screenshot({path:path.join(output,`plain-report-${width}.png`),clip:{x:0,y:0,width,height:720}});
+  assert.equal(await frame.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  await page.evaluate(()=>{
    const fixture={project:{id:'keyboard-fixture',name:'Keyboard fixture'},projects:[{id:'keyboard-fixture',name:'Keyboard fixture'}],members:[{id:'director',name:'Fixture director',role:'Director'}],requests:[],messages:[],paused:false};
    window.testRoomState=fixture;
    window.deferMessageReceipts=true;
@@ -214,7 +246,7 @@ try{
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='tools/call').length),calls);
   assert.equal(await frame.evaluate(()=>document.body.hidden),true);
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),2);
-  report.cases.push({width,transitions:20,heights,layout,typography,safeReadableMessages:true,inlineImages:true,imageZoom:true,imageCache:true,finalUsageByParticipant:true,missingUsageNotZero:true,lateImagesAfterTeardown:'ignored',teardown:'acknowledged; no polling for 4.2 seconds',sendButtonVisible:false,keyboardSubmit:true,inFlightAddition:true,outOfOrderReceiptsPreserveDraft:true,simulatedHostMessages:2,modelCalls:0});
+  report.cases.push({width,transitions:20,heights,layout,typography,safeReadableMessages:true,foldedTechnicalDetails:true,detailsPreservedOnRefresh:true,naturalPeerExample:true,inlineImages:true,imageZoom:true,imageCache:true,finalUsageByParticipant:true,missingUsageNotZero:true,lateImagesAfterTeardown:'ignored',teardown:'acknowledged; no polling for 4.2 seconds',sendButtonVisible:false,keyboardSubmit:true,inFlightAddition:true,outOfOrderReceiptsPreserveDraft:true,simulatedHostMessages:2,modelCalls:0});
   await page.close();
  }
  fs.writeFileSync(path.join(output,process.env.TEAM_ROOM_LAYOUT_NARROW_ONLY==='1'?'layout-report-narrow.json':'layout-report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));
