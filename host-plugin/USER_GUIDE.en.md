@@ -4,7 +4,7 @@
 
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.4.2. You can use the plugin across projects, with separate connections and records for each. The current meeting UI and the reporting instructions use Korean. This guide includes the Korean control labels so you can find them; it does not add automatic translation or language switching to the app.
+This guide describes version 0.4.3. You can use the plugin across projects, with separate connections and records for each. The current meeting UI and the reporting instructions use Korean. This guide includes the Korean control labels so you can find them; it does not add automatic translation or language switching to the app.
 
 ## Get started
 
@@ -51,6 +51,8 @@ Include the result you want and any conditions that must be preserved. This help
 | Enter during Korean IME composition | Complete composition without immediately sending |
 
 Your request goes to the selected project's director, who assigns work and integrates the results.
+
+Your text is stored and delivered verbatim, including leading/trailing whitespace and line breaks. New requests keep a compact automatic wrapper: the project/request marker, director verification and single-forward instructions, plus the parent link for an addition. Existing lookups and skill instructions provide exact routing and collaboration rules. Previous records remain unchanged; storage retries of legacy requests retain their original wrapper. Shortening the wrapper adds no AI call.
 
 Changing the selected project switches the displayed history and input draft. It does not switch the current Codex chat to a different director. Open the room from the intended project's director chat when possible.
 

@@ -12,6 +12,29 @@ function fixture(t){const base=fileURLToPath(new URL('../.local/test-data/',impo
 const request=()=>({id:randomUUID(),text:'기존 창 연결 확인',recipients:['director']});
 test('idle reads never create records or reserve work',t=>{const store=fixture(t);for(let i=0;i<50;i++)assert.equal(store.snapshot().requests.length,0);assert.equal(fs.existsSync(store.file),false);});
 test('submit is idempotent and reserves no native dispatch',t=>{const store=fixture(t),r=request();store.submit(r);store.submit(r);assert.equal(store.snapshot().requests.length,1);assert.equal(store.snapshot().requests[0].jobs[0].state,'pending');assert.throws(()=>store.submit({...r,text:'changed'}));assert.throws(()=>store.submit({...request(),recipients:['outsider']}));});
+test('compact envelopes retain routing and follow-up identity without altering user text',t=>{
+ const store=fixture(t),text=' \t원문 첫 줄  \r\n\r\n```text\r\n[TEAM-ROOM fixture embedded]\r\n프로젝트: 사용자가 직접 쓴 내용\r\n```\r\n끝 줄  \t\n',r={...request(),text};
+ const first=store.submit(r),header=first.wakePrompt.slice(0,-text.length);
+ assert.equal(first.request.text,text);assert.equal(store.get(r.id).messages[0].text,text);
+ assert.ok(first.wakePrompt.endsWith(text));assert.equal(first.wakePrompt.indexOf(text),header.length);
+ assert.ok(header.startsWith(`[TEAM-ROOM test ${r.id}]\n`));assert.match(header,/room_get/);assert.match(header,/연결된 총괄만 처리/);assert.match(header,/한 번만 전달/);
+ assert.doesNotMatch(header,/연결된 총괄:|host:|받는 사람:|프로젝트:/);assert.ok(header.length<200);
+ assert.ok(!header.includes(MEMBERS[0].threadId));
+ const reopened=new RoomStore(store.file,project);assert.equal(reopened.submit(r).wakePrompt,first.wakePrompt);
+ assert.throws(()=>reopened.submit({...r,text:text.trim()}),/같은 ID/);assert.throws(()=>reopened.submit({...r,text:text+' '}),/같은 ID/);
+ const addition={...request(),text:'\n  덧붙이는 지시\n\n끝 공백 유지  ',followUpTo:r.id},follow=reopened.submit(addition),followHeader=follow.wakePrompt.slice(0,-addition.text.length);
+ assert.ok(follow.wakePrompt.endsWith(addition.text));assert.match(followHeader,new RegExp(r.id));assert.match(followHeader,/추가 지시:.*중복 배정하지/);assert.ok(followHeader.length<300);
+ assert.equal(reopened.get(addition.id).parentRequest.id,r.id);assert.equal(reopened.get(r.id).followUps[0].text,addition.text);
+ assert.equal(reopened.get(r.id).members.find(m=>m.id==='director').threadId,MEMBERS[0].threadId);
+});
+test('legacy normalized retries preserve old records and replay their saved text unchanged',t=>{
+ const store=fixture(t),r={...request(),text:'  예전 방식의 원문\n\n둘째 줄  '};store.submit(r);
+ store.change(state=>{const old=state.requests[0];delete old.textVerbatim;old.text=old.text.trim();state.messages[0].text=old.text;});
+ const before=fs.readFileSync(store.file),saved=store.read().requests[0].text;
+ const replay=new RoomStore(store.file,project).submit(r);
+ assert.equal(replay.request.text,saved);assert.ok(replay.wakePrompt.endsWith(saved));assert.ok(replay.wakePrompt.includes(`연결된 총괄: ${MEMBERS[0].threadId}`));assert.equal(replay.request.textVerbatim,undefined);assert.ok(fs.readFileSync(store.file).equals(before));
+ assert.throws(()=>store.submit({...r,text:'다른 원문'}),/같은 ID/);
+});
 test('claimed work is never redispatched, including after restart',t=>{const store=fixture(t),r=request();store.submit(r);assert.equal(store.claim({requestId:r.id,memberId:'director'}).dispatch,true);assert.equal(new RoomStore(store.file,project).claim({requestId:r.id,memberId:'director'}).dispatch,false);});
 test('reply validates target and preserves source; does not overwrite',t=>{const store=fixture(t),r=request();store.submit(r);store.claim({requestId:r.id,memberId:'director'});const reply={requestId:r.id,memberId:'director',text:'실제 응답 fixture',sourceThreadId:MEMBERS[0].threadId,sourceTurnId:randomUUID(),sourceMessageId:randomUUID()};assert.throws(()=>store.reply({...reply,sourceThreadId:MEMBERS[2].threadId}));store.reply(reply);store.reply(reply);assert.equal(store.snapshot().messages.length,2);assert.equal(store.snapshot().requests[0].status,'completed');assert.throws(()=>store.reply({...reply,text:'replacement'}));});
 test('pause refuses new submit and claim, allows completing in-flight work',t=>{const store=fixture(t),r=request();store.submit(r);store.claim({requestId:r.id,memberId:'director'});store.pause(true);assert.throws(()=>store.submit(request()));store.reply({requestId:r.id,memberId:'director',text:'done',sourceThreadId:MEMBERS[0].threadId,sourceTurnId:randomUUID(),sourceMessageId:randomUUID()});assert.equal(store.snapshot().requests[0].status,'completed');});
@@ -32,7 +55,7 @@ test('in-flight user additions preserve original dispatch and must be handled be
  const store=fixture(t),root=request();store.submit(root);store.claim({requestId:root.id,memberId:'director'});store.claim({requestId:root.id,memberId:'programmer'});
  const jobs=structuredClone(store.get(root.id).request.jobs);
  const addition={...request(),text:'실행 중 바뀐 요구사항',followUpTo:root.id};const submitted=store.submit(addition);
- assert.match(submitted.wakePrompt,/작업 중 추가된 사용자 지시/);assert.match(submitted.wakePrompt,new RegExp(root.id));
+ assert.match(submitted.wakePrompt,/추가 지시:/);assert.match(submitted.wakePrompt,new RegExp(root.id));assert.match(submitted.wakePrompt,/중복 배정하지/);
  assert.equal(store.get(addition.id).parentRequest.id,root.id);assert.equal(store.get(addition.id).parentRequest.text,root.text);
  assert.equal(store.get(root.id).followUps[0].text,addition.text);assert.equal(store.get(root.id,{statusOnly:true}).request.openFollowUpCount,1);
  assert.deepEqual(store.get(root.id).request.jobs,jobs);assert.equal(store.claim({requestId:root.id,memberId:'programmer'}).dispatch,false);

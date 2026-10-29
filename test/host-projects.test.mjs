@@ -40,7 +40,8 @@ test('every request operation is explicitly scoped, with isolated history and pa
  assert.equal(call(registry,'room_claim',{projectId:'beta',requestId:id,memberId:'programmer'}).isError,true);
  ok(registry,'room_pause',{projectId:'alpha',paused:true});assert.equal(ok(registry,'room_state',{projectId:'beta'}).paused,false);
  const newRequest=ok(registry,'room_submit',{projectId:'beta',id:randomUUID(),text:'continue',recipients:['director']});
- assert.match(newRequest.wakePrompt,/TEAM-ROOM beta/);assert.match(newRequest.wakePrompt,/beta-director/);assert.doesNotMatch(newRequest.wakePrompt,/unconfigured-project/);
+ assert.match(newRequest.wakePrompt,/TEAM-ROOM beta/);assert.doesNotMatch(newRequest.wakePrompt,/beta-director|unconfigured-project/);
+ const verified=ok(registry,'room_get',{projectId:'beta',requestId:newRequest.request.id});assert.equal(verified.members.find(m=>m.id==='director').threadId,'beta-director');
  assert.equal(ok(registry,'room_get',{projectId:'alpha',requestId:id,includePrevious:true}).previousMessages.length,0);
 });
 test('foreign source references and cross-project reply links fail without changing either room',t=>{

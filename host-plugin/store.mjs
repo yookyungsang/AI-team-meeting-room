@@ -11,6 +11,17 @@ const empty=()=>({version:1,paused:false,requests:[],messages:[]});
 const kinds=new Set(['assignment','question','answer','progress','decision','blocker']);
 const publicMessage=({imageInputKey,...message})=>message;
 function validateDetails(details){assert(details===undefined||(typeof details==='string'&&details.trim()&&details.length<=20000),'작업 상세는 생략하거나 1~20000자로 작성해 주세요.');}
+function wakePrompt(project,request){
+ // Preserve the original legacy envelope on explicit storage retries. New IDs
+ // use the compact envelope; neither path changes the saved human message.
+ if(!request.textVerbatim){
+  const director=project.members.find(m=>m.id==='director');
+  return `[TEAM-ROOM ${project.id} ${request.id}]\n프로젝트: ${project.name}\n연결된 총괄: ${director.threadId} (host: ${director.hostId})\n팀 회의실 절차에 따라 해당 프로젝트 총괄에게만 요청을 처리하거나 한 번 전달해 주세요. 현재 대화가 총괄이면 직접 처리하세요. 새 대화창/에이전트를 만들거나 반복 자동 호출하지 마세요.\n${request.followUpTo?`진행 중인 원래 요청: ${request.followUpTo}\n이번 메시지는 작업 중 추가된 사용자 지시입니다. 원래 작업을 다시 시작하거나 담당자에게 중복 배정하지 말고 현재 작업에 반영하세요. 추가 요청 자체의 처리 결과도 기록하세요.\n`:''}받는 사람: ${request.recipients.join(', ')}\n사용자 메시지:\n${request.text}`;
+ }
+ const lines=[`[TEAM-ROOM ${project.id} ${request.id}]`,'room_get으로 총괄을 확인하세요. 연결된 총괄만 처리하고, 다른 채팅이면 해당 총괄에게 한 번만 전달하세요.'];
+ if(request.followUpTo)lines.push(`추가 지시: ${request.followUpTo} · 기존 작업에 반영하고 중복 배정하지 마세요.`);
+ return lines.join('\n')+'\n\n사용자 메시지:\n'+request.text;
+}
 function source(members,{memberId,text,sourceThreadId,sourceTurnId,sourceMessageId}){
  const member=members.find(m=>m.id===memberId);
  assert(member,'기존 담당자가 필요합니다.');
@@ -40,11 +51,11 @@ export class RoomStore {
   assert(uuid.test(id||''),'올바른 요청 ID가 필요합니다.');
   assert(typeof text==='string'&&text.trim()&&text.length<=6000,'메시지는 1~6000자여야 합니다.');
   assert(Array.isArray(recipients)&&recipients.length>0&&recipients.length<=20&&recipients.every(id=>this.members.some(m=>m.id===id)),'이 프로젝트에 연결한 담당자만 선택할 수 있습니다.');
-  const selected=[...new Set(recipients)].sort();text=text.trim();
+  const selected=[...new Set(recipients)].sort();
   assert(followUpTo===undefined||uuid.test(followUpTo),'추가 전달할 원래 요청 ID를 확인해 주세요.');
   const request=this.change(state=>{
    const old=state.requests.find(r=>r.id===id);
-   if(old){assert(old.text===text&&old.followUpTo===followUpTo&&JSON.stringify(old.recipients)===JSON.stringify(selected),'같은 ID로 다른 요청을 보낼 수 없습니다.');return old;}
+   if(old){const sameText=old.text===text||(!old.textVerbatim&&old.text===text.trim());assert(sameText&&old.followUpTo===followUpTo&&JSON.stringify(old.recipients)===JSON.stringify(selected),'같은 ID로 다른 요청을 보낼 수 없습니다.');return old;}
    assert(selected.length===1&&selected[0]==='director','사용자 요청은 총괄 디렉터에게 전달합니다.');
    assert(!state.paused,'새 요청 접수가 일시정지되어 있습니다.');
    const parent=followUpTo===undefined?null:state.requests.find(r=>r.id===followUpTo);
@@ -53,12 +64,12 @@ export class RoomStore {
     assert(!['completed','failed'].includes(parent.status),'이미 끝난 요청입니다. 새 요청으로 보내 주세요.');
    }
    assert(state.requests.filter(r=>!['completed','failed'].includes(r.status)).length<20,'진행 중인 요청을 먼저 확인해 주세요.');
-   const request={id,projectId:this.project.id,text,recipients:selected,...(parent?{followUpTo}:{}),status:'pending',usageRequested:true,createdAt:stamp(),jobs:selected.map(memberId=>({memberId,state:'pending'}))};
+   const request={id,projectId:this.project.id,text,textVerbatim:true,recipients:selected,...(parent?{followUpTo}:{}),status:'pending',usageRequested:true,createdAt:stamp(),jobs:selected.map(memberId=>({memberId,state:'pending'}))};
    state.requests.push(request);state.messages.push({id:'user:'+id,requestId:id,authorId:'user',authorName:'사용자',text,...(parent?{kind:'follow-up',followUpTo}:{}),createdAt:request.createdAt});
    if(parent)this.update(parent,state);
    return request;
   });
-  return {request,state:this.snapshot(),wakePrompt:`[TEAM-ROOM ${this.project.id} ${id}]\n프로젝트: ${this.project.name}\n연결된 총괄: ${this.members.find(m=>m.id==='director').threadId} (host: ${this.members.find(m=>m.id==='director').hostId})\n팀 회의실 절차에 따라 해당 프로젝트 총괄에게만 요청을 처리하거나 한 번 전달해 주세요. 현재 대화가 총괄이면 직접 처리하세요. 새 대화창/에이전트를 만들거나 반복 자동 호출하지 마세요.\n${request.followUpTo?`진행 중인 원래 요청: ${request.followUpTo}\n이번 메시지는 작업 중 추가된 사용자 지시입니다. 원래 작업을 다시 시작하거나 담당자에게 중복 배정하지 말고 현재 작업에 반영하세요. 추가 요청 자체의 처리 결과도 기록하세요.\n`:''}받는 사람: ${selected.join(', ')}\n사용자 메시지:\n${text}`};
+  return {request,state:this.snapshot(),wakePrompt:wakePrompt(this.project,request)};
  }
  get(requestId,{statusOnly=false,includePrevious=false}={}){
   assert(typeof statusOnly==='boolean'&&typeof includePrevious==='boolean','조회 옵션을 확인해 주세요.');

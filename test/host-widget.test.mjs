@@ -55,6 +55,14 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
 }
 test('bridge initialization and repeated state reads never wake AI',async t=>{const w=await widget(t);for(let i=0;i<4;i++){await w.intervals[0]();await settle();}assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);assert.equal(w.sent.filter(p=>p.method==='tools/call'&&p.params.name==='room_submit').length,0);});
 test('explicit submit wakes current chat once and subsequent polls do not',async t=>{const w=await widget(t);w.elements.get('text').value='test';w.elements.get('text').events.input();assert.equal(w.elements.get('send').disabled,false);const first=w.elements.get('form').events.submit({preventDefault(){}});await w.elements.get('form').events.submit({preventDefault(){}});await first;await settle();await w.intervals[0]();const messages=w.sent.filter(p=>p.method==='ui/message');assert.equal(messages.length,1);assert.equal(messages[0].params._meta['openai/message'].target,'active');assert.equal(w.state.requests.length,1);});
+test('the composer preserves the original whitespace while uncertain duplicate checks stay normalized',async t=>{
+ const w=await widget(t,{deferMessages:true}),input=w.elements.get('text'),raw='  첫 줄  \n\n\t둘째 줄\n  ';
+ input.value=raw;input.events.input();await w.elements.get('form').events.submit({preventDefault(){}});await settle();
+ const packets=w.sent.filter(p=>p.method==='tools/call'&&p.params.name==='room_submit');assert.equal(packets.length,1);assert.equal(packets[0].params.arguments.text,raw);assert.equal(w.state.requests[0].text,raw);
+ input.value=raw.trim();input.events.input();assert.equal(w.elements.get('send').disabled,true);
+ await w.elements.get('form').events.submit({preventDefault(){}});assert.equal(w.sent.filter(p=>p.method==='tools/call'&&p.params.name==='room_submit').length,1);
+ input.value=' \n\t ';input.events.input();assert.equal(w.elements.get('send').disabled,true);
+});
 test('unsupported host keeps sending disabled',async t=>{const w=await widget(t,{capability:false});w.elements.get('text').value='test';w.elements.get('text').events.input();await w.elements.get('form').events.submit({preventDefault(){}});assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);assert.equal(w.elements.get('send').disabled,true);});
 test('a rejected host message is not retried and does not lock other additions',async t=>{
  const w=await widget(t,{messageFails:true}),input=w.elements.get('text');input.value='test';input.events.input();
