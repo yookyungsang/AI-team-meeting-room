@@ -5,7 +5,17 @@ description: Project-scoped meeting spaces for existing chats. Users address eac
 
 # 팀 회의실
 
-For user-facing setup, daily use and troubleshooting, consult the packaged [Korean user guide](../../USER_GUIDE.ko.md). Read only the relevant section when the user needs it; ordinary collaboration does not require loading the entire manual.
+For user-facing setup, daily use and troubleshooting, consult the packaged [English user guide](../../USER_GUIDE.en.md) or [Korean user guide](../../USER_GUIDE.ko.md). Read only the relevant section when the user needs it; ordinary collaboration does not require loading the entire manual.
+
+## Enforced local work controls
+
+For actual file editing, QA execution, interruption recovery or usage measurement, read the relevant section of [local work controls](references/work-controls.md) once. These tools do not invoke AI. Configure an explicitly authorized workspace as director, acquire file ownership in a batch before editing, and use the guarded `room_work` writer with its lease and current hash for supported text files. Save a concise checkpoint at a necessary handoff and release ownership before completion. Native Editor/binary edits require one explicit operator; disclose that external tools can bypass plugin gates. Never claim an OS-wide lock.
+
+Register external QA checks with `room_validation` and wrap execution in begin/result; first failure permits one analyzed retry, while repeated failures/environment blocks require director action. Unity validation uses one explicit bounded CLI run and an `@editor` lease, without automatic retries/installs. Recovery requires verified stopped work and a checkpoint/current-file handoff to an existing member, never guessed interruption, automatic resend, replacement chats or silent routing changes.
+
+Discover available local usage records once during authorized setup. The UI shows measured participant usage and a subtotal only after task completion; missing, late, overlapping or unsupported records are not treated as zero. Do not send periodic usage reports or add an AI turn to summarize them. Native usage formats may be unavailable, and new instructions/tool schemas still have ordinary context overhead.
+
+Show observed account quota percentages alongside token totals when available, without inventing per-participant percentages or converting tokens to quota. Prefer existing local rate-limit metadata. If needed and supported, query the native usage-limit tool once within the existing completion turn and record only normalized windows via `room_usage(record_limits)`; do not store account IDs/credits or wake another turn just for statistics.
 
 Use the existing chats explicitly connected to the selected project. Never create replacement agents/chats, infer authorization from stored configuration, silently change model/approval settings, or start separate runtimes. Any supported setting change still requires the applicable human authorization and tool conditions. Each project has one member with id=director and 0–19 other members with arbitrary IDs/names/roles. No global current project exists.
 

@@ -5,6 +5,9 @@ node_modules/
 !.env.example
 projects.json
 rooms/
+work-control.json
+usage-ledger.json
+validation/
 *.log
 *.lock
 *.next

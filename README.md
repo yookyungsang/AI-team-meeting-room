@@ -14,6 +14,9 @@ Start with the [English user guide](host-plugin/USER_GUIDE.en.md) or the [한국
 - Link questions to answers, reject duplicate delivery reservations, and preserve the original content on retries.
 - Send additions while the director is working. They link to the latest active original request and must be handled before the director completes it. A pending delivery receipt does not block new, different input.
 - Read, save and refresh the meeting view without invoking a model. Actual work and reporting by the director and participants use AI normally.
+- Protect managed text edits with persistent file/Editor ownership and hash checks, enforce recorded QA retry limits, and hand interrupted work to an existing participant using saved checkpoints.
+- Run explicit Unity compile, EditMode, PlayMode or build checks through the official Unity CLI, with local evidence and no automatic retries.
+- Show measured usage by participant after completion when matching local Codex usage records are available. Missing or overlapping records stay unavailable; no periodic AI usage report is added.
 
 The plugin combines participants' own posts with Codex's existing chat messaging tools. It does not collect every existing conversation or independently send network messages to participants. No separate API key, replacement agents or AI heartbeat is needed. Storage tools may be usable in other MCP hosts, but collaboration between existing Codex chats requires the host's chat messaging tools.
 
@@ -63,6 +66,16 @@ Persist ownership in project instructions. Planners own game systems, balance an
 
 The [collaboration efficiency rules](docs/collaboration-efficiency.md) give additional detail in Korean. Hand off the shared editor explicitly, and do not repeat passing checks merely because the operator changes. These instructions do not create staff or periodic AI calls.
 
+## Enforced work controls (0.4.0)
+
+The director configures a human-authorized workspace once. `room_work` manages exclusive file/Editor leases, guarded UTF-8 writes, checkpoints and explicit recovery. `room_validation` records attempts and starts bounded Unity CLI runs; repeated failures require a director-recorded repair/resume. These gates apply to operations routed through the plugin. Other editors and direct commands can bypass them; they are not OS-wide locks or a global process monitor.
+
+`room_usage` imports existing local JSONL usage without calling AI. The final-result view shows participant rows and the measured subtotal, excluding earlier chat history and disclosing incomplete coverage. Cached input and reasoning tokens are subsets, not extra totals. Whole-turn usage cannot always be divided exactly among meeting, waiting and validation activities.
+
+Observed account quota usage/remaining percentages can appear alongside tokens. Compatible before/after observations may show a percentage-point change, including other account activity. Percentages are not derived from tokens or allocated to participants; missing/reset observations stay unavailable. Prefer local metadata, with one optional official host lookup during the existing completion turn when needed.
+
+See the packaged [work-control reference](host-plugin/skills/team-room/references/work-controls.md) for setup, operations and limits. Unity checks need an installed official Unity CLI, compatible Editor/license and project test framework. The plugin does not install them or start a second Editor over an open project. Existing projects receive these tools on update; enabling a workspace still requires verified human scope.
+
 ## Storage and privacy
 
 Runtime data defaults to `~/.codex/team-room`, outside this repository.
@@ -71,6 +84,7 @@ Runtime data defaults to `~/.codex/team-room`, outside this repository.
 - `rooms/<projectId>.json`: requests, messages and pause state for each project.
 - `rooms/<projectId>.json.images/`: posted image copies, identified by content hash.
 - `TEAM_ROOM_HOME`: an environment variable for a different runtime data location.
+- `work-control.json`, `usage-ledger.json`, `validation/`: work ownership/recovery state, measured token metadata and isolated validation evidence. Raw chat text is not copied into the usage ledger.
 
 Runtime files are not part of the source or installation package. Moving the source repository does not lose history if the data location remains the same. There is no automatic cloud sync or external upload. Examples and tests use synthetic data. Never commit real chat IDs, connection registries, transcripts, local user paths, tokens or conversation screenshots.
 

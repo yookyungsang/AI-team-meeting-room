@@ -4,7 +4,7 @@
 
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.3.16. You can use the plugin across projects, with separate connections and records for each. The current meeting UI and the reporting instructions use Korean. This guide includes the Korean control labels so you can find them; it does not add automatic translation or language switching to the app.
+This guide describes version 0.4.0. You can use the plugin across projects, with separate connections and records for each. The current meeting UI and the reporting instructions use Korean. This guide includes the Korean control labels so you can find them; it does not add automatic translation or language switching to the app.
 
 ## Get started
 
@@ -73,6 +73,8 @@ The main view contains the meeting conversation and input field. Open **메뉴**
 | 전송 상태와 입력 안내 | Connection state, sent-text previews, request IDs, delivery receipts and keyboard help |
 | 팀과 회의 제어 | Connected participants and roles, pause/resume controls for new requests |
 | 요청 처리 기록 | User requests, recipients, processing state and work status |
+| 작업 보호와 검증 | File/Editor ownership, handoff records and validation verdicts |
+| 완료 작업의 담당자별 사용량 | Completed-task usage by participant, measured subtotal and coverage limits |
 | 사용 방법과 사용량 안내 | Routing, additions, images and AI usage information |
 
 If a delivery needs attention, the menu button shows **전송 확인 필요** (Delivery needs checking). Close the menu with its close button or Escape.
@@ -123,6 +125,25 @@ Viewing or refreshing meeting records and displaying or enlarging images do not 
 Normal AI usage occurs when the director or participants perform work, generate or analyze images, or write progress reports. Instructions, tool descriptions, attachment captions and tool results read by a model can also affect context usage. The plugin does not promise zero total usage or a measured percentage reduction.
 
 To avoid unnecessary usage, give clear scope, involve only needed participants and keep intermediate images and repeated reports infrequent. Retain the final result and required validation.
+
+## Protect files, recover work and validate Unity
+
+Ask the director: **“Enable work protection and validation for this project's authorized workspace.”** The director sets up that workspace once. Optional Unity checks also need the official Unity CLI executable, a compatible installed Editor/license and the project's test environment. Setup does not grant new filesystem or build permissions.
+
+- **File protection:** participants reserve files in a batch. Conflicting ownership and stale-hash writes are rejected. Use the guarded writer for managed text files and hand off one operator for scenes/shared Editors. Other editors can bypass these tool gates; this is not an OS-wide lock.
+- **Retry limits:** QA records each execution and result. A first failure permits one analyzed retry. Repeated errors or environment blocks prevent another start until the director records a repair and resume. Do not bypass the limit through direct external commands.
+- **Recovery:** save results, remaining steps and file hashes at a necessary handoff checkpoint. Once interruption is verified, the director hands work to an existing participant while retaining records and current files. No timeout alone triggers takeover or automatic resend. Unsaved editor buffers cannot be reconstructed.
+- **Unity checks:** start one compile, EditMode, PlayMode or build run and inspect exit status, error logs, test XML and fresh artifacts. An already-open Editor or insufficient evidence produces a blocked/unverified result. Actual device play and visual confirmation remain separate checks.
+
+## Usage by participant after completion
+
+Once the director connects available local usage records for the existing chats, the final-result view and menu show measured input/output tokens per participant and a measured subtotal. No second AI summary or periodic progress report is added. A late final-turn usage event can update the same view later.
+
+Task reports exclude earlier chat history. Missing/unreadable sources are **unavailable**, unfinished final-turn records are **partial**, and overlapping work that cannot be separated is disclosed. Missing participants are not assigned zero. Tokens from a turn mixing meetings, waits and validation are not divided into invented per-action amounts.
+
+Cached input is already included in input; reasoning is included in output. These are observed local counts, not a complete account billing statement. Tool descriptions, instructions and normal work/reporting still consume context.
+
+When a real quota observation is available, the view also shows **account usage and remaining percentages**. Matching observations before and after the task can show the change in percentage points. These are account-wide values, can include other chats, and are never allocated to individual participants. Reset windows or missing observations make the change unavailable; tokens are never converted into quota percentages. Prefer existing local metadata. If needed, the director can query the host's official usage tool once in the existing completion turn.
 
 ## Pause new work
 

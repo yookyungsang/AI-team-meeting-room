@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import {randomUUID} from 'node:crypto';
+import {transaction} from './control.mjs';
 
 const check=(ok,message)=>{if(!ok)throw new Error(message);};
 export const validId=value=>typeof value==='string'&&/^[a-z][a-z0-9_-]{0,63}$/.test(value)&&!['__proto__','constructor','prototype'].includes(value)&&!/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(value);
@@ -29,14 +29,12 @@ export class Projects {
  roomPath(id){check(validId(id),'잘못된 프로젝트 ID입니다.');return path.join(this.home,'rooms',id+'.json');}
  configure(input){
   const project=validateProject(input);fs.mkdirSync(this.home,{recursive:true});
-  const lock=this.file+'.lock',temp=this.file+'.'+randomUUID()+'.next';let fd;
-  try{fd=fs.openSync(lock,'wx');}catch{throw new Error('프로젝트 연결 저장 중입니다. 같은 설정으로 다시 확인해 주세요.');}
-  try{
-   const state=this.read(),old=state.projects.find(p=>p.id===project.id);
+  return transaction(this.file,()=>({version:1,projects:[]}),state=>{
+   const old=state.projects.find(p=>p.id===project.id);
    // A room's routing never changes under an in-flight or historical request.
    if(old){check(JSON.stringify(old)===JSON.stringify(project),'기존 연결은 덮어쓰지 않습니다. 다른 연결은 새 프로젝트 ID로 등록해 주세요.');return {created:false,project};}
-   state.projects.push(project);fs.writeFileSync(temp,JSON.stringify(state,null,2));fs.renameSync(temp,this.file);
+   state.projects.push(project);
    return {created:true,project};
-  }finally{fs.closeSync(fd);fs.unlinkSync(lock);if(fs.existsSync(temp))fs.unlinkSync(temp);}
+  });
  }
 }

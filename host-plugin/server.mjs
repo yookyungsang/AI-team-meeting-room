@@ -5,6 +5,10 @@ import os from 'node:os';
 import {fileURLToPath} from 'node:url';
 import {RoomStore} from './store.mjs';
 import {Projects} from './projects.mjs';
+import {WorkControl} from './control.mjs';
+import {Validation} from './validation.mjs';
+import {UsageLedger} from './usage.mjs';
+import {workTools} from './work-tools.mjs';
 
 const root=path.dirname(fileURLToPath(import.meta.url));
 const version=JSON.parse(fs.readFileSync(path.join(root,'plugin.json'),'utf8')).version;
@@ -42,6 +46,8 @@ for(const definition of TOOLS){
 TOOLS.push(tool('room_projects','List configured project names and IDs without loading conversations or invoking AI.',schema(),true));
 TOOLS.push(tool('room_configure','Register a project with verified existing chat IDs and explicit human authorization. Never create chats or infer permission from this record. Existing connections are immutable; same configuration is idempotent. This changes only meeting configuration, not filesystem access or projects in Codex.',schema({projectId:member,name:{type:'string',maxLength:120},workspacePath:{type:'string',maxLength:1000},members:{type:'array',minItems:1,maxItems:20,items:schema({id:member,name:str,role:str,threadId:str,hostId:str},['id','name','role','threadId','hostId'])}},['projectId','name','members']),false));
 function resource(){return {uri,mimeType:'text/html;profile=mcp-app',text:fs.readFileSync(path.join(root,'widget.html'),'utf8'),_meta:{ui:{csp:{connectDomains:[],resourceDomains:[]}},'openai/ui':{availableDisplayModes:['inline','fullscreen'],preferredDisplayMode:'fullscreen'}}};}
+TOOLS.push(...workTools(tool,schema,member,str));
+TOOLS.find(t=>t.name==='room_validation').annotations.openWorldHint=true;
 export function compactResult(name,data){
  if(name==='room_claim')return {dispatch:data.dispatch,request:{id:data.request.id,status:data.request.status},member:data.member,job:data.job};
  if(name==='room_post')return {created:data.created,message:{id:data.message.id,requestId:data.message.requestId,authorId:data.message.authorId,kind:data.message.kind,...(data.message.images?{images:data.message.images}:{}),...(data.message.toMemberId?{toMemberId:data.message.toMemberId}:{}),...(data.message.replyTo?{replyTo:data.message.replyTo}:{})}};
@@ -60,13 +66,14 @@ export function handle(request,registry=projects){
   case 'tools/call':{
    const {name,arguments:args={}}=request.params||{};
    const definition=TOOLS.find(t=>t.name===name);if(!definition)throw new Error('없는 회의실 도구입니다.');
-   if(!args||typeof args!=='object'||Array.isArray(args)||Object.keys(args).some(k=>!(k in definition.inputSchema.properties)))throw new Error('요청 필드를 확인해 주세요.');
+   if(!args||typeof args!=='object'||Array.isArray(args)||Object.keys(args).some(k=>!Object.hasOwn(definition.inputSchema.properties,k)))throw new Error('요청 필드를 확인해 주세요.');
    try{
     let data;
     if(definition.inputSchema.required.some(key=>args[key]===undefined))throw new Error('필수 요청 필드를 확인해 주세요.');
     const project=args.projectId&&name!=='room_configure'?registry.get(args.projectId):null;
     const store=project?new RoomStore(registry.roomPath(project.id),project):null;
-    const snapshot=()=>store?{...store.snapshot(),projects:registry.list()}:{version:1,paused:true,requests:[],messages:[],members:[],project:null,projects:registry.list(),mode:'host-relay'};
+    const control=store?new WorkControl(store,registry.home):null,usage=control?new UsageLedger(control):null;
+    const snapshot=()=>{if(!store)return {version:1,paused:true,requests:[],messages:[],members:[],project:null,projects:registry.list(),mode:'host-relay'};new Validation(control).refresh();return {...store.snapshot(),projects:registry.list(),work:control.summary(),usageReports:usage.reports()};};
     switch(name){
      case 'room_projects':data={projects:registry.list()};break;
      case 'room_configure':data=registry.configure({id:args.projectId,name:args.name,workspacePath:args.workspacePath,members:args.members});break;
@@ -75,7 +82,26 @@ export function handle(request,registry=projects){
      case 'room_get':data=store.get(args.requestId,args);break;
      case 'room_claim':data=store.claim(args);break;
      case 'room_post':data=store.post(args);break;
-     case 'room_reply':data=store.reply(args);break;
+     case 'room_reply':control.assertCompletable(args);data=store.reply(args);break;
+     case 'room_work':{
+      if(args.operation==='status'){new Validation(control).refresh();data=control.summary();}
+      else if(args.operation==='read')data=control.readFile(args);
+      else{if(!['configure','acquire','write','release','checkpoint','recover'].includes(args.operation))throw new Error('지원하지 않는 작업 제어입니다.');data=control[args.operation](args);}break;
+     }
+     case 'room_validation':{
+      const validator=new Validation(control),method={define:'define',begin:'begin',result:'result',resume:'resume',waive:'resume',unity:'start',cancel:'cancel',reconcile:'cancel'}[args.operation];
+      if(!method)throw new Error('지원하지 않는 검증 제어입니다.');data=validator[method](args);break;
+     }
+     case 'room_usage':{
+      if(args.operation==='attach')data=usage.attach(args);
+      else if(args.operation==='discover')data=usage.discover(args);
+      else if(args.operation==='label')data=usage.label(args);
+      else if(args.operation==='record_limits')data=usage.recordLimits(args);
+      else if(args.operation==='sync')data=usage.sync();
+      else if(args.operation==='summary')data=usage.summary();
+      else if(args.operation==='report')data=usage.report(args.requestId);
+      else throw new Error('지원하지 않는 사용량 조회입니다.');break;
+     }
      case 'room_image':{
       const {image,dataUrl}=store.image(args);
       return {content:[],structuredContent:{projectId:project.id,image},_meta:{'team-room/imageData':dataUrl}};

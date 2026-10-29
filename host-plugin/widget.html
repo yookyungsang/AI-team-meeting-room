@@ -38,6 +38,8 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
 </main></div></div>
 <dialog id="room-menu" aria-labelledby="menu-title"><header class="menu-header"><h2 id="menu-title">회의실 메뉴</h2><button id="close-menu" class="button" type="button" aria-label="회의실 메뉴 닫기">닫기 ×</button></header><div class="menu-content"><section class="delivery-panel" aria-labelledby="delivery-title"><h3 id="delivery-title">전송 상태와 입력 안내</h3><span id="connection" class="connection" role="status">호스트 연결 확인 중…</span><p id="send-hint">Enter 전송 · Shift+Enter 줄바꿈</p><p id="result" class="status" role="status" aria-live="polite"></p></section><details open class="team" aria-label="담당자"><summary>팀과 회의 제어</summary><ul id="members" class="members"><li class="small">담당자 기록을 기다리고 있습니다.</li></ul><div class="toolbar"><p class="team-note">기존 대화창 연결 · 대기 중 AI 호출 없음</p><button id="pause" class="button" disabled type="button">새 요청 일시정지</button></div></details>
 <details class="requests"><summary id="request-count">요청 처리 기록 · 0건</summary><div id="requests"></div></details>
+<details class="requests"><summary>작업 보호와 검증</summary><div id="work-status" class="small">작업 보호 설정을 기다리고 있습니다.</div></details>
+<details class="requests"><summary>완료 작업의 담당자별 사용량</summary><div id="usage-reports" class="small">작업 완료 후 기록을 표시합니다.</div></details>
 <details class="guide"><summary>사용 방법과 사용량 안내</summary>
 <h3>누구에게 전달되나요?</h3><p>선택한 프로젝트의 총괄에게 전달됩니다. 다른 채팅에서 회의실을 열었다면 해당 총괄 채팅으로 한 번 전달될 수 있습니다.</p>
 <h3>작업 중에도 추가로 보낼 수 있어요</h3><p>추가 내용은 진행 중인 요청에 연결됩니다. 총괄이 중간 판단과 완료 전에 확인합니다. 앱의 메시지 처리 방식에 따라 현재 작업에 반영되거나 다음 순서로 대기할 수 있습니다.</p>
@@ -59,7 +61,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   $('open-menu').addEventListener('click',()=>{if(!disposed)$('room-menu').showModal();});
   $('close-menu').addEventListener('click',()=>$('room-menu').close());
   $('room-menu').addEventListener('click',event=>{if(event.target===$('room-menu')){const rect=$('room-menu').getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)$('room-menu').close();}});
-  const statuses = {reserved:'전달 예약 · 결과 확인 중',pending:'처리 대기',processing:'처리 중',completed:'완료',failed:'실패',running:'처리 중',active:'처리 중',queued:'처리 대기'};
+  const statuses = {reserved:'전달 예약 · 결과 확인 중',pending:'처리 대기',processing:'처리 중',completed:'완료',failed:'실패',running:'처리 중',active:'처리 중',queued:'처리 대기',passed:'통과',blocked:'차단',unverified:'미검증',superseded:'인계됨'};
   let seq = 0, initialized = false, canMessage = false, messageExtension = false, state = null;
   let polling = false, sending = false, pausing = false, timer = null;
   let signature = '';
@@ -289,6 +291,23 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     const rows=projects.slice();if(state?.project && !rows.some(p=>p.id===state.project.id))rows.push(state.project);
     rows.forEach(p=>{const option=make('option','',p.name);option.value=p.id;select.append(option);});select.value=projectId||'';
   }
+  function usageView(report){
+    const section=make('section','request usage-report');section.append(make('strong','','완료 작업 · 담당자별 사용량'));
+    const list=make('ul');
+    const labels={unavailable:'측정 불가 · 연결된 사용량 기록 없음',overlap:'다른 작업과 겹쳐 분리 측정 불가',partial:'일부 기록 · 아직 확정되지 않음'};
+    for(const row of report.rows||[]){
+      const value=row.usage?row.usage.total_tokens.toLocaleString()+' 토큰 (입력 '+row.usage.input_tokens.toLocaleString()+', 출력 '+row.usage.output_tokens.toLocaleString()+')'+(row.status==='partial'?' · 일부 기록':''):labels[row.status]||'기록 확인 중';
+      list.append(make('li','',row.name+' · '+row.role+': '+value));
+    }
+    section.append(list,make('p','small',report.total?'측정 가능한 합계: '+report.total.total_tokens.toLocaleString()+' 토큰'+(report.complete?'':' · 측정 불가 담당자는 제외'):'측정 가능한 사용량 기록이 없습니다.'));
+    if(report.quota?.available){
+      for(const window of report.quota.rows){const minutes=window.windowDurationMins,label=minutes?(minutes%1440===0?minutes/1440+'일 한도':minutes%60===0?minutes/60+'시간 한도':minutes+'분 한도'):'계정 한도';
+        section.append(make('p','small',label+' · 사용 '+window.usedPercent+'% · 남음 '+window.remainingPercent+'%'+(window.changePercentagePoints===null?' · 전후 변화 확인 불가':' · 계정 전체 변화 +'+window.changePercentagePoints+'%p')));
+      }
+      section.append(make('p','small','계정 전체 조회값이며 다른 채팅의 사용량도 포함될 수 있습니다.'+(report.quota.provisional?' 완료 직전 조회값입니다.':'')));
+    }else section.append(make('p','small','계정 한도 사용률: 확인 불가 · 토큰 수로 %를 추정하지 않습니다.'));
+    section.append(make('p','small','캐시 입력은 입력에, 추론은 출력에 포함됩니다. 작업 중 정기 AI 사용량 보고는 하지 않습니다.'));return section;
+  }
   function accept(data,{expected=projectId,allowOpen=false}={}){
     if(disposed)return false;
     const next=data?.state || data;
@@ -322,6 +341,9 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
         }
         body.append(messageText(m.text));
         if(m.images?.length)body.append(messageImages(m));
+        if(m.kind==='final'&&m.authorId==='director'){
+          const report=next.usageReports?.find(r=>r.requestId===m.requestId);if(report)body.append(usageView(report));
+        }
         li.append(make('span','avatar',m.authorId==='user'?'나':(m.authorName||name(m.authorId)).slice(0,1)),body);$('messages').append(li);
       });
       $('empty').hidden=next.messages.length>0;
@@ -335,6 +357,16 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
         if(r.jobs?.length)row.append(make('div','small',r.jobs.map(j=>name(j.memberId)+' · '+status(j.state)).join(' / ')));
         $('requests').append(row);
       });
+      $('work-status').replaceChildren();
+      if(next.work?.configured){
+        const locks=next.work.locks||[],checks=next.work.validations||[];
+        $('work-status').append(make('p','','파일·Editor 소유권 '+locks.length+'건 · 작업 인계 기록 '+(next.work.checkpoints||0)+'건'));
+        for(const lock of locks)$('work-status').append(make('p','',name(lock.memberId)+' · '+lock.paths.join(', ')));
+        for(const item of checks)$('work-status').append(make('p','',item.label+' · '+status(item.status)+(item.blocked?' · 총괄 조치 필요':'')+(item.waived?' · 예외 사유 기록됨':'')));
+      }else $('work-status').textContent='총괄이 승인된 작업 폴더를 설정하면 파일 보호와 검증을 사용할 수 있습니다.';
+      $('usage-reports').replaceChildren();
+      if(next.usageReports?.length)for(const report of next.usageReports)$('usage-reports').append(usageView(report));
+      else $('usage-reports').textContent='작업 완료 후 담당자별 기록과 합계를 표시합니다. 작업 중 정기 보고는 하지 않습니다.';
       signature=current;
     }
     $('paused').hidden=!next.project || !next.paused;controls();return true;
@@ -376,7 +408,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     const expected=projectId,epoch=++selectionEpoch;
     switching=true;state=null;signature='';showError('');renderDeliveries();
     resetImages();imageCache.clear();
-    $('members').replaceChildren();$('messages').replaceChildren();$('requests').replaceChildren();
+    $('members').replaceChildren();$('messages').replaceChildren();$('requests').replaceChildren();$('work-status').replaceChildren();$('usage-reports').replaceChildren();
     $('request-count').textContent='요청 처리 기록 · 0건';$('empty').hidden=false;$('empty').textContent='선택한 프로젝트 기록을 불러오고 있습니다.';$('paused').hidden=true;controls();
     try{
       const data=await tool('room_state',expected?{projectId:expected}:{});
@@ -443,7 +475,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   async function initialize(){
     if(window.parent===window){$('connection').textContent='단독 창에서는 연결할 수 없습니다.';showError('기존 채팅의 MCP App 패널에서 팀 회의실을 열어 주세요.');return;}
     try{
-      const result=await rpc('ui/initialize',{appInfo:{name:'team-room',version:'0.3.16'},appCapabilities:{availableDisplayModes:['inline','fullscreen']},protocolVersion:'2026-01-26'});
+      const result=await rpc('ui/initialize',{appInfo:{name:'team-room',version:'0.4.0'},appCapabilities:{availableDisplayModes:['inline','fullscreen']},protocolVersion:'2026-01-26'});
       if(disposed)return;
       if(result?.protocolVersion!=='2026-01-26')throw new Error('지원되는 호스트 통신 버전을 확인하지 못했습니다.');
       messageExtension=Boolean(result.hostCapabilities?.experimental?.['openai/message'] || result.hostCapabilities?.extensions?.['openai/message']);

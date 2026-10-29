@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {RoomImages} from './images.mjs';
+import {transaction} from './control.mjs';
 
 const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const assert=(condition,message)=>{if(!condition)throw new Error(message);};
@@ -27,15 +28,7 @@ export class RoomStore {
  read(){return fs.existsSync(this.file)?JSON.parse(fs.readFileSync(this.file,'utf8')):empty();}
  snapshot(){const state=this.read();return {...state,messages:state.messages.map(publicMessage),members:this.members,project:{id:this.project.id,name:this.project.name,workspacePath:this.project.workspacePath},mode:'host-relay'};}
  change(action){
-  fs.mkdirSync(path.dirname(this.file),{recursive:true});
-  let descriptor;
-  try{descriptor=fs.openSync(this.lock,'wx');}catch{throw new Error('회의 기록을 저장 중입니다. 잠시 뒤 다시 확인해 주세요.');}
-  const temp=this.file+'.'+randomUUID()+'.next';
-  try{
-   const state=this.read(), result=action(state);
-   fs.writeFileSync(temp,JSON.stringify(state,null,2));fs.renameSync(temp,this.file);
-   return result;
-  }finally{fs.closeSync(descriptor);fs.unlinkSync(this.lock);if(fs.existsSync(temp))fs.unlinkSync(temp);}
+  return transaction(this.file,empty,action);
  }
  find(state,requestId,memberId){
   const request=state.requests.find(r=>r.id===requestId);assert(request,'회의 요청을 찾을 수 없습니다.');
@@ -59,7 +52,7 @@ export class RoomStore {
     assert(!['completed','failed'].includes(parent.status),'이미 끝난 요청입니다. 새 요청으로 보내 주세요.');
    }
    assert(state.requests.filter(r=>!['completed','failed'].includes(r.status)).length<20,'진행 중인 요청을 먼저 확인해 주세요.');
-   const request={id,projectId:this.project.id,text,recipients:selected,...(parent?{followUpTo}:{}),status:'pending',createdAt:stamp(),jobs:selected.map(memberId=>({memberId,state:'pending'}))};
+   const request={id,projectId:this.project.id,text,recipients:selected,...(parent?{followUpTo}:{}),status:'pending',usageRequested:true,createdAt:stamp(),jobs:selected.map(memberId=>({memberId,state:'pending'}))};
    state.requests.push(request);state.messages.push({id:'user:'+id,requestId:id,authorId:'user',authorName:'사용자',text,...(parent?{kind:'follow-up',followUpTo}:{}),createdAt:request.createdAt});
    if(parent)this.update(parent,state);
    return request;
@@ -137,14 +130,14 @@ export class RoomStore {
  }
  fail({requestId,memberId,reason}){
   assert(typeof reason==='string'&&reason.trim()&&reason.length<=1000,'실패 이유가 필요합니다.');
-  return this.change(state=>{const {request,job}=this.find(state,requestId,memberId);assert(job.state!=='completed','완료한 답변은 변경하지 않습니다.');job.state='failed';job.error=reason;this.update(request,state);return request;});
+  return this.change(state=>{const {request,job}=this.find(state,requestId,memberId);assert(!['completed','superseded'].includes(job.state),'완료하거나 인계한 답변은 변경하지 않습니다.');if(job.state==='failed'){assert(job.error===reason,'기존 실패 기록은 덮어쓰지 않습니다.');return request;}job.state='failed';job.failedAt=stamp();job.error=reason;this.update(request,state);return request;});
  }
  update(request,state){
   const openQuestions=state.messages.filter(m=>m.requestId===request.id&&m.kind==='question'&&!state.messages.some(a=>a.requestId===request.id&&a.kind==='answer'&&a.replyTo===m.id));
   request.openQuestionCount=openQuestions.length;
   const followUps=state.requests.filter(r=>r.followUpTo===request.id);
   request.openFollowUpCount=followUps.filter(r=>!['completed','failed'].includes(r.status)).length;
-  request.status=openQuestions.length||request.openFollowUpCount?'processing':request.jobs.every(j=>j.state==='completed')&&followUps.every(r=>r.status==='completed')?'completed':request.jobs.every(j=>['completed','failed'].includes(j.state))?'failed':'processing';
+  request.status=openQuestions.length||request.openFollowUpCount?'processing':request.jobs.every(j=>['completed','superseded'].includes(j.state))&&followUps.every(r=>r.status==='completed')?'completed':request.jobs.every(j=>['completed','failed','superseded'].includes(j.state))?'failed':'processing';
   if(request.followUpTo){const parent=state.requests.find(r=>r.id===request.followUpTo);if(parent)this.update(parent,state);}
  }
  pause(paused){assert(typeof paused==='boolean','일시정지 값이 올바르지 않습니다.');this.change(state=>{state.paused=paused;});return this.snapshot();}

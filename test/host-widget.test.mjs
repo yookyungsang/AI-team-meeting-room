@@ -107,6 +107,14 @@ test('closing while a submit receipt is pending never dispatches a late wake mes
 test('hidden panel does not poll and reply text is rendered without HTML execution',async t=>{const w=await widget(t);const count=w.sent.length;w.document.hidden=true;await w.intervals[0]();assert.equal(w.sent.length,count);w.document.hidden=false;w.state.messages.push({id:'fixture',authorId:'director',authorName:'테스트 총괄',text:'<img src=x onerror=alert(1)>'});await w.intervals[0]();assert.equal(w.elements.get('messages').children.length,1);});
 
 const visibleText=n=>[n.textContent||'',...n.children.map(visibleText)].join(' ');
+test('usage is shown only for completed reports, per participant, without an AI message',async t=>{
+ const w=await widget(t);assert.doesNotMatch(visibleText(w.elements.get('messages')),/측정 가능한 합계/);
+ w.state.messages=[{id:'final',requestId:'done',authorId:'director',kind:'final',text:'완료 결과'}];
+ w.state.usageReports=[{requestId:'done',complete:false,total:{total_tokens:120},rows:[{name:'테스트 총괄',role:'총괄',status:'measured',usage:{input_tokens:100,output_tokens:20,total_tokens:120}},{name:'테스트 QA',role:'QA',status:'unavailable',usage:null}],quota:{available:true,rows:[{usedPercent:14,remainingPercent:86,windowDurationMins:10080,changePercentagePoints:4}]}}];
+ w.state.work={configured:true,locks:[{memberId:'director',paths:['Example.cs']}],checkpoints:1,validations:[{label:'QA 검사',status:'blocked',blocked:true}]};
+ w.notify(w.state);const text=visibleText(w.elements.get('messages'));assert.match(text,/테스트 총괄 · 총괄: 120 토큰/);assert.match(text,/테스트 QA · QA: 측정 불가/);assert.match(text,/7일 한도 · 사용 14% · 남음 86%/);assert.match(visibleText(w.elements.get('work-status')),/총괄 조치 필요/);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+ w.elements.get('project').value='second';await w.elements.get('project').events.change();assert.doesNotMatch(visibleText(w.elements.get('usage-reports')),/120 토큰/);
+});
 const descendants=n=>[n,...n.children.flatMap(descendants)];
 const imageMessage=(id='preview')=>({id,requestId:'fixture-request',authorId:'director',kind:'progress',text:'중간 시안',images:[{id:'a'.repeat(64),caption:'시안 확인'}]});
 test('progress images render from UI-only data, zoom and refresh without another image or AI call',async t=>{

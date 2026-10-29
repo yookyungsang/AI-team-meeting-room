@@ -189,6 +189,17 @@ try{
   await frame.waitForFunction(()=>Boolean(document.querySelector('.image-preview img')?.complete));
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='tools/call'&&p.params.name==='room_image').length),imageReads,'refresh uses cached immutable image bytes');
   await page.evaluate(()=>{
+   window.testRoomState.messages.push({id:'usage-final',requestId:'image-request',authorId:'director',kind:'final',text:'요청한 기능을 구현하고 필요한 검증을 마쳤습니다. 아래는 가상 기록으로 확인하는 담당자별 완료 사용량입니다.'});
+   window.testRoomState.usageReports=[{requestId:'image-request',total:{total_tokens:12450},complete:false,rows:[{name:'테스트 총괄',role:'총괄',status:'measured',usage:{input_tokens:5000,output_tokens:1200,total_tokens:6200}},{name:'테스트 개발자',role:'프로그래머',status:'measured',usage:{input_tokens:5000,output_tokens:1250,total_tokens:6250}},{name:'테스트 QA',role:'QA',status:'unavailable',usage:null}],quota:{available:true,rows:[{usedPercent:14,remainingPercent:86,windowDurationMins:10080,changePercentagePoints:4}]}}];
+   window.testRoomState.work={configured:true,locks:[],checkpoints:2,validations:[{id:'fixture-case',label:'관련 검증',status:'passed',attempts:1,blocked:false}]};
+   document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:window.testRoomState}},'*');
+  });
+  await frame.locator('#messages .usage-report').scrollIntoViewIfNeeded();
+  assert.match(await frame.locator('#messages .usage-report').innerText(),/테스트 QA · QA: 측정 불가/);
+  assert.match(await frame.locator('#messages .usage-report').innerText(),/계정 전체 변화 \+4%p/);
+  assert.equal(await frame.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  await page.screenshot({path:path.join(output,`work-usage-final-${width}.png`),clip:{x:0,y:0,width,height:720}});
+  await page.evaluate(()=>{
    window.deferImages=true;
    window.testRoomState.messages.push({id:'image-late',requestId:'image-request',authorId:'director',kind:'progress',text:'다음 시안',images:[{id:'b'.repeat(64),caption:'늦은 이미지 응답 예시'}]});
    document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:window.testRoomState}},'*');
@@ -203,7 +214,7 @@ try{
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='tools/call').length),calls);
   assert.equal(await frame.evaluate(()=>document.body.hidden),true);
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),2);
-  report.cases.push({width,transitions:20,heights,layout,typography,safeReadableMessages:true,inlineImages:true,imageZoom:true,imageCache:true,lateImagesAfterTeardown:'ignored',teardown:'acknowledged; no polling for 4.2 seconds',sendButtonVisible:false,keyboardSubmit:true,inFlightAddition:true,outOfOrderReceiptsPreserveDraft:true,simulatedHostMessages:2,modelCalls:0});
+  report.cases.push({width,transitions:20,heights,layout,typography,safeReadableMessages:true,inlineImages:true,imageZoom:true,imageCache:true,finalUsageByParticipant:true,missingUsageNotZero:true,lateImagesAfterTeardown:'ignored',teardown:'acknowledged; no polling for 4.2 seconds',sendButtonVisible:false,keyboardSubmit:true,inFlightAddition:true,outOfOrderReceiptsPreserveDraft:true,simulatedHostMessages:2,modelCalls:0});
   await page.close();
  }
  fs.writeFileSync(path.join(output,process.env.TEAM_ROOM_LAYOUT_NARROW_ONLY==='1'?'layout-report-narrow.json':'layout-report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));
