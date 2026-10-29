@@ -73,6 +73,18 @@ test('recovery journal repairs a crash between the room and control commits with
  const first=f.control.recover(args);fs.writeFileSync(f.control.file,before);
  const restored=new WorkControl(f.store,f.home).recover(args);assert.equal(restored.repaired,true);assert.equal(restored.dispatch,false);assert.equal(restored.recoveryId,first.recoveryId);assert.equal(f.control.summary().locks.length,0);
 });
+test('image requirements survive recovery to either a new assignment or an existing pending owner',t=>{
+ for(const pending of [false,true]){
+  const f=fixture(t);f.store.claim({...f.actor('one'),requireFinalImage:true});
+  f.store.change(s=>{const r=s.requests[0];if(pending)r.jobs.find(j=>j.memberId==='two').state='pending';else r.jobs=r.jobs.filter(j=>j.memberId!=='two');});
+  const args={...f.actor('director'),key:'image-recovery',fromMemberId:'one',toMemberId:'two',confirmedStopped:true,reason:'Creator stopped; recover visual work'};
+  const result=f.control.recover(args);assert.equal(result.requireFinalImage,true);
+  assert.equal(f.control.recover(args).dispatch,false);
+  const target=f.store.get(f.requestId).request.jobs.find(j=>j.memberId==='two');assert.equal(target.state,'reserved');assert.equal(target.requireFinalImage,true);
+  assert.throws(()=>f.store.reply({...f.actor('two'),text:'이미지 없는 복구 완료'}),/최종 이미지/);
+  assert.throws(()=>f.store.reply({...f.actor('director'),text:'이미지 누락을 무시한 통합'}),/누락되거나 차단/);
+ }
+});
 test('manual result cannot overwrite an earlier verdict or accept an unassigned member',t=>{
  const f=fixture(t),v=new Validation(f.control),defined=v.define({...f.actor('director'),caseId:'manual',label:'Manual',signature:'manual'}),first=v.begin({...f.actor('qa'),caseId:defined.caseId,key:'first'});
  const result={...f.actor('qa'),caseId:defined.caseId,attemptId:first.attempt.id,status:'blocked',summary:'Editor unavailable'};v.result(result);assert.equal(v.result(result).saved,true);assert.throws(()=>v.result({...result,status:'passed'}));assert.throws(()=>v.begin({...f.actor('qa'),caseId:defined.caseId,key:'retry',analysis:'retry'}));

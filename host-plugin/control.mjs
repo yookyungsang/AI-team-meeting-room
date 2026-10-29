@@ -135,13 +135,14 @@ export class WorkControl{
    const changedFiles=checkpoint?.files.filter(f=>fileHash(this.resolve(f.path,state).absolute)!==f.hash).map(f=>f.path)||[];
    for(const lease of document.leases)if(lease.projectId===this.project.id&&lease.requestId===args.requestId&&lease.memberId===from.id&&!lease.releasedAt){lease.releasedAt=now();lease.recoveryKey=key;}
    const files=document.leases.filter(l=>l.projectId===this.project.id&&l.requestId===args.requestId&&l.memberId===from.id&&l.recoveryKey===key).flatMap(l=>l.targets.map(t=>({path:t.relative,...(t.absolute?{hash:fileHash(t.absolute)}:{})})));
-   const result={dispatch:true,recoveryId:randomUUID(),requestId:args.requestId,fromMemberId:from.id,member:to,checkpoint,files,changedFiles,reason:args.reason};
+   const result={dispatch:true,recoveryId:randomUUID(),requestId:args.requestId,fromMemberId:from.id,member:to,checkpoint,files,changedFiles,reason:args.reason,...(old.requireFinalImage||target?.requireFinalImage?{requireFinalImage:true}:{})};
    // Job transition is persisted first; a crash never silently replays a native send.
    this.store.change(room=>{
     const r=room.requests.find(r=>r.id===args.requestId),j=r.jobs.find(j=>j.memberId===from.id);
+    if(j.requireFinalImage)result.requireFinalImage=true;
     j.recoveryHistory??=[];j.recoveryHistory.push({state:j.state,error:j.error||null,at:now(),toMemberId:to.id,recoveryId:result.recoveryId});
     j.recoveryPlan={key,input,result};
-    if(from.id!==to.id){j.state='superseded';j.supersededAt=now();j.recoveredBy=to.id;j.recoveryId=result.recoveryId;if(target){target.state='reserved';target.claimedAt=now();}else r.jobs.push({memberId:to.id,state:'reserved',recoveryId:result.recoveryId,claimedAt:now()});}
+    if(from.id!==to.id){j.state='superseded';j.supersededAt=now();j.recoveredBy=to.id;j.recoveryId=result.recoveryId;let next=r.jobs.find(j=>j.memberId===to.id);if(next){next.state='reserved';next.claimedAt=now();}else{next={memberId:to.id,state:'reserved',recoveryId:result.recoveryId,claimedAt:now()};r.jobs.push(next);}if(result.requireFinalImage)next.requireFinalImage=true;}
     else{j.state='reserved';j.recoveryId=result.recoveryId;}
     r.status='processing';
    });

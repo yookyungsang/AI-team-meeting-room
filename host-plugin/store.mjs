@@ -62,7 +62,7 @@ export class RoomStore {
  get(requestId,{statusOnly=false,includePrevious=false}={}){
   assert(typeof statusOnly==='boolean'&&typeof includePrevious==='boolean','조회 옵션을 확인해 주세요.');
   const state=this.read(),request=state.requests.find(r=>r.id===requestId);assert(request,'회의 요청을 찾을 수 없습니다.');
-  if(statusOnly)return {request:{id:request.id,status:request.status,openQuestionCount:request.openQuestionCount||0,openFollowUpCount:request.openFollowUpCount||0,jobs:request.jobs.map(({memberId,state,error})=>({memberId,state,...(error?{error}:{})}))}};
+  if(statusOnly)return {request:{id:request.id,status:request.status,openQuestionCount:request.openQuestionCount||0,openFollowUpCount:request.openFollowUpCount||0,jobs:request.jobs.map(({memberId,state,error,requireFinalImage})=>({memberId,state,...(error?{error}:{}),...(requireFinalImage?{requireFinalImage:true}:{})}))}};
   const parent=request.followUpTo&&state.requests.find(r=>r.id===request.followUpTo);
   const summary=({id,text,status,createdAt})=>({id,text,status,createdAt});
   return {request,members:this.members,messages:state.messages.filter(m=>m.requestId===requestId).map(publicMessage),followUps:state.requests.filter(r=>r.followUpTo===requestId).map(summary),...(parent?{parentRequest:summary(parent)}:{}),...(includePrevious?{previousMessages:state.messages.filter(m=>m.requestId!==requestId).slice(-20).map(publicMessage)}:{})};
@@ -72,7 +72,8 @@ export class RoomStore {
   const image=message?.images?.find(item=>item.id===imageId);assert(image,'이 프로젝트의 발언에 첨부된 이미지를 찾을 수 없습니다.');
   return {image,dataUrl:this.images.read(image)};
  }
- claim({requestId,memberId}){
+ claim({requestId,memberId,requireFinalImage}){
+  assert(requireFinalImage===undefined||typeof requireFinalImage==='boolean','완료 이미지 필수 여부는 참 또는 거짓이어야 합니다.');
   return this.change(state=>{
    const existing=state.requests.find(r=>r.id===requestId);
    assert(existing&&this.members.some(m=>m.id===memberId),'기존 회의 요청과 담당자가 필요합니다.');
@@ -82,6 +83,11 @@ export class RoomStore {
     existing.jobs.push({memberId,state:'pending',delegated:true});
    }
    const {request,member,job}=this.find(state,requestId,memberId);
+   assert(!(job.requireFinalImage&&requireFinalImage===false),'이미 지정한 완료 이미지 조건을 해제하지 않습니다.');
+   if(requireFinalImage&&!job.requireFinalImage){
+    assert(['pending','reserved'].includes(job.state),'이미 끝나거나 인계된 작업의 완료 조건은 바꾸지 않습니다.');
+    job.requireFinalImage=true;
+   }
    if(job.state!=='pending')return {dispatch:false,request,member,job};
    assert(!state.paused,'새 전달이 일시정지되어 있습니다.');
    job.state='reserved';job.claimedAt=stamp();job.marker=`TEAM-ROOM ${this.project.id}/${requestId}/${memberId}`;request.status='processing';
@@ -120,6 +126,8 @@ export class RoomStore {
    const old=state.messages.find(m=>m.requestId===requestId&&m.authorId===memberId&&(!m.kind||m.kind==='final'));
    if(old){assert(old.text===text&&old.sourceTurnId===sourceTurnId&&old.sourceMessageId===sourceMessageId&&old.imageInputKey===imageInput.key,'이미 기록한 답변은 덮어쓰지 않습니다.');return old;}
    assert(job.state==='reserved','먼저 요청을 확인하고 전달을 예약해야 합니다.');
+   assert(!job.requireFinalImage||imageInput.items.length>0,'이미지 작업 담당자가 자신의 완료 보고에 실제 최종 이미지를 첨부해야 합니다. 중간 이미지만으로 완료 처리하지 않습니다.');
+   if(memberId==='director')assert(!request.jobs.some(j=>j.memberId!=='director'&&j.requireFinalImage&&!['completed','superseded'].includes(j.state)),'완료 이미지 담당자의 최종 첨부 또는 미완료 사유를 먼저 확인해 주세요. 이미지가 누락되거나 차단된 작업을 성공으로 완료하지 않습니다.');
    if(memberId==='director')assert(!state.requests.some(r=>r.followUpTo===requestId&&r.status!=='completed'),'사용자가 추가로 보낸 요청을 확인하고 처리한 뒤 원래 요청을 완료해 주세요.');
    assert(!state.messages.some(m=>m.requestId===requestId&&m.authorId===memberId&&m.kind==='question'&&!state.messages.some(a=>a.requestId===requestId&&a.kind==='answer'&&a.replyTo===m.id)),'답변이 필요한 질문을 해결한 뒤 완료해 주세요.');
    const message={id:randomUUID(),requestId,authorId:memberId,authorName:member.name,kind:'final',text,sourceThreadId:member.threadId,...(sourceMessageId?{sourceTurnId,sourceMessageId,sourceType:'native-reference'}:{sourceType:'tool-authored'}),createdAt:stamp(),provenance:'participant-posted'};

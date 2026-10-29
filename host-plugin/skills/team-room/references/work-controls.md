@@ -1,6 +1,12 @@
-# Local work controls · 0.4.0
+# Local work controls · 0.4.1
 
 Use these tools during authorized work, never as an idle AI loop. They share the existing project ID, configured member identities and external `TEAM_ROOM_HOME`. They do not create chats, send native messages, switch models or grant filesystem/build permissions. Configure an explicitly human-authorized workspace once; stored `workspacePath` alone is not authorization. Only the director configures, recovers, defines checks or approves a resume/exception. A member ID is a routing check, not independent caller authentication.
+
+## Final visual deliverables · 0.4.1
+
+For image creation, UI/screens, design or 3D output, set `room_claim(projectId, requestId, memberId=CREATOR, requireFinalImage=true)` during the existing assignment. If discovered later, add it to the active job once without resending; `dispatch:false` forbids another native assignment. The flag is persisted, cannot be removed, is included in compact status and recovery results, and follows interrupted work to its next owner. Unmarked historical/text jobs keep their existing behavior.
+
+The creator must attach an actual final-state image to their own `room_reply(images=[{path,caption}])`. Neither a progress image nor another member's image satisfies this check; the director cannot accept while a marked creator job is unfinished/failed. An already posted final image need not be duplicated in the director's report. If generation/capture/file access is blocked, record a concrete `room_post(kind="blocker")` and `room_fail`, then use explicit authorized recovery if the block is resolved. Validation is local file/attachment presence, not automatic recognition of the true final pixels; the creator remains responsible for accurate final-state evidence. See [visual reporting](../SKILL.md#images-during-work-and-at-completion). No AI image watcher, reminders or collector is added.
 
 ## File ownership and safe writes
 

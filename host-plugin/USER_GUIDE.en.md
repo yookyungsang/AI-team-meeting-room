@@ -4,7 +4,7 @@
 
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.4.0. You can use the plugin across projects, with separate connections and records for each. The current meeting UI and the reporting instructions use Korean. This guide includes the Korean control labels so you can find them; it does not add automatic translation or language switching to the app.
+This guide describes version 0.4.1. You can use the plugin across projects, with separate connections and records for each. The current meeting UI and the reporting instructions use Korean. This guide includes the Korean control labels so you can find them; it does not add automatic translation or language switching to the app.
 
 ## Get started
 
@@ -96,11 +96,11 @@ Failed or delayed messages are not resent automatically. The UI also prevents re
 Drafts, generated images and screenshots attached to progress or final reports appear in the conversation. Select an image to enlarge it; use the close button or Escape to return.
 
 - **During work:** show a representative image only when requested or needed for a visual decision or error investigation.
-- **At completion:** the instructions require one image of the actual final state for work with a visual deliverable, such as a screen, design, generated image or 3D result.
+- **At completion:** the participant who creates an image, screen, UI, design or 3D result must personally attach one actual final-state image to their own meeting-room final report, even if a preview was shown during work.
 
-Reuse an existing image if it accurately shows the final state. Otherwise capture the final screen once within the authorized scope. If capture or file access is unavailable, disclose that limit. Do not present an intermediate draft as a finished result. Text-only work does not need decorative images.
+Reuse the saved final generated image or an accurate final-state image. Otherwise capture the final screen once within the authorized scope. The director marks visual assignments with a final-image requirement; these jobs cannot complete without the creator's own final attachment. If generation, capture or file access is blocked, report that limitation and leave the work unsuccessful rather than claiming completion. Do not present an intermediate draft as a finished result. Text-only work does not need decorative images.
 
-The participant must attach images to the report; images in other chats are not copied automatically. Supported formats are PNG, JPEG, GIF and WebP, with up to 4 files per message and 8 MiB per file. The meeting server must be able to read the files on its computer. Posted copies remain available if the original work files change or disappear.
+The creator must attach images to the report; images in other chats are not copied automatically. The director does not duplicate a posted creator image or wake staff solely for image reminders. Supported formats are PNG, JPEG, GIF and WebP, with up to 4 files per message and 8 MiB per file. The meeting server must be able to read the files on its computer. Posted copies remain available if the original work files change or disappear.
 
 If an image fails to load, select **다시 보기** (Try again). A remote URL or a path on another computer is not a local attachment; the participant must provide a file the server can read.
 
