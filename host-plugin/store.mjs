@@ -1,12 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
+import {RoomImages} from './images.mjs';
 
 const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const assert=(condition,message)=>{if(!condition)throw new Error(message);};
 const stamp=()=>new Date().toISOString();
 const empty=()=>({version:1,paused:false,requests:[],messages:[]});
 const kinds=new Set(['assignment','question','answer','progress','decision','blocker']);
+const publicMessage=({imageInputKey,...message})=>message;
 function source(members,{memberId,text,sourceThreadId,sourceTurnId,sourceMessageId}){
  const member=members.find(m=>m.id===memberId);
  assert(member,'기존 담당자가 필요합니다.');
@@ -21,9 +23,9 @@ function source(members,{memberId,text,sourceThreadId,sourceTurnId,sourceMessage
 
 // No model, network, runtime-control or scheduling code belongs in this store.
 export class RoomStore {
- constructor(file,project){this.file=path.resolve(file);this.lock=this.file+'.lock';this.project=project;this.members=project.members;}
+ constructor(file,project){this.file=path.resolve(file);this.lock=this.file+'.lock';this.project=project;this.members=project.members;this.images=new RoomImages(this.file+'.images');}
  read(){return fs.existsSync(this.file)?JSON.parse(fs.readFileSync(this.file,'utf8')):empty();}
- snapshot(){return {...this.read(),members:this.members,project:{id:this.project.id,name:this.project.name,workspacePath:this.project.workspacePath},mode:'host-relay'};}
+ snapshot(){const state=this.read();return {...state,messages:state.messages.map(publicMessage),members:this.members,project:{id:this.project.id,name:this.project.name,workspacePath:this.project.workspacePath},mode:'host-relay'};}
  change(action){
   fs.mkdirSync(path.dirname(this.file),{recursive:true});
   let descriptor;
@@ -70,7 +72,12 @@ export class RoomStore {
   if(statusOnly)return {request:{id:request.id,status:request.status,openQuestionCount:request.openQuestionCount||0,openFollowUpCount:request.openFollowUpCount||0,jobs:request.jobs.map(({memberId,state,error})=>({memberId,state,...(error?{error}:{})}))}};
   const parent=request.followUpTo&&state.requests.find(r=>r.id===request.followUpTo);
   const summary=({id,text,status,createdAt})=>({id,text,status,createdAt});
-  return {request,members:this.members,messages:state.messages.filter(m=>m.requestId===requestId),followUps:state.requests.filter(r=>r.followUpTo===requestId).map(summary),...(parent?{parentRequest:summary(parent)}:{}),...(includePrevious?{previousMessages:state.messages.filter(m=>m.requestId!==requestId).slice(-20)}:{})};
+  return {request,members:this.members,messages:state.messages.filter(m=>m.requestId===requestId).map(publicMessage),followUps:state.requests.filter(r=>r.followUpTo===requestId).map(summary),...(parent?{parentRequest:summary(parent)}:{}),...(includePrevious?{previousMessages:state.messages.filter(m=>m.requestId!==requestId).slice(-20).map(publicMessage)}:{})};
+ }
+ image({requestId,messageId,imageId}){
+  const message=this.read().messages.find(m=>m.requestId===requestId&&m.id===messageId);
+  const image=message?.images?.find(item=>item.id===imageId);assert(image,'이 프로젝트의 발언에 첨부된 이미지를 찾을 수 없습니다.');
+  return {image,dataUrl:this.images.read(image)};
  }
  claim({requestId,memberId}){
   return this.change(state=>{
@@ -91,6 +98,7 @@ export class RoomStore {
  post(args){
   const {requestId,memberId,text,sourceTurnId,sourceMessageId,kind,toMemberId,replyTo,messageKey}=args;
   const member=source(this.members,args);
+  const imageInput=this.images.input(args.images);
   if(sourceMessageId===undefined)assert(typeof messageKey==='string'&&/^[a-zA-Z0-9_-]{1,120}$/.test(messageKey),'직접 발언에는 재시도에도 동일한 messageKey가 필요합니다.');
   else assert(messageKey===undefined,'원본 ID와 직접 발언 키를 함께 사용하지 않습니다.');
   assert(kinds.has(kind),'발언 종류가 올바르지 않습니다.');
@@ -103,23 +111,26 @@ export class RoomStore {
    if(kind==='answer')assert(parent&&parent.kind==='question'&&parent.toMemberId===memberId&&toMemberId===parent.authorId,'질문 대상이 원래 질문자에게 답해야 합니다.');
    assert(request.jobs.some(j=>j.memberId===memberId)||parent?.toMemberId===memberId,'배정받거나 질문받은 담당자만 기록할 수 있습니다.');
    const old=state.messages.find(m=>m.requestId===requestId&&m.authorId===memberId&&(sourceMessageId===undefined?m.messageKey===messageKey:m.sourceMessageId===sourceMessageId&&m.sourceTurnId===sourceTurnId));
-   if(old){assert(old.text===text&&old.kind===kind&&old.toMemberId===toMemberId&&old.replyTo===replyTo,'원본 발언은 덮어쓰지 않습니다.');return {created:false,message:old};}
+   if(old){assert(old.text===text&&old.kind===kind&&old.toMemberId===toMemberId&&old.replyTo===replyTo&&old.imageInputKey===imageInput.key,'원본 발언은 덮어쓰지 않습니다.');return {created:false,message:old};}
    assert(!['completed','failed'].includes(request.status),'끝난 회의 요청에 발언을 추가하지 않습니다.');
    if(kind==='question')assert(!state.paused,'새 질문 전달이 일시정지되어 있습니다.');
    const message={id:randomUUID(),requestId,authorId:memberId,authorName:member.name,kind,text,sourceThreadId:member.threadId,...(sourceMessageId?{sourceTurnId,sourceMessageId,sourceType:'native-reference'}:{messageKey,sourceType:'tool-authored'}),createdAt:stamp(),provenance:'participant-posted',...(toMemberId?{toMemberId}:{}),...(replyTo?{replyTo}:{})};
+   if(imageInput.items.length){message.images=this.images.capture(imageInput.items);message.imageInputKey=imageInput.key;}
    state.messages.push(message);this.update(request,state);return {created:true,message};
   });
  }
- reply({requestId,memberId,text,sourceThreadId,sourceTurnId,sourceMessageId}){
+ reply({requestId,memberId,text,sourceThreadId,sourceTurnId,sourceMessageId,images}){
   source(this.members,{memberId,text,sourceThreadId,sourceTurnId,sourceMessageId});
+  const imageInput=this.images.input(images);
   return this.change(state=>{
    const {request,member,job}=this.find(state,requestId,memberId);
    const old=state.messages.find(m=>m.requestId===requestId&&m.authorId===memberId&&(!m.kind||m.kind==='final'));
-   if(old){assert(old.text===text&&old.sourceTurnId===sourceTurnId&&old.sourceMessageId===sourceMessageId,'이미 기록한 답변은 덮어쓰지 않습니다.');return old;}
+   if(old){assert(old.text===text&&old.sourceTurnId===sourceTurnId&&old.sourceMessageId===sourceMessageId&&old.imageInputKey===imageInput.key,'이미 기록한 답변은 덮어쓰지 않습니다.');return old;}
    assert(job.state==='reserved','먼저 요청을 확인하고 전달을 예약해야 합니다.');
    if(memberId==='director')assert(!state.requests.some(r=>r.followUpTo===requestId&&r.status!=='completed'),'사용자가 추가로 보낸 요청을 확인하고 처리한 뒤 원래 요청을 완료해 주세요.');
    assert(!state.messages.some(m=>m.requestId===requestId&&m.authorId===memberId&&m.kind==='question'&&!state.messages.some(a=>a.requestId===requestId&&a.kind==='answer'&&a.replyTo===m.id)),'답변이 필요한 질문을 해결한 뒤 완료해 주세요.');
    const message={id:randomUUID(),requestId,authorId:memberId,authorName:member.name,kind:'final',text,sourceThreadId:member.threadId,...(sourceMessageId?{sourceTurnId,sourceMessageId,sourceType:'native-reference'}:{sourceType:'tool-authored'}),createdAt:stamp(),provenance:'participant-posted'};
+   if(imageInput.items.length){message.images=this.images.capture(imageInput.items);message.imageInputKey=imageInput.key;}
    state.messages.push(message);job.state='completed';job.completedAt=stamp();
    this.update(request,state);return message;
   });

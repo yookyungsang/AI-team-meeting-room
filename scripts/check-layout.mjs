@@ -32,11 +32,14 @@ async function mount(page,html,width){
      const request={...p.params.arguments,status:'pending',jobs:[]};
      window.testRoomState.requests.push(request);
      result={structuredContent:{request,state:window.testRoomState,wakePrompt:'isolated keyboard fixture '+request.id}};
+    }else if(p.params.name==='room_image'){
+     result={structuredContent:{projectId:p.params.arguments.projectId,image:{id:p.params.arguments.imageId,mimeType:'image/png'}},_meta:{'team-room/imageData':window.fixtureImageData}};
+     if(window.deferImages){(window.delayedImages||=[]).push({id:p.id,result});return;}
     }else result={structuredContent:window.testRoomState||empty};
    }
    event.source.postMessage({jsonrpc:'2.0',id:p.id,result},'*');
   });
-  iframe.srcdoc=html;
+  iframe.srcdoc=html.replace('<head>','<head><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\'; img-src data:">');
  },html);
  const frame=page.frames().find(f=>f!==page.mainFrame());
  await frame.waitForSelector('.shell');
@@ -84,10 +87,13 @@ try{
   assert.equal(await frame.locator('#send').getAttribute('tabindex'),'-1');
   assert.equal(await frame.locator('#text').getAttribute('aria-describedby'),'send-hint');
   assert.equal(await frame.locator('#text').getAttribute('aria-keyshortcuts'),'Enter');
-  assert.equal(await frame.locator('#send-hint').isVisible(),true);
+  assert.equal(await frame.locator('#send-hint').isVisible(),false);
+  assert.equal(await frame.locator('#form #result,#form .actions').count(),0,'no delivery history or hint row beneath composer');
   assert.match(await frame.locator('#send-hint').textContent(),/Enter 전송.*Shift\+Enter 줄바꿈/);
   await frame.locator('#open-menu').click();
   assert.equal(await frame.locator('#room-menu').evaluate(el=>el.open),true);
+  assert.equal(await frame.locator('#send-hint').isVisible(),true);
+  assert.equal(await frame.locator('#room-menu #connection').isVisible(),true);
   assert.equal(await frame.locator('.shell').evaluate(el=>el.getBoundingClientRect().height),720);
   assert.equal(await frame.locator('.composer').evaluate(el=>el.getBoundingClientRect().top),layout.form.top);
   await page.keyboard.press('Escape');
@@ -108,6 +114,16 @@ try{
   assert.equal(await frame.locator('.text pre code').textContent(),'const note = "  공백을 유지합니다  ";\nconsole.log(note);');
   assert.equal(await frame.locator('.text ol>li').count(),2);assert.equal(await frame.locator('.text ul ul>li').count(),1);
   assert.equal(await frame.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'prose must not widen the page');
+  await page.evaluate(()=>{
+   const dense='진행 상황을 쉽게 확인할 수 있도록 문장 사이에 여유를 두었습니다. '.repeat(8);
+   window.testRoomState.messages[1].text='## 진행 결과\n\n'+dense+'\n\n- 다음 작업은 화면 확인입니다.\n- 기존 기록은 그대로 보관합니다.';
+   document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:window.testRoomState}},'*');
+  });
+  await frame.waitForSelector('.prose-chunk');
+  assert.equal(await frame.locator('.message:not(.user) .text p').textContent(),'진행 상황을 쉽게 확인할 수 있도록 문장 사이에 여유를 두었습니다. '.repeat(8));
+  const chunkGap=await frame.locator('.prose-chunk').nth(1).evaluate(el=>parseFloat(getComputedStyle(el).marginTop));
+  assert.ok(chunkGap>=14,'dense prose needs visible breathing room');
+  assert.equal(await frame.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'dense prose must not widen the page');
   await frame.locator('#records').evaluate(el=>{el.scrollTop=0;});
   await page.screenshot({path:path.join(output,`layout-${width}.png`)});
   await page.screenshot({path:path.join(output,`readability-${width}.png`),clip:{x:0,y:0,width,height:720}});
@@ -139,14 +155,55 @@ try{
   await page.evaluate(()=>{const target=document.querySelector('iframe').contentWindow;for(const id of window.delayedReceipts.reverse())target.postMessage({jsonrpc:'2.0',id,result:{}},'*');});
   await page.waitForFunction(()=>document.querySelector('iframe').contentDocument.querySelector('#result').textContent.includes('호스트 전달 확인'));
   assert.equal(await frame.locator('#text').inputValue(),'다음 내용 작성 중','late receipts must preserve new draft');
+  const afterDelivery=await frame.locator('#form').evaluate(el=>el.getBoundingClientRect().top);
+  assert.equal(afterDelivery,layout.form.top,'delivery history must not push composer upward');
+  assert.equal(await frame.locator('#result').isVisible(),false);
+  await frame.locator('#open-menu').click();
+  assert.equal(await frame.locator('#result').isVisible(),true);
+  assert.match(await frame.locator('#result').textContent(),/키보드 전송 fixture/);
+  await page.screenshot({path:path.join(output,`delivery-menu-${width}.png`),clip:{x:0,y:0,width,height:720}});
+  await frame.locator('#close-menu').click();
+  await page.evaluate(()=>{
+   const canvas=document.createElement('canvas');canvas.width=900;canvas.height=480;const ctx=canvas.getContext('2d');
+   ctx.fillStyle='#102a35';ctx.fillRect(0,0,900,480);ctx.fillStyle='#edf4e9';ctx.font='bold 32px sans-serif';ctx.fillText('작업 중 시안 · 합성 테스트 화면',40,60);
+   ['상태 표시','작업 화면','확인 버튼'].forEach((label,i)=>{ctx.fillStyle=['#458477','#bc965e','#536d95'][i];ctx.fillRect(40+i*280,100,250,280);ctx.fillStyle='#fff';ctx.font='24px sans-serif';ctx.fillText(label,60+i*280,145);});
+   window.fixtureImageData=canvas.toDataURL('image/png');
+   window.testRoomState.messages.push({id:'image-progress',requestId:'image-request',authorId:'director',kind:'progress',text:'작업 중인 화면입니다. 배치와 색상을 먼저 확인할 수 있습니다.',images:[{id:'a'.repeat(64),caption:'중간 시안 · 아직 작업 중입니다.'}]});
+   document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:window.testRoomState}},'*');
+  });
+  await frame.locator('.image-preview').scrollIntoViewIfNeeded();
+  await frame.waitForFunction(()=>{const image=document.querySelector('.image-preview img');return image?.complete&&image.naturalWidth===900;});
+  assert.equal(await frame.locator('.image-preview img').getAttribute('alt'),'중간 시안 · 아직 작업 중입니다.');
+  assert.equal(await frame.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  await page.screenshot({path:path.join(output,`image-progress-${width}.png`),clip:{x:0,y:0,width,height:720}});
+  const imageReads=await page.evaluate(()=>window.packets.filter(p=>p.method==='tools/call'&&p.params.name==='room_image').length);
+  await frame.locator('.image-preview').click();assert.equal(await frame.locator('#image-viewer').evaluate(el=>el.open),true);
+  await frame.waitForFunction(()=>document.querySelector('#image-full').naturalWidth===900);
+  await page.screenshot({path:path.join(output,`image-zoom-${width}.png`),clip:{x:0,y:0,width,height:720}});
+  await page.keyboard.press('Escape');assert.equal(await frame.locator('#image-viewer').evaluate(el=>el.open),false);
+  assert.equal(await frame.evaluate(()=>document.activeElement.className),'image-preview');
+  await page.evaluate(()=>{
+   window.testRoomState.requests[0].status='processing';
+   document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:window.testRoomState}},'*');
+  });
+  await frame.waitForFunction(()=>Boolean(document.querySelector('.image-preview img')?.complete));
+  assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='tools/call'&&p.params.name==='room_image').length),imageReads,'refresh uses cached immutable image bytes');
+  await page.evaluate(()=>{
+   window.deferImages=true;
+   window.testRoomState.messages.push({id:'image-late',requestId:'image-request',authorId:'director',kind:'progress',text:'다음 시안',images:[{id:'b'.repeat(64),caption:'늦은 이미지 응답 예시'}]});
+   document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:window.testRoomState}},'*');
+  });
+  await frame.locator('.image-preview').last().scrollIntoViewIfNeeded();
+  await page.waitForFunction(()=>window.delayedImages?.length>0);
   await page.evaluate(()=>document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',id:'teardown-fixture',method:'ui/resource-teardown',params:{}},'*'));
   await page.waitForFunction(()=>window.packets.some(p=>p.id==='teardown-fixture'&&p.result));
+  await page.evaluate(()=>{for(const packet of window.delayedImages)document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',...packet},'*');});
   const calls=await page.evaluate(()=>window.packets.filter(p=>p.method==='tools/call').length);
   await page.waitForTimeout(4200);
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='tools/call').length),calls);
   assert.equal(await frame.evaluate(()=>document.body.hidden),true);
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),2);
-  report.cases.push({width,transitions:20,heights,layout,typography,safeReadableMessages:true,teardown:'acknowledged; no polling for 4.2 seconds',sendButtonVisible:false,keyboardSubmit:true,inFlightAddition:true,outOfOrderReceiptsPreserveDraft:true,simulatedHostMessages:2,modelCalls:0});
+  report.cases.push({width,transitions:20,heights,layout,typography,safeReadableMessages:true,inlineImages:true,imageZoom:true,imageCache:true,lateImagesAfterTeardown:'ignored',teardown:'acknowledged; no polling for 4.2 seconds',sendButtonVisible:false,keyboardSubmit:true,inFlightAddition:true,outOfOrderReceiptsPreserveDraft:true,simulatedHostMessages:2,modelCalls:0});
   await page.close();
  }
  fs.writeFileSync(path.join(output,process.env.TEAM_ROOM_LAYOUT_NARROW_ONLY==='1'?'layout-report-narrow.json':'layout-report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));

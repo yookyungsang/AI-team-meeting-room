@@ -13,6 +13,7 @@ const uri='ui://team-room/meeting.html';
 const str={type:'string'},member={type:'string',pattern:'^[a-z][a-z0-9_-]{0,63}$'};
 const schema=(properties={},required=[])=>({type:'object',properties,required,additionalProperties:false});
 const tool=(name,description,inputSchema,readonly,visibility=['model'])=>({name,description,inputSchema,annotations:{readOnlyHint:readonly,destructiveHint:false,idempotentHint:true,openWorldHint:false},_meta:{ui:{visibility}}});
+const images={type:'array',maxItems:4,items:schema({path:{type:'string',maxLength:2000},caption:{type:'string',maxLength:300}},['path','caption'])};
 export const TOOLS=[
  {...tool('room_open','Open 팀 회의실 for an explicit project in its existing director chat. Without projectId, show the project chooser only. Idle refresh invokes no AI.',schema({projectId:member}),true,['app','model']),title:'팀 회의실',_meta:{ui:{resourceUri:uri},'openai/ui':{entrypoints:[{type:'thread'}]}}},
  tool('room_state','Read only the selected project. Without projectId return the chooser, never infer a project. No model/runtime calls.',schema({projectId:member}),true,['app','model']),
@@ -24,6 +25,7 @@ export const TOOLS=[
  tool('room_fail','Record a delivery failure without retrying or inventing an answer.',schema({requestId:str,memberId:member,reason:{type:'string',maxLength:1000}},['requestId','memberId','reason']),false),
  tool('room_pause','Pause or resume NEW meeting submissions and dispatches only. Does not stop active Codex turns.',schema({paused:{type:'boolean'}},['paused']),false,['app','model'])
 ];
+TOOLS.push(tool('room_image','Read an image already attached to an explicit project/request/message. UI only; no AI or network calls.',schema({requestId:str,messageId:str,imageId:str},['requestId','messageId','imageId']),true,['app']));
 // Keep a stable plugin ID for installed users, but require explicit project scope
 // on every request operation. No shared mutable current-project setting exists.
 for(const definition of TOOLS){
@@ -32,14 +34,18 @@ for(const definition of TOOLS){
   definition.inputSchema.required.push('projectId');
  }
  if(definition.name==='room_submit')definition.inputSchema.properties.recipients.maxItems=20;
+ if(['room_post','room_reply'].includes(definition.name)){
+  definition.inputSchema.properties.images=images;
+  definition.description+=' Optional images:[{path,caption}] attaches up to 4 existing local PNG/JPEG/GIF/WebP files (8 MiB each) from this server host, including work-in-progress previews. Files are copied once; use a new messageKey for a new stage.';
+ }
 }
 TOOLS.push(tool('room_projects','List configured project names and IDs without loading conversations or invoking AI.',schema(),true));
 TOOLS.push(tool('room_configure','Register a project with verified existing chat IDs and explicit human authorization. Never create chats or infer permission from this record. Existing connections are immutable; same configuration is idempotent. This changes only meeting configuration, not filesystem access or projects in Codex.',schema({projectId:member,name:{type:'string',maxLength:120},workspacePath:{type:'string',maxLength:1000},members:{type:'array',minItems:1,maxItems:20,items:schema({id:member,name:str,role:str,threadId:str,hostId:str},['id','name','role','threadId','hostId'])}},['projectId','name','members']),false));
 function resource(){return {uri,mimeType:'text/html;profile=mcp-app',text:fs.readFileSync(path.join(root,'widget.html'),'utf8'),_meta:{ui:{csp:{connectDomains:[],resourceDomains:[]}},'openai/ui':{availableDisplayModes:['inline','fullscreen'],preferredDisplayMode:'fullscreen'}}};}
 export function compactResult(name,data){
  if(name==='room_claim')return {dispatch:data.dispatch,request:{id:data.request.id,status:data.request.status},member:data.member,job:data.job};
- if(name==='room_post')return {created:data.created,message:{id:data.message.id,requestId:data.message.requestId,authorId:data.message.authorId,kind:data.message.kind,...(data.message.toMemberId?{toMemberId:data.message.toMemberId}:{}),...(data.message.replyTo?{replyTo:data.message.replyTo}:{})}};
- if(name==='room_reply')return {saved:true,messageId:data.id,requestId:data.requestId,memberId:data.authorId};
+ if(name==='room_post')return {created:data.created,message:{id:data.message.id,requestId:data.message.requestId,authorId:data.message.authorId,kind:data.message.kind,...(data.message.images?{images:data.message.images}:{}),...(data.message.toMemberId?{toMemberId:data.message.toMemberId}:{}),...(data.message.replyTo?{replyTo:data.message.replyTo}:{})}};
+ if(name==='room_reply')return {saved:true,messageId:data.id,requestId:data.requestId,memberId:data.authorId,...(data.images?{images:data.images}:{})};
  if(name==='room_fail')return {requestId:data.id,status:data.status,jobs:data.jobs.map(({memberId,state,error})=>({memberId,state,...(error?{error}:{})}))};
  return data;
 }
@@ -70,6 +76,10 @@ export function handle(request,registry=projects){
      case 'room_claim':data=store.claim(args);break;
      case 'room_post':data=store.post(args);break;
      case 'room_reply':data=store.reply(args);break;
+     case 'room_image':{
+      const {image,dataUrl}=store.image(args);
+      return {content:[],structuredContent:{projectId:project.id,image},_meta:{'team-room/imageData':dataUrl}};
+     }
      case 'room_fail':data=store.fail(args);break;
      case 'room_pause':store.pause(args.paused);data=snapshot();break;
     }

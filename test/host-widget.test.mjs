@@ -12,12 +12,15 @@ class Element {
  requestSubmit(){return this.events.submit({preventDefault(){}});}
  querySelectorAll(){return this.children.flatMap(n=>[...(n.tag==='input'?[n]:[]),...n.querySelectorAll()]);}
  focus(){}
+ showModal(){this.open=true;}
+ close(){this.open=false;this.events.close?.();}
+ removeAttribute(key){delete this[key];}
  closest(){return null;}
  set innerHTML(value){throw new Error('unsafe HTML rendering');}
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
-async function widget(t,{capability={},messageFails=false,autoSelect=true,deferMessages=false,holdSubmit=false}={}){
- const elements=new Map(),sent=[],callbacks={},intervals=[],messagePackets=[],timeouts=new Map();let timeoutSeq=0;
+async function widget(t,{capability={},messageFails=false,autoSelect=true,deferMessages=false,holdSubmit=false,holdImages=false,badImage=false}={}){
+ const elements=new Map(),sent=[],callbacks={},intervals=[],messagePackets=[],imagePackets=[],timeouts=new Map();let timeoutSeq=0;
  const projects=[{id:'test',name:'Test',directorName:'테스트 총괄'},{id:'second',name:'Second',directorName:'다른 총괄'}];
  const state={project:{id:'test',name:'Test'},projects,members:[{id:'director',name:'테스트 총괄',role:'총괄'}],requests:[],messages:[],paused:false};
  const second={project:{id:'second',name:'Second'},projects,members:[{id:'director',name:'다른 총괄',role:'리더'},{id:'writer',name:'작가',role:'작가'}],requests:[],messages:[],paused:false};
@@ -30,6 +33,10 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
   if(packet.method==='tools/call'){
    const {name,arguments:args}=packet.params;
    if(name==='room_state')result={structuredContent:args.projectId?states.get(args.projectId):chooser};
+   if(name==='room_image'){
+    imagePackets.push(packet);if(holdImages)return;
+    result={structuredContent:{projectId:args.projectId,image:{id:args.imageId,mimeType:'image/png'}},_meta:{'team-room/imageData':badImage?'https://example.invalid/tracker.png':'data:image/png;base64,fixture'}};
+   }
    if(name==='room_submit'){const target=states.get(args.projectId);target.requests.push({...args,status:'pending',jobs:[]});result={structuredContent:{request:target.requests.at(-1),state:target,wakePrompt:'fixture '+args.id}};if(holdSubmit)return;}
   }
   if(packet.method==='ui/message'&&deferMessages){messagePackets.push(packet);return;}
@@ -44,7 +51,7 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
  const receive=data=>callbacks.message({source:parent,data:{jsonrpc:'2.0',...data}});
  const respondMessage=(index,result={})=>receive({id:messagePackets[index].id,result});
  const expire=()=>{for(const [id,fn] of [...timeouts]){timeouts.delete(id);fn();}};
- return {sent,elements,state,second,notify,callbacks,intervals,document,styles,receive,window,messagePackets,respondMessage,expire};
+ return {sent,elements,state,second,notify,callbacks,intervals,document,styles,receive,window,messagePackets,imagePackets,respondMessage,expire};
 }
 test('bridge initialization and repeated state reads never wake AI',async t=>{const w=await widget(t);for(let i=0;i<4;i++){await w.intervals[0]();await settle();}assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);assert.equal(w.sent.filter(p=>p.method==='tools/call'&&p.params.name==='room_submit').length,0);});
 test('explicit submit wakes current chat once and subsequent polls do not',async t=>{const w=await widget(t);w.elements.get('text').value='test';w.elements.get('text').events.input();assert.equal(w.elements.get('send').disabled,false);const first=w.elements.get('form').events.submit({preventDefault(){}});await w.elements.get('form').events.submit({preventDefault(){}});await first;await settle();await w.intervals[0]();const messages=w.sent.filter(p=>p.method==='ui/message');assert.equal(messages.length,1);assert.equal(messages[0].params._meta['openai/message'].target,'active');assert.equal(w.state.requests.length,1);});
@@ -101,6 +108,31 @@ test('hidden panel does not poll and reply text is rendered without HTML executi
 
 const visibleText=n=>[n.textContent||'',...n.children.map(visibleText)].join(' ');
 const descendants=n=>[n,...n.children.flatMap(descendants)];
+const imageMessage=(id='preview')=>({id,requestId:'fixture-request',authorId:'director',kind:'progress',text:'중간 시안',images:[{id:'a'.repeat(64),caption:'시안 확인'}]});
+test('progress images render from UI-only data, zoom and refresh without another image or AI call',async t=>{
+ const w=await widget(t);w.state.messages.push(imageMessage());w.notify(w.state);await settle();
+ const nodes=descendants(w.elements.get('messages')),img=nodes.find(n=>n.tag==='img');assert.equal(img.src,'data:image/png;base64,fixture');
+ nodes.find(n=>n.className==='image-preview').events.click();assert.equal(w.elements.get('image-viewer').open,true);
+ assert.equal(w.elements.get('image-full').src,img.src);w.elements.get('close-image').events.click();assert.equal(w.elements.get('image-full').src,undefined);
+ w.state.requests.push({id:'status-fixture'});w.notify(w.state);await settle();
+ assert.equal(w.imagePackets.length,1);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+});
+test('late image responses cannot update a different project or dispatch queued loads after teardown',async t=>{
+ const w=await widget(t,{holdImages:true});w.state.messages.push(...Array.from({length:6},(_,i)=>imageMessage('preview-'+i)));w.notify(w.state);await settle();
+ assert.equal(w.imagePackets.length,2,'image loading must have bounded concurrency');
+ const oldImages=descendants(w.elements.get('messages')).filter(n=>n.className==='image-preview');
+ const first=w.imagePackets[0];
+ w.elements.get('project').value='second';await w.elements.get('project').events.change();
+ w.receive({id:first.id,result:{structuredContent:{projectId:'test',image:{id:'a'.repeat(64),mimeType:'image/png'}},_meta:{'team-room/imageData':'data:image/png;base64,late'}}});await settle();
+ assert.ok(oldImages.every(n=>!descendants(n).some(child=>child.tag==='img')));
+ w.callbacks.pagehide();await settle();assert.equal(w.imagePackets.length,2);
+});
+test('untrusted remote image URLs are rejected and raw Markdown images never cause network loads',async t=>{
+ const w=await widget(t,{badImage:true});w.state.messages.push({...imageMessage(),text:'![tracker](https://example.invalid/image.png)'});w.notify(w.state);await settle();
+ assert.equal(descendants(w.elements.get('messages')).filter(n=>n.tag==='img').length,0);
+ assert.match(visibleText(w.elements.get('messages')),/다시 보기/);
+ assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+});
 test('meeting prose separates paragraphs and lists while keeping content and unsafe markup literal',async t=>{
  const w=await widget(t);
  const text=['## 진행 결과','','첫 번째  문장의 띄어쓰기입니다.','같은 문단의 다음 줄입니다.','','**중요한 변경**과 `inlineCode()`를 확인해 주세요.','','- 항목 하나','  - 하위 항목','- 항목 둘','','3. 세 번째 단계','4. 네 번째 단계','','```js','  const value = "<script>literal</script>";','\t//  공백과 들여쓰기 유지','```','','<img src=x onerror=alert(1)>'].join('\n');
@@ -113,6 +145,32 @@ test('meeting prose separates paragraphs and lists while keeping content and uns
  assert.equal(nodes.find(n=>n.tag==='pre').children[0].textContent,'  const value = "<script>literal</script>";\n\t//  공백과 들여쓰기 유지');
  assert.equal(nodes.some(n=>['img','script','iframe'].includes(n.tag)),false);assert.match(visibleText(root),/<img src=x onerror=alert\(1\)>/);
  assert.equal(w.state.messages[0].text,text);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+});
+
+test('dense historical prose gains display breaks without changing its text or invoking AI',async t=>{
+ const w=await widget(t);
+ const text='화면이 빽빽해 보이는 이유를 확인했습니다. '+ '문장과 문단 사이에 여유를 두어 중요한 내용을 쉽게 찾을 수 있게 합니다. '.repeat(5)+'\n기존 기록은 그대로 보관합니다. 다음 작업도 같은 방식으로 확인합니다.';
+ w.state.messages.push({id:'dense-fixture',authorId:'director',text});w.notify(w.state);
+ const root=descendants(w.elements.get('messages')).find(n=>n.className==='text');
+ const chunks=descendants(root).filter(n=>n.className==='prose-chunk');
+ assert.ok(chunks.length>=3);
+ const exactText=n=>(n.textContent||'')+n.children.map(exactText).join('');
+ assert.equal(exactText(root),text);assert.equal(w.state.messages[0].text,text);
+ for(let i=0;i<3;i++)await w.intervals[0]();
+ assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+ assert.equal(w.sent.filter(p=>p.method==='tools/call'&&p.params.name!=='room_state').length,0);
+});
+
+test('display breaks preserve long inline code, emphasis, URLs and fenced code',async t=>{
+ const w=await widget(t),code='value. '.repeat(35),bold='중요한 문장입니다. '.repeat(20),url='https://example.invalid/'+ 'part.'.repeat(40);
+ const text='`'+code+'`\n\n**'+bold+'**\n\n'+url+'\n\n```txt\n'+code+'\n```';
+ w.state.messages.push({id:'protected-fixture',authorId:'director',text});w.notify(w.state);
+ const root=descendants(w.elements.get('messages')).find(n=>n.className==='text'),nodes=descendants(root);
+ assert.equal(nodes.filter(n=>n.className==='prose-chunk').length,0);
+ assert.ok(nodes.some(n=>n.tag==='code'&&n.textContent===code));
+ assert.ok(nodes.some(n=>n.tag==='strong'&&visibleText(n).includes(bold)));
+ assert.ok(nodes.some(n=>n.textContent===url));
+ assert.equal(nodes.find(n=>n.tag==='pre').children[0].textContent,code);
 });
 
 test('deeply indented meeting lists remain bounded and preserve every item',async t=>{
