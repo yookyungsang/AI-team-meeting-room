@@ -2,7 +2,7 @@
 
 **한국어** | [English](SETUP.en.md) | [전체 사용 설명서](USER_GUIDE.ko.md)
 
-0.7.2 기준입니다. **설치 → 작업할 프로젝트 열기 → 작업자 생성 요청 → 모델 선택 → 총괄 채팅에서 회의실 열기 → 첫 작업 지시** 순서로 진행합니다.
+0.7.3 기준입니다. **설치 → 작업할 프로젝트 열기 → 작업자 생성 요청 → 모델 선택 → 총괄 채팅에서 회의실 열기 → 첫 작업 지시** 순서로 진행합니다.
 
 처음 팀을 만들면 **총괄 1명, 기획자 1명, 디자이너 1명, 프로그래머 2명, QA 1명**이 준비됩니다. 각 작업자는 Codex의 별도 대화창입니다. 팀 생성은 **Codex 채팅에 문장으로 요청**해서 사용합니다.
 
@@ -234,6 +234,7 @@ codex plugin add jyfood-room@jyfood-local
 
 - [전체 사용 설명서](USER_GUIDE.ko.md): 메뉴, 이미지, 작업 상세, 검증, 사용량과 기록 보관
 - [협업 지침 전문](skills/team-room/references/collaboration-policy.md): 역할·인계·프로그래머 협업·QA 규칙
+- [디자이너 상세 규칙](skills/team-room/references/design-collaboration.md): 규격 확인·시안 검토·수정·개발자 인계
 - [에이전트용 팀 구성 절차](skills/team-room/references/team-creation.md): 도구 호출과 중단 복구의 기술 상세
 
 일상 사용에는 위의 요청문으로 시작하면 됩니다. 마지막 문서는 플러그인 개발자와 에이전트를 위한 기술 참고입니다.

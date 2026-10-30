@@ -65,6 +65,10 @@ A private repository requires GitHub access. Make source changes in this indepen
 
 Selecting a project changes the displayed history and draft; it does not switch the current Codex chat. Open the room in that project's director chat when possible. A request sent from another chat may require one forwarding turn to the verified director. On explicit human request, the director uses `room_members` to add/remove/reactivate participants or change meeting names/roles in the same room. Revision and retry checks protect concurrent edits, while unfinished work, questions, ownership and validation block removal. Existing member IDs retain their chat/host; a replacement chat needs a new member ID. Replacing the director chat still needs a separate room.
 
+## Designer collaboration
+
+The [detailed designer workflow](host-plugin/skills/team-room/references/design-collaboration.md) covers 2D/UI/3D specifications, representative candidate review, batched revisions, version preservation, developer handoff and independent QA. Read relevant sections only for actual design assignments. Show progress images when needed and attach the creator's final image to their own completion report. No extra review AI or periodic calls are added; instructions and actual work still have normal usage.
+
 ## Sound collaboration and audio preview
 
 The [sound collaboration rules](host-plugin/skills/team-room/references/sound-collaboration.md) separate sound production, game integration and independent QA. [Audio attachments and preview](host-plugin/USER_GUIDE.en.md#attach-and-preview-audio) support up to 3 local WAV/MP3/OGG files per post, 8 MiB each. Cards appear outside folded details and load only when clicked. Playback invokes no AI and audio bytes stay out of model context. Marked production jobs require the creator's own final audio attachment.

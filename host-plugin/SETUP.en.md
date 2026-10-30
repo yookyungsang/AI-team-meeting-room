@@ -2,7 +2,7 @@
 
 [한국어](SETUP.ko.md) | **English** | [Full user guide](USER_GUIDE.en.md)
 
-For version 0.7.2. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → open the room in the director chat → assign the first task**.
+For version 0.7.3. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → open the room in the director chat → assign the first task**.
 
 A new team has **one director, one planner, one designer, TWO programmers and one QA participant**. Each new participant is a separate Codex chat. Setup starts with a written request in a Codex project chat.
 
@@ -235,6 +235,7 @@ Connections and setup journals normally live under the user's `~/.codex/team-roo
 
 - [Full user guide](USER_GUIDE.en.md): menus, images, details, validation, usage and records
 - [Complete collaboration policy](skills/team-room/references/collaboration-policy.md): role, ownership, programmer and QA rules (Korean)
+- [Detailed designer workflow](skills/team-room/references/design-collaboration.md): specifications, candidate review, revisions and developer handoff (Korean)
 - [Agent team-creation workflow](skills/team-room/references/team-creation.md): tool protocol and recovery details
 
 For everyday setup, use the copyable requests above. The last reference is technical material for plugin developers and agents.

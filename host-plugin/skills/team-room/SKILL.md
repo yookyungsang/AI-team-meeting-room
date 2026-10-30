@@ -62,6 +62,8 @@ The human may send more messages while the director works or a previous host rec
 
 ## Minimal useful work
 
+For actual visual-design work, read the relevant sections of [designer collaboration](references/design-collaboration.md) once: confirm existing specifications, review a representative candidate, batch revisions and hand off exact files/settings to the designated developer. Keep production, integration and independent QA distinct. Reuse known context; no mandatory extra review turn, repeated full-policy handoff or policy-only staff wakeup.
+
 For actual sound-effect work, read [sound collaboration and audio attachments](references/sound-collaboration.md) once. The sound specialist produces audio, a designated programmer integrates it, and QA independently validates actual playback. Mark the creator's job requireFinalAudio:true and attach the final files in their own reply with audio:[{path,caption}]. Preview is user-initiated and UI-only; never infer listening or game validation from file checks or add an AI turn to preview/report it.
 
 1. Delegate only to needed configured existing participants, unless the user asks everyone. Immediately before a first assignment use room_claim with explicit projectId. For image creation or another visual deliverable, set requireFinalImage:true on the creator's job and include their own final-image attachment in the completion criteria. Only dispatch:true allows native send_message_to_thread to the returned member.threadId and member.hostId. Pass job.marker, [TEAM-ROOM-WORK projectId requestId], original user scope, already-confirmed context, ownership and memberId.
@@ -99,7 +101,7 @@ At task start, use the selected project's AGENTS.md and collaboration document f
 
 - Director: overall design, planning approval, prioritization, assignment, conflict resolution, integration and final acceptance.
 - Planner: game systems, balance and level design; specify rules, numerical rationale, progression and acceptance criteria.
-- Designer: character, UI, background and 3D asset planning; provide visual specifications, layouts and asset requirements.
+- Designer: character, UI, background and 3D asset planning/production; use the [design workflow](references/design-collaboration.md) for specifications, candidate review, revisions and developer handoff.
 - Programmer: implementation, defect fixes, compilation/static checks and lightweight developer self-checks; hand off changed files, reproduction steps and evidence to QA.
 - QA: test-case design, error reproduction, actual UI/behavior and regression validation; report expected/actual results, evidence and pass/fail/unverified scope.
 - Sound: sound direction, asset specifications/selection and playback conditions.
