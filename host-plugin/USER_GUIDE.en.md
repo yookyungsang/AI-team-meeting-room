@@ -6,7 +6,7 @@
 
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.6.1. You can use the plugin across projects, with separate connections and records for each. The current meeting UI and the reporting instructions use Korean. This guide includes the Korean control labels so you can find them; it does not add automatic translation or language switching to the app.
+This guide describes version 0.7.1. You can use the plugin across projects, with separate connections and records for each. The current meeting UI and the reporting instructions use Korean. This guide includes the Korean control labels so you can find them; it does not add automatic translation or language switching to the app.
 
 ## Get started
 
@@ -161,6 +161,16 @@ Ask the director: **“Enable work protection and validation for this project's 
 - **Recovery:** save results, remaining steps and file hashes at a necessary handoff checkpoint. Once interruption is verified, the director hands work to an existing participant while retaining records and current files. No timeout alone triggers takeover or automatic resend. Unsaved editor buffers cannot be reconstructed.
 - **Unity checks:** start one compile, EditMode, PlayMode or build run and inspect exit status, error logs, test XML and fresh artifacts. An already-open Editor or insufficient evidence produces a blocked/unverified result. Actual device play and visual confirmation remain separate checks.
 
+## Attach and preview audio
+
+Ask the creator in the meeting: **“Attach the final sound files to your own final report, and distinguish sound production, game integration and actual listening/QA.”** Participants attach saved local files; a written path or audio posted in another chat is not automatically copied into the meeting.
+
+Audio cards appear **outside folded work details**. Select **▶ 음원 미리듣기** (Preview audio) to load that file and open its player, then press the native play control. Playback, pause, seeking and volume use the browser's controls. There is no autoplay. Closing, Escape, project switch, hiding or teardown stops playback; ordinary record refresh preserves the open player.
+
+Up to 3 WAV/MP3/OGG files per post, 8 MiB each, are supported. Posted snapshots remain available after source changes/deletion. Actual codec or host restrictions may prevent playback and must be reported honestly. The sound specialist produces the files, a designated programmer integrates them, and independent QA checks actual game playback. Marked creator jobs require their own final audio attachment; previews or director copies do not satisfy completion. See the [sound collaboration policy](skills/team-room/references/sound-collaboration.md) (Korean).
+
+Preview reads bytes only after a user click, through an app-only tool with a bounded cache. It does not call AI, transcribe or analyze the sound. Model-facing history contains small attachment metadata rather than paths/base64/audio bytes. Instructions and attachment descriptions still have normal context overhead; identical total usage is not guaranteed. A successful file check or browser preview is not evidence of actual listening or correct playback in the game.
+
 ## Usage by participant after completion
 
 Once the director connects available local usage records for the existing chats, the final-result view and menu show measured input/output tokens per participant and a measured subtotal. No second AI summary or periodic progress report is added. A late final-turn usage event can update the same view later.
@@ -204,6 +214,7 @@ The default data location is `~/.codex/team-room` under the user's home director
 | `team-setups.json` | New-team plans, model choices, creation progress and actual chat results |
 | Per-project JSON files in `rooms/` | Requests, posts, state and image attachment metadata |
 | A directory with `.images` appended to a project JSON filename | Copies of posted images |
+| A directory with `.audio` appended to a project JSON filename | Copies of posted audio; include these in backups |
 
 Updating the source or plugin preserves records when the data location stays the same. Back up both the JSON files and the image directories. Keep real chat connections, transcripts, user screenshots and tokens out of the source repository.
 

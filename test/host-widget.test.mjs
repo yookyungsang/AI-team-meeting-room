@@ -12,6 +12,8 @@ class Element {
  requestSubmit(){return this.events.submit({preventDefault(){}});}
  querySelectorAll(){return this.children.flatMap(n=>[...(n.tag==='input'?[n]:[]),...n.querySelectorAll()]);}
  focus(){}
+ pause(){this.paused=true;this.pauseCalls=(this.pauseCalls||0)+1;}
+ load(){this.loadCalls=(this.loadCalls||0)+1;}
  showModal(){this.open=true;}
  close(){this.open=false;this.events.close?.();}
  removeAttribute(key){delete this[key];}
@@ -19,8 +21,8 @@ class Element {
  set innerHTML(value){throw new Error('unsafe HTML rendering');}
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
-async function widget(t,{capability={},messageFails=false,autoSelect=true,deferMessages=false,holdSubmit=false,holdImages=false,badImage=false}={}){
- const elements=new Map(),sent=[],callbacks={},intervals=[],messagePackets=[],imagePackets=[],timeouts=new Map();let timeoutSeq=0;
+async function widget(t,{capability={},messageFails=false,autoSelect=true,deferMessages=false,holdSubmit=false,holdImages=false,badImage=false,holdAudio=false,badAudio=false}={}){
+ const elements=new Map(),sent=[],callbacks={},intervals=[],messagePackets=[],imagePackets=[],audioPackets=[],timeouts=new Map();let timeoutSeq=0;
  const projects=[{id:'test',name:'Test',directorName:'테스트 총괄'},{id:'second',name:'Second',directorName:'다른 총괄'}];
  const state={project:{id:'test',name:'Test'},projects,members:[{id:'director',name:'테스트 총괄',role:'총괄'}],requests:[],messages:[],paused:false};
  const second={project:{id:'second',name:'Second'},projects,members:[{id:'director',name:'다른 총괄',role:'리더'},{id:'writer',name:'작가',role:'작가'}],requests:[],messages:[],paused:false};
@@ -37,6 +39,10 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
     imagePackets.push(packet);if(holdImages)return;
     result={structuredContent:{projectId:args.projectId,image:{id:args.imageId,mimeType:'image/png'}},_meta:{'team-room/imageData':badImage?'https://example.invalid/tracker.png':'data:image/png;base64,fixture'}};
    }
+   if(name==='room_audio'){
+    audioPackets.push(packet);if(holdAudio)return;
+    result={structuredContent:{projectId:args.projectId,audio:{id:args.audioId,mimeType:'audio/wav'}},_meta:{'team-room/audioData':badAudio?'https://example.invalid/tracker.wav':'data:audio/wav;base64,fixture'}};
+   }
    if(name==='room_submit'){const target=states.get(args.projectId);target.requests.push({...args,status:'pending',jobs:[]});result={structuredContent:{request:target.requests.at(-1),state:target,wakePrompt:'fixture '+args.id}};if(holdSubmit)return;}
   }
   if(packet.method==='ui/message'&&deferMessages){messagePackets.push(packet);return;}
@@ -51,7 +57,7 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
  const receive=data=>callbacks.message({source:parent,data:{jsonrpc:'2.0',...data}});
  const respondMessage=(index,result={})=>receive({id:messagePackets[index].id,result});
  const expire=()=>{for(const [id,fn] of [...timeouts]){timeouts.delete(id);fn();}};
- return {sent,elements,state,second,notify,callbacks,intervals,document,styles,receive,window,messagePackets,imagePackets,respondMessage,expire};
+ return {sent,elements,state,second,notify,callbacks,intervals,document,styles,receive,window,messagePackets,imagePackets,audioPackets,respondMessage,expire};
 }
 test('bridge initialization and repeated state reads never wake AI',async t=>{const w=await widget(t);for(let i=0;i<4;i++){await w.intervals[0]();await settle();}assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);assert.equal(w.sent.filter(p=>p.method==='tools/call'&&p.params.name==='room_submit').length,0);});
 test('explicit submit wakes current chat once and subsequent polls do not',async t=>{const w=await widget(t);w.elements.get('text').value='test';w.elements.get('text').events.input();assert.equal(w.elements.get('send').disabled,false);const first=w.elements.get('form').events.submit({preventDefault(){}});await w.elements.get('form').events.submit({preventDefault(){}});await first;await settle();await w.intervals[0]();const messages=w.sent.filter(p=>p.method==='ui/message');assert.equal(messages.length,1);assert.equal(messages[0].params._meta['openai/message'].target,'active');assert.equal(w.state.requests.length,1);});
@@ -124,6 +130,35 @@ test('usage is shown only for completed reports, per participant, without an AI 
  w.elements.get('project').value='second';await w.elements.get('project').events.change();assert.doesNotMatch(visibleText(w.elements.get('usage-reports')),/120 토큰/);
 });
 const descendants=n=>[n,...n.children.flatMap(descendants)];
+const audioMessage=(id='sound')=>({id,requestId:'audio-request',authorId:'director',text:'가상 효과음입니다.',details:'음원 기술 사양',audio:[{id:(id==='sound'?'a':'b').repeat(64),mimeType:'audio/wav',caption:'가상 테스트 음원'}]});
+test('audio appears outside details, loads only on click, never autoplays and reuses cached bytes',async t=>{
+ const w=await widget(t);w.state.messages=[audioMessage()];w.notify(w.state);
+ const nodes=descendants(w.elements.get('messages')),detail=nodes.find(n=>n.className==='message-details'),button=nodes.find(n=>n.className==='button audio-preview');
+ assert.equal(w.audioPackets.length,0);assert.equal(descendants(detail).some(n=>n.className==='audio-attachment'),false);
+ await button.events.click();assert.equal(w.audioPackets.length,1);assert.equal(w.elements.get('audio-viewer').open,true);assert.equal(w.elements.get('audio-full').src,'data:audio/wav;base64,fixture');
+ assert.equal(w.elements.get('audio-full').autoplay,undefined);w.elements.get('close-audio').events.click();assert.equal(w.elements.get('audio-full').src,undefined);
+ await button.events.click();assert.equal(w.audioPackets.length,1);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+});
+test('normal record refresh preserves the open audio player; hiding, switching or teardown clears it',async t=>{
+ const w=await widget(t);w.state.messages=[audioMessage()];w.notify(w.state);await descendants(w.elements.get('messages')).find(n=>n.className==='button audio-preview').events.click();
+ const player=w.elements.get('audio-full'),pauses=player.pauseCalls;player.currentTime=0.5;w.state.messages.push({id:'new-progress',authorId:'director',text:'다른 진행 보고'});w.notify(w.state);
+ assert.equal(w.elements.get('audio-viewer').open,true);assert.equal(player.currentTime,0.5);assert.equal(player.pauseCalls,pauses);assert.equal(w.audioPackets.length,1);
+ w.document.hidden=true;w.callbacks.visibilitychange();assert.equal(player.src,undefined);assert.equal(w.elements.get('audio-viewer').open,false);
+ w.document.hidden=false;w.elements.get('project').value='second';await w.elements.get('project').events.change();assert.equal(player.src,undefined);
+ w.callbacks.pagehide();assert.equal(player.src,undefined);
+});
+test('late audio responses and detached buttons cannot open a different project or a closed panel',async t=>{
+ const w=await widget(t,{holdAudio:true});w.state.messages=[audioMessage()];w.notify(w.state);const button=descendants(w.elements.get('messages')).find(n=>n.className==='button audio-preview'),load=button.events.click();await settle();
+ const packet=w.audioPackets[0];w.elements.get('project').value='second';await w.elements.get('project').events.change();
+ w.receive({id:packet.id,result:{structuredContent:{projectId:'test',audio:{id:'a'.repeat(64),mimeType:'audio/wav'}},_meta:{'team-room/audioData':'data:audio/wav;base64,fixture'}}});await load;
+ assert.notEqual(w.elements.get('audio-viewer').open,true);assert.equal(w.elements.get('audio-full').src,undefined);await button.events.click();assert.equal(w.audioPackets.length,1);
+ w.callbacks.pagehide();assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+});
+test('untrusted audio URLs never become media sources',async t=>{
+ const w=await widget(t,{badAudio:true});w.state.messages=[audioMessage()];w.notify(w.state);await descendants(w.elements.get('messages')).find(n=>n.className==='button audio-preview').events.click();
+ assert.equal(w.elements.get('audio-full').src,undefined);assert.notEqual(w.elements.get('audio-viewer').open,true);
+ assert.match(visibleText(w.elements.get('messages')),/불러오지 못했습니다/);
+});
 test('roster refresh updates the active team while preserving past author roles, target names and the draft',async t=>{
  const w=await widget(t),input=w.elements.get('text');input.value='보존할 초안';
  w.state.members.push({id:'one',name:'새 표시 이름',role:'새 역할'},{id:'two',name:'새 담당자',role:'개발자'});

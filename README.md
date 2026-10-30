@@ -63,6 +63,10 @@ A private repository requires GitHub access. Make source changes in this indepen
 
 Selecting a project changes the displayed history and draft; it does not switch the current Codex chat. Open the room in that project's director chat when possible. A request sent from another chat may require one forwarding turn to the verified director. On explicit human request, the director uses `room_members` to add/remove/reactivate participants or change meeting names/roles in the same room. Revision and retry checks protect concurrent edits, while unfinished work, questions, ownership and validation block removal. Existing member IDs retain their chat/host; a replacement chat needs a new member ID. Replacing the director chat still needs a separate room.
 
+## Sound collaboration and audio preview
+
+The [sound collaboration rules](host-plugin/skills/team-room/references/sound-collaboration.md) separate sound production, game integration and independent QA. [Audio attachments and preview](host-plugin/USER_GUIDE.en.md#attach-and-preview-audio) support up to 3 local WAV/MP3/OGG files per post, 8 MiB each. Cards appear outside folded details and load only when clicked. Playback invokes no AI and audio bytes stay out of model context. Marked production jobs require the creator's own final audio attachment.
+
 ## New staff teams and model selection
 
 For new staff chats, explicitly ask: **“Create a director, planner, designer, TWO programmers and QA, and let me choose each role's model.”** The [team creation workflow](host-plugin/skills/team-room/references/team-creation.md) prepares role/model choices, then uses native tools for creation, titles, role instructions and connection after human selection. The local `room_team` journal prevents duplicate creation and preserves existing members/work. The server does not launch AI or a separate runtime; native initial role turns have ordinary usage.

@@ -3,10 +3,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import {pathToFileURL} from 'node:url';
+import {wav} from '../test/audio.fixture.mjs';
 const root=path.resolve(import.meta.dirname,'..');
 const modulePath=process.env.PLAYWRIGHT_MODULE;
 const {chromium}=await import(modulePath?pathToFileURL(modulePath).href:'playwright');
-const browser=await chromium.launch({headless:true,...(process.env.BROWSER_EXECUTABLE?{executablePath:process.env.BROWSER_EXECUTABLE}:{})});
+const browser=await chromium.launch({headless:true,args:['--mute-audio'],...(process.env.BROWSER_EXECUTABLE?{executablePath:process.env.BROWSER_EXECUTABLE}:{})});
 const output=path.join(root,'.local');fs.mkdirSync(output,{recursive:true});
 const report={host:'isolated Chromium harness, not Codex',cases:[]};
 async function mount(page,html,width){
@@ -32,6 +33,9 @@ async function mount(page,html,width){
      const request={...p.params.arguments,status:'pending',jobs:[]};
      window.testRoomState.requests.push(request);
      result={structuredContent:{request,state:window.testRoomState,wakePrompt:'isolated keyboard fixture '+request.id}};
+    }else if(p.params.name==='room_audio'){
+     result={structuredContent:{projectId:p.params.arguments.projectId,audio:{id:p.params.arguments.audioId,mimeType:'audio/wav'}},_meta:{'team-room/audioData':window.fixtureAudioData}};
+     if(window.deferAudio){(window.delayedAudio||=[]).push({id:p.id,result});return;}
     }else if(p.params.name==='room_image'){
      result={structuredContent:{projectId:p.params.arguments.projectId,image:{id:p.params.arguments.imageId,mimeType:'image/png'}},_meta:{'team-room/imageData':window.fixtureImageData}};
      if(window.deferImages){(window.delayedImages||=[]).push({id:p.id,result});return;}
@@ -39,7 +43,7 @@ async function mount(page,html,width){
    }
    event.source.postMessage({jsonrpc:'2.0',id:p.id,result},'*');
   });
-  iframe.srcdoc=html.replace('<head>','<head><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\'; img-src data:">');
+  iframe.srcdoc=html.replace('<head>','<head><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\'; img-src data:; media-src data:">');
  },html);
  const frame=page.frames().find(f=>f!==page.mainFrame());
  await frame.waitForSelector('.shell');
@@ -231,6 +235,37 @@ try{
   assert.match(await frame.locator('#messages .usage-report').innerText(),/계정 전체 변화 \+4%p/);
   assert.equal(await frame.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   await page.screenshot({path:path.join(output,`work-usage-final-${width}.png`),clip:{x:0,y:0,width,height:720}});
+  await page.evaluate(data=>{
+   window.fixtureAudioData=data;
+   window.testRoomState.messages.push({id:'sound-final',requestId:'image-request',authorId:'director',kind:'final',text:'가상 테스트 음원입니다. 실제 프로젝트의 효과음이 아닙니다.',details:'테스트용 PCM WAV',audio:[{id:'c'.repeat(64),mimeType:'audio/wav',caption:'가상 효과음 · 합성 테스트 음원'}]});
+   document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:window.testRoomState}},'*');
+  },'data:audio/wav;base64,'+wav({seconds:8}).toString('base64'));
+  await frame.waitForSelector('.audio-preview');
+  assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='tools/call'&&p.params.name==='room_audio').length),0);
+  assert.equal(await frame.locator('.message-details .audio-preview').count(),0);
+  await frame.locator('.audio-preview').click();await frame.waitForFunction(()=>document.querySelector('#audio-viewer').open);
+  assert.equal(await frame.locator('#audio-full').evaluate(el=>el.autoplay),false);
+  assert.equal(await frame.locator('#audio-full').evaluate(el=>el.controls),true);
+  await frame.locator('#audio-full').evaluate(el=>el.play());
+  await frame.waitForFunction(()=>document.querySelector('#audio-full').currentTime>0.1);
+  const audioTime=await frame.locator('#audio-full').evaluate(el=>el.currentTime);
+  await page.evaluate(()=>{
+   window.testRoomState.messages.push({id:'while-audio-playing',authorId:'director',kind:'progress',text:'가상 검증: 다른 보고가 갱신돼도 미리듣기를 유지합니다.'});
+   document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:window.testRoomState}},'*');
+  });
+  await frame.waitForFunction(()=>document.querySelector('#messages').textContent.includes('다른 보고가 갱신'));
+  assert.equal(await frame.locator('#audio-full').evaluate(el=>el.paused),false);
+  assert.ok(await frame.locator('#audio-full').evaluate(el=>el.currentTime)>=audioTime);
+  await page.screenshot({path:path.join(output,`audio-preview-${width}.png`),clip:{x:0,y:0,width,height:720}});
+  await frame.locator('#audio-viewer').screenshot({path:path.join(output,`audio-player-${width}.png`)});
+  await frame.locator('#audio-title').evaluate(el=>{el.textContent='LongAudioCaption'.repeat(20);});
+  assert.equal(await frame.locator('#audio-viewer').evaluate(el=>el.scrollWidth>el.clientWidth),false,'long audio captions must wrap');
+  await frame.locator('#close-audio').click();await frame.waitForFunction(()=>!document.querySelector('#audio-full').getAttribute('src'));
+  assert.equal(await frame.locator('#audio-full').evaluate(el=>el.paused),true);
+  await frame.locator('.audio-preview').click();await frame.waitForFunction(()=>document.querySelector('#audio-viewer').open);
+  assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='tools/call'&&p.params.name==='room_audio').length),1);
+  await page.keyboard.press('Escape');await frame.waitForFunction(()=>!document.querySelector('#audio-full').getAttribute('src'));
+  assert.equal(await frame.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   await page.evaluate(()=>{
    window.deferImages=true;
    window.testRoomState.messages.push({id:'image-late',requestId:'image-request',authorId:'director',kind:'progress',text:'다음 시안',images:[{id:'b'.repeat(64),caption:'늦은 이미지 응답 예시'}]});
@@ -238,15 +273,21 @@ try{
   });
   await frame.locator('.image-preview').last().scrollIntoViewIfNeeded();
   await page.waitForFunction(()=>window.delayedImages?.length>0);
+  await page.evaluate(()=>{
+   window.deferAudio=true;
+   window.testRoomState.messages.push({id:'sound-late',requestId:'image-request',authorId:'director',text:'늦은 음원 응답 검증',audio:[{id:'d'.repeat(64),mimeType:'audio/wav',caption:'늦은 가상 음원'}]});
+   document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:window.testRoomState}},'*');
+  });
+  await frame.locator('.audio-preview').last().click();await page.waitForFunction(()=>window.delayedAudio?.length>0);
   await page.evaluate(()=>document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',id:'teardown-fixture',method:'ui/resource-teardown',params:{}},'*'));
   await page.waitForFunction(()=>window.packets.some(p=>p.id==='teardown-fixture'&&p.result));
-  await page.evaluate(()=>{for(const packet of window.delayedImages)document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',...packet},'*');});
+  await page.evaluate(()=>{for(const packet of [...window.delayedImages,...(window.delayedAudio||[])])document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',...packet},'*');});
   const calls=await page.evaluate(()=>window.packets.filter(p=>p.method==='tools/call').length);
   await page.waitForTimeout(4200);
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='tools/call').length),calls);
-  assert.equal(await frame.evaluate(()=>document.body.hidden),true);
+  assert.equal(await frame.evaluate(()=>document.body.hidden),true);assert.equal(await frame.locator('#audio-full').getAttribute('src'),null);
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),2);
-  report.cases.push({width,transitions:20,heights,layout,typography,safeReadableMessages:true,foldedTechnicalDetails:true,detailsPreservedOnRefresh:true,naturalPeerExample:true,inlineImages:true,imageZoom:true,imageCache:true,finalUsageByParticipant:true,missingUsageNotZero:true,lateImagesAfterTeardown:'ignored',teardown:'acknowledged; no polling for 4.2 seconds',sendButtonVisible:false,keyboardSubmit:true,inFlightAddition:true,outOfOrderReceiptsPreserveDraft:true,simulatedHostMessages:2,modelCalls:0});
+  report.cases.push({width,transitions:20,heights,layout,typography,safeReadableMessages:true,foldedTechnicalDetails:true,audioPreview:{lazy:true,outsideDetails:true,decodedWav:true,manualPlay:true,refreshKeepsPlayback:true,cache:true,closeStops:true,lateAfterTeardown:'ignored'},detailsPreservedOnRefresh:true,naturalPeerExample:true,inlineImages:true,imageZoom:true,imageCache:true,finalUsageByParticipant:true,missingUsageNotZero:true,lateImagesAfterTeardown:'ignored',teardown:'acknowledged; no polling for 4.2 seconds',sendButtonVisible:false,keyboardSubmit:true,inFlightAddition:true,outOfOrderReceiptsPreserveDraft:true,simulatedHostMessages:2,modelCalls:0});
   await page.close();
  }
  fs.writeFileSync(path.join(output,process.env.TEAM_ROOM_LAYOUT_NARROW_ONLY==='1'?'layout-report-narrow.json':'layout-report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));

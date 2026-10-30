@@ -2,7 +2,7 @@
 
 [한국어](SETUP.ko.md) | **English** | [Full user guide](USER_GUIDE.en.md)
 
-For version 0.6.1. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → open the room in the director chat → assign the first task**.
+For version 0.7.1. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → open the room in the director chat → assign the first task**.
 
 A new team has **one director, one planner, one designer, TWO programmers and one QA participant**. Each new participant is a separate Codex chat. Setup starts with a written request in a Codex project chat.
 
@@ -170,6 +170,10 @@ Keep button positions and adjust text size and spacing first.
 Additions link to the latest active original request and must be handled before completion. If several tasks are active, name the task you mean. A running tool is not guaranteed to stop immediately: Codex may steer the active work or queue a later message. A finished original request needs a new request.
 
 **작업 상세 보기** (Show work details) contains technical prose such as paths, settings and validation evidence. **Attached images appear outside the folded details**, so you can see them without expanding it. A written file path alone is not an image attachment.
+
+### Listen to attached audio
+
+Audio attached by a participant appears in a card **outside folded work details**. Select **▶ 음원 미리듣기**, then the play control in the dialog. There is no autoplay, AI listening or transcription. See [audio attachments and preview](USER_GUIDE.en.md#attach-and-preview-audio) for requests and supported formats.
 
 ## Connect existing staff
 

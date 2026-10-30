@@ -19,18 +19,20 @@ const str={type:'string'},member={type:'string',pattern:'^[a-z][a-z0-9_-]{0,63}$
 const schema=(properties={},required=[])=>({type:'object',properties,required,additionalProperties:false});
 const tool=(name,description,inputSchema,readonly,visibility=['model'])=>({name,description,inputSchema,annotations:{readOnlyHint:readonly,destructiveHint:false,idempotentHint:true,openWorldHint:false},_meta:{ui:{visibility}}});
 const images={type:'array',maxItems:4,items:schema({path:{type:'string',maxLength:2000},caption:{type:'string',maxLength:300}},['path','caption'])};
+const audio={type:'array',maxItems:3,items:schema({path:{type:'string',maxLength:2000},caption:{type:'string',maxLength:300}},['path','caption'])};
 export const TOOLS=[
  {...tool('room_open','Open 팀 회의실 for an explicit project in its existing director chat. Without projectId, show the project chooser only. Idle refresh invokes no AI.',schema({projectId:member}),true,['app','model']),title:'팀 회의실',_meta:{ui:{resourceUri:uri},'openai/ui':{entrypoints:[{type:'thread'}]}}},
  tool('room_state','Read only the selected project. Without projectId return the chooser, never infer a project. No model/runtime calls.',schema({projectId:member}),true,['app','model']),
  tool('room_submit','Store an explicit human message, optionally linked to an active original request by followUpTo; does NOT start AI. The UI sends each wakePrompt once without blocking later messages.',schema({id:str,text:{type:'string',maxLength:6000},recipients:{type:'array',items:member,minItems:1,maxItems:6},followUpTo:str},['id','text','recipients']),false,['app']),
  tool('room_get','Read one request and its linked user follow-ups. Directors check these before decisions and completion, integrate additions without redispatching original jobs, and complete each follow-up. statusOnly:true omits text; unrelated history needs includePrevious:true.',schema({requestId:str,statusOnly:{type:'boolean'},includePrevious:{type:'boolean'}},['requestId']),true),
- tool('room_claim','Reserve one existing participant before native dispatch. For an image/visual deliverable, set requireFinalImage:true on its creator: their own final reply must attach the final image. Can add this requirement to active work without redispatch; cannot remove it. Only dispatch:true permits a new assignment.',schema({requestId:str,memberId:member,requireFinalImage:{type:'boolean'}},['requestId','memberId']),false),
+ tool('room_claim','Reserve one existing participant before native dispatch. For an image/visual deliverable, set requireFinalImage:true on its creator: their own final reply must attach the final image. Can add this requirement to active work without redispatch; cannot remove it. For audio creation set requireFinalAudio:true; their own final reply must attach the audio. Only dispatch:true permits a new assignment.',schema({requestId:str,memberId:member,requireFinalImage:{type:'boolean'},requireFinalAudio:{type:'boolean'}},['requestId','memberId']),false),
  tool('room_post','Write your own substantive message directly. Use a stable messageKey (e.g. question-qa-1) for safe storage retries. Native source IDs are optional only when already known; do not read your chat just to obtain them. No dispatch/AI occurs here. New peer questions require one separate native send only when created:true. No posting acknowledgments.',schema({requestId:str,memberId:member,kind:{type:'string',enum:['assignment','question','answer','progress','decision','blocker']},messageKey:str,toMemberId:member,replyTo:str,text:{type:'string',maxLength:20000},sourceThreadId:str,sourceTurnId:str,sourceMessageId:str},['requestId','memberId','kind','text']),false),
  tool('room_reply','Write your own substantive final answer and complete once. Image creators must attach an actual final image here, even if shown in progress; requireFinalImage jobs reject missing images. Unavailable output needs an honest blocker/failure, never fake success. Directors need not duplicate a creator image already posted. No self-read, acknowledgment or AI call.',schema({requestId:str,memberId:member,text:{type:'string',maxLength:20000},sourceThreadId:str,sourceTurnId:str,sourceMessageId:str},['requestId','memberId','text']),false),
  tool('room_fail','Record a delivery failure without retrying or inventing an answer.',schema({requestId:str,memberId:member,reason:{type:'string',maxLength:1000}},['requestId','memberId','reason']),false),
  tool('room_pause','Pause or resume NEW meeting submissions and dispatches only. Does not stop active Codex turns.',schema({paused:{type:'boolean'}},['paused']),false,['app','model'])
 ];
 TOOLS.push(tool('room_image','Read an image already attached to an explicit project/request/message. UI only; no AI or network calls.',schema({requestId:str,messageId:str,imageId:str},['requestId','messageId','imageId']),true,['app']));
+TOOLS.push(tool('room_audio','Read one attached audio snapshot for user-initiated preview. UI only; bytes stay in metadata, with no AI or external network call.',schema({requestId:str,messageId:str,audioId:str},['requestId','messageId','audioId']),true,['app']));
 // Keep a stable plugin ID for installed users, but require explicit project scope
 // on every request operation. No shared mutable current-project setting exists.
 for(const definition of TOOLS){
@@ -43,6 +45,8 @@ for(const definition of TOOLS){
   definition.inputSchema.properties.text.description='Everyday Korean for a nontechnical reader: result or real question first, short spaced paragraphs. Explain unfinished work, risks and needed decisions here. Put technical evidence in details.';
   definition.inputSchema.properties.details={type:'string',minLength:1,maxLength:20000,description:'Optional exact technical context, file paths, settings, logs and evidence. Stored in the same post and fully readable by participants; folded as 작업 상세 in the UI. Never hide blockers or approval needs only here.'};
   definition.inputSchema.properties.images=images;
+  definition.inputSchema.properties.audio=audio;
+  definition.description+=' Optional audio:[{path,caption}] attaches up to 3 local WAV/MP3/OGG files, 8 MiB each; immutable snapshots, previewed only on user action. No transcription or AI listening occurs.';
   definition.description+=' Optional images:[{path,caption}] attaches up to 4 existing local PNG/JPEG/GIF/WebP files (8 MiB each) from this server host, including work-in-progress previews. Files are copied once; use a new messageKey for a new stage.';
  }
 }
@@ -55,8 +59,8 @@ TOOLS.push(...workTools(tool,schema,member,str));
 TOOLS.find(t=>t.name==='room_validation').annotations.openWorldHint=true;
 export function compactResult(name,data){
  if(name==='room_claim')return {dispatch:data.dispatch,request:{id:data.request.id,status:data.request.status},member:data.member,job:data.job};
- if(name==='room_post')return {created:data.created,message:{id:data.message.id,requestId:data.message.requestId,authorId:data.message.authorId,kind:data.message.kind,...(data.message.images?{images:data.message.images}:{}),...(data.message.toMemberId?{toMemberId:data.message.toMemberId}:{}),...(data.message.replyTo?{replyTo:data.message.replyTo}:{})}};
- if(name==='room_reply')return {saved:true,messageId:data.id,requestId:data.requestId,memberId:data.authorId,...(data.images?{images:data.images}:{})};
+ if(name==='room_post')return {created:data.created,message:{id:data.message.id,requestId:data.message.requestId,authorId:data.message.authorId,kind:data.message.kind,...(data.message.images?{images:data.message.images}:{}),...(data.message.audio?{audio:data.message.audio}:{}),...(data.message.toMemberId?{toMemberId:data.message.toMemberId}:{}),...(data.message.replyTo?{replyTo:data.message.replyTo}:{})}};
+ if(name==='room_reply')return {saved:true,messageId:data.id,requestId:data.requestId,memberId:data.authorId,...(data.images?{images:data.images}:{}),...(data.audio?{audio:data.audio}:{})};
  if(name==='room_fail')return {requestId:data.id,status:data.status,jobs:data.jobs.map(({memberId,state,error})=>({memberId,state,...(error?{error}:{})}))};
  return data;
 }
@@ -115,6 +119,10 @@ export function handle(request,registry=projects){
      case 'room_image':{
       const {image,dataUrl}=store.image(args);
       return {content:[],structuredContent:{projectId:project.id,image},_meta:{'team-room/imageData':dataUrl}};
+     }
+     case 'room_audio':{
+      const {audio,dataUrl}=store.audioFile(args);
+      return {content:[],structuredContent:{projectId:project.id,audio},_meta:{'team-room/audioData':dataUrl}};
      }
      case 'room_fail':data=store.fail(args);break;
      case 'room_pause':store.pause(args.paused);data=snapshot();break;

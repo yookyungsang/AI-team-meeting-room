@@ -29,6 +29,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
 .message-images{max-width:540px;display:grid;gap:16px;margin-top:16px}.message-image{margin:0;min-width:0}.image-preview{display:grid;place-items:center;width:100%;height:240px;padding:0;background:#191919;border:1px solid #414141;border-radius:10px;overflow:hidden;color:#bbb}.image-preview img{width:100%;height:100%;min-height:0;object-fit:contain}.message-image figcaption{font-size:12px;line-height:1.8;color:#bbb;margin-top:7px;overflow-wrap:anywhere;white-space:pre-wrap}
 #image-viewer{width:1000px;max-width:calc(100% - 28px);max-height:calc(100% - 28px);padding:0;border:1px solid #444;border-radius:12px;background:#181818;color:#eee;overflow:auto}#image-viewer::backdrop{background:#000b}#image-viewer img{display:block;width:100%;height:auto;object-fit:contain}#image-viewer .menu-header h2{overflow-wrap:anywhere;min-width:0}@media(max-width:560px){.image-preview{height:200px}}
 .message-details{max-width:66ch;margin-top:14px;border-left:2px solid #444;padding:4px 0 4px 13px;overflow-wrap:anywhere}.message-details>summary{width:fit-content;cursor:pointer;color:#bbb;font-size:13px;line-height:1.9}.message-details[open]>summary{margin-bottom:12px}.message-details .text{font-size:13px;color:#c5c5c5;line-height:1.85}.message-details .text p{margin-bottom:14px}
+.message-audio{max-width:540px;display:grid;gap:10px;margin-top:16px}.audio-attachment{margin:0;padding:12px;border:1px solid #414141;border-radius:10px;background:#191919;min-width:0}.audio-preview{white-space:normal;overflow-wrap:anywhere;text-align:left;width:100%;font-size:13px}.audio-attachment figcaption{font-size:12px;color:#bbb;margin-top:6px;overflow-wrap:anywhere}#audio-viewer{width:min(560px,calc(100% - 24px));max-height:calc(100% - 24px);padding:0;border:1px solid #444;border-radius:12px;background:#181818;color:#eee;overflow:auto}#audio-viewer::backdrop{background:#0009}#audio-title{min-width:0;overflow-wrap:anywhere}#close-audio{flex-shrink:0}.audio-content{padding:18px}#audio-full{display:block;width:100%;max-width:100%}#audio-status{font-size:12px;line-height:1.8;color:#bbb;overflow-wrap:anywhere}
 </style></head>
 <body><div class="shell">
 <header class="top"><h1>팀 회의실</h1><label class="project-picker" for="project">프로젝트<select id="project" disabled><option value="">프로젝트 선택</option></select></label><button id="open-menu" class="button menu-trigger" type="button" aria-haspopup="dialog" aria-controls="room-menu">메뉴 ☰</button></header>
@@ -51,15 +52,24 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
 <h3>일시정지는 새 요청만 막아요</h3><p>이미 진행 중인 작업을 취소하지는 않습니다. 확인이 필요한 전송이 있어도 다른 추가 내용은 계속 보낼 수 있습니다.</p></details>
 </div></dialog>
 <dialog id="image-viewer" aria-labelledby="image-title"><header class="menu-header"><h2 id="image-title">이미지 미리보기</h2><button id="close-image" class="button" type="button">닫기 ×</button></header><img id="image-full" alt=""></dialog>
+<dialog id="audio-viewer" aria-labelledby="audio-title"><header class="menu-header"><h2 id="audio-title">음원 미리듣기</h2><button id="close-audio" class="button" type="button">닫기 ×</button></header><div class="audio-content"><audio id="audio-full" controls preload="none" aria-label="첨부 음원 재생"></audio><p id="audio-status" role="status">재생 버튼을 눌러 들어 보세요.</p></div></dialog>
 <script>
 'use strict';
 (() => {
   const $ = id => document.getElementById(id);
   const pending = new Map();
   const imageCache=new Map(),imagePending=new Map(),imageQueue=[];let imageLoads=0,imageEpoch=0;
+  const audioCache=new Map(),audioPending=new Map();let audioEpoch=0,audioSelection=0,audioKey=null;
   let imageObserver=null;
   $('close-image').addEventListener('click',()=>$('image-viewer').close());
   $('image-viewer').addEventListener('close',()=>{$('image-full').removeAttribute('src');});
+  function stopAudio(){
+    audioSelection++;audioKey=null;const player=$('audio-full');player.pause();player.removeAttribute('src');player.load();
+  }
+  $('close-audio').addEventListener('click',()=>{stopAudio();$('audio-viewer').close();});
+  $('audio-viewer').addEventListener('close',()=>{if(!$('audio-viewer').open)stopAudio();});
+  $('audio-viewer').addEventListener('cancel',stopAudio);
+  $('audio-full').addEventListener('error',()=>{if(!disposed&&audioKey)$('audio-status').textContent='이 호스트에서 재생할 수 없는 음원입니다. 파일 형식·코덱 또는 호스트 정책을 확인해 주세요. 청취 검증은 미완료입니다.';});
   $('open-menu').addEventListener('click',()=>{if(!disposed)$('room-menu').showModal();});
   $('close-menu').addEventListener('click',()=>$('room-menu').close());
   $('room-menu').addEventListener('click',event=>{if(event.target===$('room-menu')){const rect=$('room-menu').getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)$('room-menu').close();}});
@@ -97,6 +107,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     expandedDetails.clear();detailsEpoch++;
     if($('room-menu').open)$('room-menu').close();
     resetImages();imageCache.clear();imagePending.clear();
+    resetAudio();audioCache.clear();audioPending.clear();
     if(timer)clearInterval(timer);timer=null;
     for(const request of pending.values()){clearTimeout(request.timeout);request.reject(new Error('회의실이 닫혔습니다.'));}
     pending.clear();document.body.hidden=true;controls();
@@ -104,6 +115,38 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   window.addEventListener('pagehide',dispose);
   window.addEventListener('resize',()=>applyLayout());
   const make = (tag, cls, text) => { const n = document.createElement(tag); if(cls)n.className=cls; if(text!==undefined)n.textContent=String(text); return n; };
+  function resetAudio(){audioEpoch++;if($('audio-viewer').open)$('audio-viewer').close();else stopAudio();}
+  const audioIdentity=(message,audio)=>JSON.stringify({projectId,requestId:message.requestId,messageId:message.id,audioId:audio.id});
+  function audioSource(args){
+    const key=JSON.stringify(args);if(audioCache.has(key))return Promise.resolve(audioCache.get(key));if(audioPending.has(key))return audioPending.get(key);
+    const work=rpc('tools/call',{name:'room_audio',arguments:args}).then(result=>{
+      const data=extract(result),url=result._meta?.['team-room/audioData'];if(disposed||args.projectId!==projectId)throw new Error('회의실이 닫혔거나 변경되었습니다.');
+      if(data.projectId!==args.projectId||data.audio?.id!==args.audioId||!['audio/wav','audio/mpeg','audio/ogg'].includes(data.audio?.mimeType)||typeof url!=='string'||url.length>12*1024*1024||!url.startsWith('data:'+data.audio.mimeType+';base64,'))throw new Error('음원 응답을 확인할 수 없습니다.');
+      audioCache.set(key,url);let size=0;for(const value of audioCache.values())size+=value.length;
+      while(size>24*1024*1024&&audioCache.size>1){const oldest=audioCache.keys().next().value;size-=audioCache.get(oldest).length;audioCache.delete(oldest);}return url;
+    }).finally(()=>audioPending.delete(key));audioPending.set(key,work);return work;
+  }
+  function messageAudio(message){
+    const gallery=make('div','message-audio'),epoch=audioEpoch,selected=projectId;
+    for(const audio of (Array.isArray(message.audio)?message.audio:[]).slice(0,3)){
+      if(!audio||!/^[0-9a-f]{64}$/.test(audio.id)||typeof audio.caption!=='string'||!['audio/wav','audio/mpeg','audio/ogg'].includes(audio.mimeType))continue;
+      const figure=make('figure','audio-attachment'),button=make('button','button audio-preview','▶ 음원 미리듣기 · '+audio.caption);button.type='button';
+      figure.append(button,make('figcaption','',audio.mimeType.replace('audio/','').toUpperCase()+' · 누르면 불러옵니다. 자동 재생 없음'));gallery.append(figure);
+      const current=()=>!disposed&&epoch===audioEpoch&&selected===projectId;
+      button.addEventListener('click',async()=>{
+        if(!current()||button.disabled)return;
+        stopAudio();const selection=++audioSelection;button.disabled=true;button.textContent='음원을 불러오는 중…';
+        const args={projectId:selected,requestId:message.requestId,messageId:message.id,audioId:audio.id};
+        try{
+          const url=await audioSource(args);if(!current()||selection!==audioSelection)return;
+          audioKey=JSON.stringify(args);$('audio-title').textContent=audio.caption;$('audio-status').textContent='재생 버튼을 눌러 들어 보세요.';
+          $('audio-full').src=url;if(!$('audio-viewer').open)$('audio-viewer').showModal();
+        }catch{if(current()&&selection===audioSelection)button.textContent='음원을 불러오지 못했습니다. 다시 시도';}
+        finally{if(current()){button.disabled=false;if(button.textContent==='음원을 불러오는 중…')button.textContent='▶ 음원 미리듣기 · '+audio.caption;}}
+      });
+    }
+    return gallery;
+  }
   function resetImages(){
     imageEpoch++;imageObserver?.disconnect();imageObserver=null;imageQueue.length=0;
     if($('image-viewer').open)$('image-viewer').close();
@@ -337,6 +380,8 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     renderProjects();
     const current=JSON.stringify(next);
     if(signature!==current){
+      audioEpoch++;audioSelection++;
+      if(audioKey&&!next.messages.some(m=>(Array.isArray(m.audio)?m.audio:[]).some(a=>a&&audioIdentity(m,a)===audioKey)))resetAudio();
       detailsEpoch++;
       const detailKeys=new Set(next.messages.filter(m=>typeof m.details==='string'&&m.details.trim()).map(detailKey));
       for(const key of expandedDetails)if(!detailKeys.has(key))expandedDetails.delete(key);
@@ -361,6 +406,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
         }
         body.append(messageText(m.text));
         if(m.images?.length)body.append(messageImages(m));
+        if(m.audio?.length)body.append(messageAudio(m));
         if(typeof m.details==='string'&&m.details.trim())body.append(messageDetails(m));
         if(m.kind==='final'&&m.authorId==='director'){
           const report=next.usageReports?.find(r=>r.requestId===m.requestId);if(report)body.append(usageView(report));
@@ -420,7 +466,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     finally{polling=false;}
   }
   function schedule(){if(timer)clearInterval(timer);timer=null;if(!disposed&&initialized&&!document.hidden)timer=setInterval(poll,4000);}
-  document.addEventListener('visibilitychange',()=>{schedule();if(!document.hidden)poll();});
+  document.addEventListener('visibilitychange',()=>{schedule();if(document.hidden)resetAudio();else poll();});
   $('project').addEventListener('change',async()=>{
     if(sending||pausing||switching){renderProjects();return;}
     if(projectId)drafts.set(projectId,$('text').value);
@@ -429,6 +475,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     const expected=projectId,epoch=++selectionEpoch;
     switching=true;state=null;signature='';showError('');renderDeliveries();
     resetImages();imageCache.clear();expandedDetails.clear();detailsEpoch++;
+    resetAudio();audioCache.clear();
     $('members').replaceChildren();$('messages').replaceChildren();$('requests').replaceChildren();$('work-status').replaceChildren();$('usage-reports').replaceChildren();
     $('request-count').textContent='요청 처리 기록 · 0건';$('empty').hidden=false;$('empty').textContent='선택한 프로젝트 기록을 불러오고 있습니다.';$('paused').hidden=true;controls();
     try{
@@ -496,7 +543,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   async function initialize(){
     if(window.parent===window){$('connection').textContent='단독 창에서는 연결할 수 없습니다.';showError('기존 채팅의 MCP App 패널에서 팀 회의실을 열어 주세요.');return;}
     try{
-      const result=await rpc('ui/initialize',{appInfo:{name:'team-room',version:'0.6.1'},appCapabilities:{availableDisplayModes:['inline','fullscreen']},protocolVersion:'2026-01-26'});
+      const result=await rpc('ui/initialize',{appInfo:{name:'team-room',version:'0.7.1'},appCapabilities:{availableDisplayModes:['inline','fullscreen']},protocolVersion:'2026-01-26'});
       if(disposed)return;
       if(result?.protocolVersion!=='2026-01-26')throw new Error('지원되는 호스트 통신 버전을 확인하지 못했습니다.');
       messageExtension=Boolean(result.hostCapabilities?.experimental?.['openai/message'] || result.hostCapabilities?.extensions?.['openai/message']);

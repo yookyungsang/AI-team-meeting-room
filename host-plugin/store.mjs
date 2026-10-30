@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {RoomImages} from './images.mjs';
+import {RoomAudio} from './audio.mjs';
 import {transaction} from './control.mjs';
 import {knownMembers} from './projects.mjs';
 
@@ -10,7 +11,7 @@ const assert=(condition,message)=>{if(!condition)throw new Error(message);};
 const stamp=()=>new Date().toISOString();
 const empty=()=>({version:1,paused:false,requests:[],messages:[]});
 const kinds=new Set(['assignment','question','answer','progress','decision','blocker']);
-const publicMessage=({imageInputKey,...message},legacyMembers=[])=>{
+const publicMessage=({imageInputKey,audioInputKey,...message},legacyMembers=[])=>{
  const legacy=legacyMembers.find(m=>m.id===message.authorId);
  return message.authorRole||!legacy?message:{...message,authorRole:legacy.role};
 };
@@ -40,7 +41,7 @@ function source(members,{memberId,text,sourceThreadId,sourceTurnId,sourceMessage
 
 // No model, network, runtime-control or scheduling code belongs in this store.
 export class RoomStore {
- constructor(file,project,resolveProject=()=>project){this.file=path.resolve(file);this.lock=this.file+'.lock';this.resolveProject=resolveProject;this.images=new RoomImages(this.file+'.images');}
+ constructor(file,project,resolveProject=()=>project){this.file=path.resolve(file);this.lock=this.file+'.lock';this.resolveProject=resolveProject;this.images=new RoomImages(this.file+'.images');this.audio=new RoomAudio(this.file+'.audio');}
  get project(){return this.resolveProject();}
  get members(){return knownMembers(this.project);}
  read(){return fs.existsSync(this.file)?JSON.parse(fs.readFileSync(this.file,'utf8')):empty();}
@@ -80,7 +81,7 @@ export class RoomStore {
  get(requestId,{statusOnly=false,includePrevious=false}={}){
   assert(typeof statusOnly==='boolean'&&typeof includePrevious==='boolean','조회 옵션을 확인해 주세요.');
   const state=this.read(),request=state.requests.find(r=>r.id===requestId);assert(request,'회의 요청을 찾을 수 없습니다.');
-  if(statusOnly)return {request:{id:request.id,status:request.status,openQuestionCount:request.openQuestionCount||0,openFollowUpCount:request.openFollowUpCount||0,jobs:request.jobs.map(({memberId,state,error,requireFinalImage})=>({memberId,state,...(error?{error}:{}),...(requireFinalImage?{requireFinalImage:true}:{})}))}};
+  if(statusOnly)return {request:{id:request.id,status:request.status,openQuestionCount:request.openQuestionCount||0,openFollowUpCount:request.openFollowUpCount||0,jobs:request.jobs.map(({memberId,state,error,requireFinalImage,requireFinalAudio})=>({memberId,state,...(error?{error}:{}),...(requireFinalImage?{requireFinalImage:true}:{}),...(requireFinalAudio?{requireFinalAudio:true}:{})}))}};
   const parent=request.followUpTo&&state.requests.find(r=>r.id===request.followUpTo);
   const summary=({id,text,status,createdAt})=>({id,text,status,createdAt});
   const message=m=>publicMessage(m,this.project.legacyMembers);
@@ -93,8 +94,13 @@ export class RoomStore {
   const image=message?.images?.find(item=>item.id===imageId);assert(image,'이 프로젝트의 발언에 첨부된 이미지를 찾을 수 없습니다.');
   return {image,dataUrl:this.images.read(image)};
  }
- claim({requestId,memberId,requireFinalImage}){
+ audioFile({requestId,messageId,audioId}){
+  const message=this.read().messages.find(m=>m.requestId===requestId&&m.id===messageId),audio=message?.audio?.find(a=>a.id===audioId);
+  assert(audio,'이 요청의 발언에 첨부된 음원을 찾을 수 없습니다.');return {audio,dataUrl:this.audio.read(audio)};
+ }
+ claim({requestId,memberId,requireFinalImage,requireFinalAudio}){
   assert(requireFinalImage===undefined||typeof requireFinalImage==='boolean','완료 이미지 필수 여부는 참 또는 거짓이어야 합니다.');
+  assert(requireFinalAudio===undefined||typeof requireFinalAudio==='boolean','완료 음원 필수 여부는 참 또는 거짓이어야 합니다.');
   return this.change(state=>{
    const existing=state.requests.find(r=>r.id===requestId);
    assert(existing&&this.members.some(m=>m.id===memberId),'기존 회의 요청과 담당자가 필요합니다.');
@@ -110,6 +116,8 @@ export class RoomStore {
     assert(['pending','reserved'].includes(job.state),'이미 끝나거나 인계된 작업의 완료 조건은 바꾸지 않습니다.');
     job.requireFinalImage=true;
    }
+   assert(!(job.requireFinalAudio&&requireFinalAudio===false),'이미 지정한 완료 음원 조건을 해제하지 않습니다.');
+   if(requireFinalAudio&&!job.requireFinalAudio){assert(['pending','reserved'].includes(job.state),'끝난 작업의 완료 조건은 바꾸지 않습니다.');job.requireFinalAudio=true;}
    if(job.state!=='pending')return {dispatch:false,request,member,job};
    assert(this.project.members.some(m=>m.id===memberId),'제외된 담당자에게 새 작업을 전달하지 않습니다.');
    assert(!state.paused,'새 전달이 일시정지되어 있습니다.');
@@ -122,6 +130,7 @@ export class RoomStore {
   const member=source(this.members,args);
   validateDetails(details);
   const imageInput=this.images.input(args.images);
+  const audioInput=this.audio.input(args.audio);
   if(sourceMessageId===undefined)assert(typeof messageKey==='string'&&/^[a-zA-Z0-9_-]{1,120}$/.test(messageKey),'직접 발언에는 재시도에도 동일한 messageKey가 필요합니다.');
   else assert(messageKey===undefined,'원본 ID와 직접 발언 키를 함께 사용하지 않습니다.');
   assert(kinds.has(kind),'발언 종류가 올바르지 않습니다.');
@@ -134,31 +143,38 @@ export class RoomStore {
    if(kind==='answer')assert(parent&&parent.kind==='question'&&parent.toMemberId===memberId&&toMemberId===parent.authorId,'질문 대상이 원래 질문자에게 답해야 합니다.');
    assert(request.jobs.some(j=>j.memberId===memberId)||parent?.toMemberId===memberId,'배정받거나 질문받은 담당자만 기록할 수 있습니다.');
    const old=state.messages.find(m=>m.requestId===requestId&&m.authorId===memberId&&(sourceMessageId===undefined?m.messageKey===messageKey:m.sourceMessageId===sourceMessageId&&m.sourceTurnId===sourceTurnId));
-   if(old){assert(old.text===text&&old.details===details&&old.kind===kind&&old.toMemberId===toMemberId&&old.replyTo===replyTo&&old.imageInputKey===imageInput.key,'원본 발언은 덮어쓰지 않습니다.');return {created:false,message:old};}
+   if(old){assert(old.text===text&&old.details===details&&old.kind===kind&&old.toMemberId===toMemberId&&old.replyTo===replyTo&&old.imageInputKey===imageInput.key&&old.audioInputKey===audioInput.key,'원본 발언은 덮어쓰지 않습니다.');return {created:false,message:old};}
    assert(!['completed','failed'].includes(request.status),'끝난 회의 요청에 발언을 추가하지 않습니다.');
    assert(this.project.members.some(m=>m.id===memberId),'제외된 담당자는 새 발언을 기록하지 않습니다.');
    if(toMemberId)assert(this.project.members.some(m=>m.id===toMemberId),'제외된 담당자에게 새 발언을 전달하지 않습니다.');
    if(kind==='question')assert(!state.paused,'새 질문 전달이 일시정지되어 있습니다.');
    const message={id:randomUUID(),requestId,authorId:memberId,authorName:member.name,authorRole:member.role,kind,text,...(details===undefined?{}:{details}),sourceThreadId:member.threadId,...(sourceMessageId?{sourceTurnId,sourceMessageId,sourceType:'native-reference'}:{messageKey,sourceType:'tool-authored'}),createdAt:stamp(),provenance:'participant-posted',...(toMemberId?{toMemberId}:{}),...(replyTo?{replyTo}:{})};
+   const stagedAudio=this.audio.stage(audioInput.items);
    if(imageInput.items.length){message.images=this.images.capture(imageInput.items);message.imageInputKey=imageInput.key;}
+   if(stagedAudio.length){message.audio=this.audio.save(stagedAudio);message.audioInputKey=audioInput.key;}
    state.messages.push(message);this.update(request,state);return {created:true,message};
   });
  }
- reply({requestId,memberId,text,details,sourceThreadId,sourceTurnId,sourceMessageId,images}){
+ reply({requestId,memberId,text,details,sourceThreadId,sourceTurnId,sourceMessageId,images,audio}){
   source(this.members,{memberId,text,sourceThreadId,sourceTurnId,sourceMessageId});
   validateDetails(details);
   const imageInput=this.images.input(images);
+  const audioInput=this.audio.input(audio);
   return this.change(state=>{
    const {request,member,job}=this.find(state,requestId,memberId);
    const old=state.messages.find(m=>m.requestId===requestId&&m.authorId===memberId&&(!m.kind||m.kind==='final'));
-   if(old){assert(old.text===text&&old.details===details&&old.sourceTurnId===sourceTurnId&&old.sourceMessageId===sourceMessageId&&old.imageInputKey===imageInput.key,'이미 기록한 답변은 덮어쓰지 않습니다.');return old;}
+   if(old){assert(old.text===text&&old.details===details&&old.sourceTurnId===sourceTurnId&&old.sourceMessageId===sourceMessageId&&old.imageInputKey===imageInput.key&&old.audioInputKey===audioInput.key,'이미 기록한 답변은 덮어쓰지 않습니다.');return old;}
    assert(job.state==='reserved','먼저 요청을 확인하고 전달을 예약해야 합니다.');
    assert(!job.requireFinalImage||imageInput.items.length>0,'이미지 작업 담당자가 자신의 완료 보고에 실제 최종 이미지를 첨부해야 합니다. 중간 이미지만으로 완료 처리하지 않습니다.');
+   assert(!job.requireFinalAudio||audioInput.items.length>0,'음원 제작 담당자가 자신의 완료 보고에 실제 최종 음원을 첨부해야 합니다.');
+   if(memberId==='director')assert(!request.jobs.some(j=>j.memberId!=='director'&&j.requireFinalAudio&&!['completed','superseded'].includes(j.state)),'음원 제작자의 최종 첨부 또는 미완료 사유를 먼저 확인해 주세요.');
    if(memberId==='director')assert(!request.jobs.some(j=>j.memberId!=='director'&&j.requireFinalImage&&!['completed','superseded'].includes(j.state)),'완료 이미지 담당자의 최종 첨부 또는 미완료 사유를 먼저 확인해 주세요. 이미지가 누락되거나 차단된 작업을 성공으로 완료하지 않습니다.');
    if(memberId==='director')assert(!state.requests.some(r=>r.followUpTo===requestId&&r.status!=='completed'),'사용자가 추가로 보낸 요청을 확인하고 처리한 뒤 원래 요청을 완료해 주세요.');
    assert(!state.messages.some(m=>m.requestId===requestId&&m.authorId===memberId&&m.kind==='question'&&!state.messages.some(a=>a.requestId===requestId&&a.kind==='answer'&&a.replyTo===m.id)),'답변이 필요한 질문을 해결한 뒤 완료해 주세요.');
    const message={id:randomUUID(),requestId,authorId:memberId,authorName:member.name,authorRole:member.role,kind:'final',text,...(details===undefined?{}:{details}),sourceThreadId:member.threadId,...(sourceMessageId?{sourceTurnId,sourceMessageId,sourceType:'native-reference'}:{sourceType:'tool-authored'}),createdAt:stamp(),provenance:'participant-posted'};
+   const stagedAudio=this.audio.stage(audioInput.items);
    if(imageInput.items.length){message.images=this.images.capture(imageInput.items);message.imageInputKey=imageInput.key;}
+   if(stagedAudio.length){message.audio=this.audio.save(stagedAudio);message.audioInputKey=audioInput.key;}
    state.messages.push(message);job.state='completed';job.completedAt=stamp();
    this.update(request,state);return message;
   });
