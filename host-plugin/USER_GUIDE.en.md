@@ -6,7 +6,7 @@
 
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.8.0. You can use the plugin across projects, with separate connections and records for each. The current meeting UI uses Korean labels; reports follow the user's requested or established conversation language. This guide includes the Korean control labels so you can find them; it does not add automatic UI translation or language switching to the app.
+This guide describes version 0.9.0. You can use the plugin across projects, with separate connections and records for each. The current meeting UI uses Korean labels; reports follow the user's requested or established conversation language. This guide includes the Korean control labels so you can find them; it does not add automatic UI translation or language switching to the app.
 
 ## Get started
 
@@ -33,16 +33,18 @@ This is a conversational setup workflow, not a separate creation-button UI or ba
 Open **메뉴 → 팀과 회의 제어 → 구성원 편집** (Menu → Team controls → Edit members).
 
 1. Select an existing participant and press **추가** (Add). For a chat not listed, press **목록에 없는 기존 채팅 찾기** (Find other existing chats), then **목록 새로고침** (Refresh list) after preparation. This does not create chats.
-2. Press **제외** (Exclude) for an idle member, or edit meeting name/role labels. Director routing stays fixed.
+2. Press **제외** (Exclude) for an idle member and choose Planner, Designer, Programmer, QA, Sound or **직접 입력** (Custom). The director stays fixed. Both programmers use the same kind with distinct names.
 3. Review and press **변경 저장** (Save changes). Closing or switching projects discards unsaved editing; an already submitted save may finish.
 
 Reading, selecting, excluding and saving invoke no AI. Only the explicit lookup button requests a bounded director task to verify this project's existing chats. Ambiguous project selection is reported for clarification. Instructions and the actual lookup still have usage, with no periodic AI discovery. Conversational roster changes remain supported.
 
+Standard roles bind **common plus professional guidance**; Custom reveals a name field and binds **common rules plus actual assignment conditions** only. New assignments return short references: read common rules once and relevant professional sections as needed. Saving never wakes staff to announce a role. See the [guidance map](skills/team-room/references/role-guidance.md).
+
 Conflicts retain your draft and show an error; refresh and reconcile. Uncertain saves are never retried automatically. **같은 변경 다시 저장** (Save the same change again) retains the exact change ID/body. Existing transcripts stay intact.
 
-Removal is blocked by pending/reserved work, unanswered questions, unreleased file/Editor ownership or running validation. Finish the work or explicitly confirm the stop and hand it off first. Excluded participants retain their past posts and already imported usage records and may rejoin under the same identity. New usage is not imported from excluded chats, so late records that have not yet been imported may remain unavailable.
+Removal and functional role-kind changes are blocked by pending/reserved work, unanswered questions, unreleased file/Editor ownership or running validation. Finish the work or explicitly confirm the stop and hand it off first. Excluded participants retain their past posts and already imported usage records and may rejoin under the same identity. New usage is not imported from excluded chats, so late records that have not yet been imported may remain unavailable.
 
-An existing participant ID cannot be assigned to another chat. Use a new participant ID for a replacement chat. Director routing stays fixed; replacing the director chat needs a separate room. Meeting labels do not automatically rename native Codex chats. The roster storage operation invokes no AI or participant messaging, but the director conversation requesting and applying it has ordinary usage.
+An existing participant ID cannot be assigned to another chat. Use a new participant ID for a replacement chat. Director routing stays fixed; replacing the director chat needs a separate room. Names/custom labels do not rename native chats. The selected kind binds guidance at the next new assignment, preserving old assignment kinds and native titles/models/system prompts. The roster storage operation invokes no AI or participant messaging, but the director conversation requesting and applying it has ordinary usage.
 
 ## Install and update
 

@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
+import {roleTypeOf} from './roles.mjs';
 import {RoomImages} from './images.mjs';
 import {RoomAudio} from './audio.mjs';
 import {transaction} from './control.mjs';
@@ -121,7 +122,7 @@ export class RoomStore {
    if(job.state!=='pending')return {dispatch:false,request,member,job};
    assert(this.project.members.some(m=>m.id===memberId),'제외된 담당자에게 새 작업을 전달하지 않습니다.');
    assert(!state.paused,'새 전달이 일시정지되어 있습니다.');
-   job.state='reserved';job.claimedAt=stamp();job.marker=`TEAM-ROOM ${this.project.id}/${requestId}/${memberId}`;request.status='processing';
+   job.state='reserved';job.roleType=roleTypeOf(member);job.claimedAt=stamp();job.marker=`TEAM-ROOM ${this.project.id}/${requestId}/${memberId}`;request.status='processing';
    return {dispatch:true,request,member,job};
   });
  }

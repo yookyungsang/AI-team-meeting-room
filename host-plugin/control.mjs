@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash, randomUUID} from 'node:crypto';
+import {roleTypeOf,roleGuidance} from './roles.mjs';
 
 export const check=(ok,message)=>{if(!ok)throw new Error(message);};
 export const hash=value=>createHash('sha256').update(value).digest('hex');
@@ -137,7 +138,8 @@ export class WorkControl{
    const changedFiles=checkpoint?.files.filter(f=>fileHash(this.resolve(f.path,state).absolute)!==f.hash).map(f=>f.path)||[];
    for(const lease of document.leases)if(lease.projectId===this.project.id&&lease.requestId===args.requestId&&lease.memberId===from.id&&!lease.releasedAt){lease.releasedAt=now();lease.recoveryKey=key;}
    const files=document.leases.filter(l=>l.projectId===this.project.id&&l.requestId===args.requestId&&l.memberId===from.id&&l.recoveryKey===key).flatMap(l=>l.targets.map(t=>({path:t.relative,...(t.absolute?{hash:fileHash(t.absolute)}:{})})));
-   const result={dispatch:true,recoveryId:randomUUID(),requestId:args.requestId,fromMemberId:from.id,member:to,checkpoint,files,changedFiles,reason:args.reason,...(old.requireFinalImage||target?.requireFinalImage?{requireFinalImage:true}:{}),...(old.requireFinalAudio||target?.requireFinalAudio?{requireFinalAudio:true}:{})};
+   const assignedType=from.id===to.id?(old.roleType||roleTypeOf(to)):roleTypeOf(to);
+   const result={dispatch:true,recoveryId:randomUUID(),requestId:args.requestId,fromMemberId:from.id,member:to,guidance:roleGuidance(assignedType),checkpoint,files,changedFiles,reason:args.reason,...(old.requireFinalImage||target?.requireFinalImage?{requireFinalImage:true}:{}),...(old.requireFinalAudio||target?.requireFinalAudio?{requireFinalAudio:true}:{})};
    // Job transition is persisted first; a crash never silently replays a native send.
    this.store.change(room=>{
     const r=room.requests.find(r=>r.id===args.requestId),j=r.jobs.find(j=>j.memberId===from.id);
@@ -147,6 +149,7 @@ export class WorkControl{
     j.recoveryPlan={key,input,result};
     if(from.id!==to.id){j.state='superseded';j.supersededAt=now();j.recoveredBy=to.id;j.recoveryId=result.recoveryId;let next=r.jobs.find(j=>j.memberId===to.id);if(next){next.state='reserved';next.claimedAt=now();}else{next={memberId:to.id,state:'reserved',recoveryId:result.recoveryId,claimedAt:now()};r.jobs.push(next);}if(result.requireFinalImage)next.requireFinalImage=true;if(result.requireFinalAudio)next.requireFinalAudio=true;}
     else{j.state='reserved';j.recoveryId=result.recoveryId;}
+    r.jobs.find(j=>j.memberId===to.id).roleType=assignedType;
     r.status='processing';
    });
    state.recoveries[key]={input,result,createdAt:now()};return result;

@@ -137,7 +137,7 @@ export class TeamSetup{
  connect(args){
   return transaction(this.file,empty,state=>{
    const setup=this.find(state,args);check(setup.approval&&setup.slots.every(s=>s.state==='ready'),'모든 역할의 실제 채팅을 확인한 뒤 연결해 주세요.');
-   const added=setup.slots.filter(s=>!s.existing).map(s=>({id:s.memberId,name:s.name,role:s.role,...s.identity}));
+   const added=setup.slots.filter(s=>!s.existing).map(s=>({id:s.memberId,name:s.name,role:s.role,roleType:s.id.startsWith('programmer')?'programmer':s.id,...s.identity}));
    const members=[...setup.baseMembers,...added],config=validateProject({id:setup.projectId,name:setup.name,members,...(setup.workspacePath?{workspacePath:setup.workspacePath}:{})});
    const current=this.registry.read().projects.find(p=>p.id===setup.projectId);
    const allPresent=current&&setup.slots.every(slot=>current.members.some(m=>m.id===slot.memberId&&sameRoute(m,slot.identity)));

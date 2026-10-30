@@ -4,6 +4,7 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import {pathToFileURL} from 'node:url';
 import {wav} from '../test/audio.fixture.mjs';
+import {roleCatalog} from '../host-plugin/roles.mjs';
 const root=path.resolve(import.meta.dirname,'..');
 const modulePath=process.env.PLAYWRIGHT_MODULE;
 const {chromium}=await import(modulePath?pathToFileURL(modulePath).href:'playwright');
@@ -16,7 +17,8 @@ async function mount(page,html,width){
  // A secure origin supplies native crypto.randomUUID used by explicit submits.
  await page.route('https://team-room.invalid/',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><html><body style="margin:0"><iframe title="Test meeting" style="display:block;border:0;width:100%;height:1000px"></iframe></body></html>'}));
  await page.goto('https://team-room.invalid/');
- await page.evaluate(html=>{
+ await page.evaluate(({html,roles})=>{
+  window.fixtureRoles=roles;
   window.packets=[];
   const iframe=document.querySelector('iframe');
   window.addEventListener('message',event=>{
@@ -48,7 +50,7 @@ async function mount(page,html,width){
    event.source.postMessage({jsonrpc:'2.0',id:p.id,result},'*');
   });
   iframe.srcdoc=html.replace('<head>','<head><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\'; img-src data:; media-src data:">');
- },html);
+ },{html,roles:roleCatalog()});
  const frame=page.frames().find(f=>f!==page.mainFrame());
  await frame.waitForSelector('.shell');
  await page.waitForFunction(()=>window.packets.some(p=>p.method==='tools/call'));
@@ -271,8 +273,8 @@ try{
   await page.keyboard.press('Escape');await frame.waitForFunction(()=>!document.querySelector('#audio-full').getAttribute('src'));
   assert.equal(await frame.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   await page.evaluate(()=>{
-   const director={id:'director',name:'예시 총괄',role:'총괄 디렉터'},designer={id:'designer',name:'예시 디자이너',role:'디자이너'},qa={id:'qa',name:'예시 QA',role:'QA'};
-   window.rosterFixture={projectId:window.testRoomState.project.id,revision:window.testRoomState.project.revision||1,optionsRevision:1,members:[director,designer],choices:[director,designer,qa]};
+   const director={id:'director',name:'예시 총괄',role:'총괄 디렉터',roleType:'director'},designer={id:'designer',name:'예시 디자이너',role:'디자이너',roleType:'designer'},qa={id:'qa',name:'예시 QA',role:'QA',roleType:'qa'};
+   window.rosterFixture={roles:window.fixtureRoles,projectId:window.testRoomState.project.id,revision:window.testRoomState.project.revision||1,optionsRevision:1,members:[director,designer],choices:[director,designer,qa]};
    window.testRoomState.members=window.rosterFixture.members;
    document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:window.testRoomState}},'*');
   });
@@ -280,6 +282,15 @@ try{
   assert.equal(await frame.locator('.roster-row').first().locator('button').isDisabled(),true);
   await frame.locator('#roster-choice').selectOption('qa');await frame.locator('#roster-add').click();
   assert.equal(await frame.locator('.roster-row').count(),3);await frame.locator('#roster-save').click();
+  assert.equal(await frame.locator('.roster-row').first().locator('select').isDisabled(),true);
+  await frame.locator('.roster-row').nth(1).locator('select').selectOption('programmer');
+  assert.match(await frame.locator('.roster-role-note').nth(1).innerText(),/프로그래머/);
+  await frame.locator('.roster-row').nth(1).locator('select').selectOption('designer');
+  await frame.locator('.roster-row').nth(2).locator('select').selectOption('custom');
+  await frame.locator('.roster-row').nth(2).locator('input').first().fill('예시 검수자');
+  await frame.locator('.roster-row').nth(2).locator('input').nth(1).fill('번역 검수');
+  assert.match(await frame.locator('.roster-role-note').nth(2).innerText(),/공통 기본 지침/);
+  await frame.locator('#roster-save').click();
   await frame.waitForFunction(()=>document.querySelector('#roster-status').textContent.includes('구성원을 저장했습니다'));
   assert.equal(await frame.locator('#room-menu').evaluate(el=>el.scrollWidth>el.clientWidth),false);
   assert.equal(await frame.locator('#roster-editor').evaluate(el=>el.scrollWidth>el.clientWidth),false);

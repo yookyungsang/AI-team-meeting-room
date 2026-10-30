@@ -65,6 +65,8 @@ A private repository requires GitHub access. Make source changes in this indepen
 
 Selecting a project changes the displayed history and draft; it does not switch the current Codex chat. Open the room in that project's director chat when possible. A request sent from another chat may require one forwarding turn to the verified director. On explicit human request, the director uses `room_members` to add/remove/reactivate participants or change meeting names/roles in the same room. Revision and retry checks protect concurrent edits, while unfinished work, questions, ownership and validation block removal. Existing member IDs retain their chat/host; a replacement chat needs a new member ID. Replacing the director chat still needs a separate room.
 
+Role choices bind **common plus professional guidance**, while Custom binds **common rules plus actual assignment conditions** only. Both programmers use the same kind with distinct names. Saving invokes no AI; the next actual assignment returns short policy references. See the [role guidance map](host-plugin/skills/team-room/references/role-guidance.md).
+
 ## Designer collaboration
 
 The [detailed designer workflow](host-plugin/skills/team-room/references/design-collaboration.md) covers 2D/UI/3D specifications, representative candidate review, batched revisions, version preservation, developer handoff and independent QA. Read relevant sections only for actual design assignments. Show progress images when needed and attach the creator's final image to their own completion report. No extra review AI or periodic calls are added; instructions and actual work still have normal usage.

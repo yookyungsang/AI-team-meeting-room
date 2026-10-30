@@ -11,6 +11,7 @@ import {WorkControl,transaction} from '../host-plugin/control.mjs';
 import {Validation} from '../host-plugin/validation.mjs';
 import {UsageLedger} from '../host-plugin/usage.mjs';
 import {handle} from '../host-plugin/server.mjs';
+import {roleTypeOf,roleGuidance} from '../host-plugin/roles.mjs';
 
 const member=id=>({id,name:'Fixture '+id,role:id,threadId:'fixture-chat-'+id,hostId:'local'});
 const roster=['director','one','qa'].map(member);
@@ -25,6 +26,42 @@ function fixture(t){
 }
 const call=(registry,name,args={})=>handle({method:'tools/call',params:{name,arguments:args}},registry);
 const ok=(registry,name,args)=>{const result=call(registry,name,args);assert.ok(!result.isError,JSON.stringify(result));return result.structuredContent;};
+
+test('role kinds use exact legacy defaults while explicit custom labels never select professional rules',t=>{
+ const f=fixture(t),bytes=fs.readFileSync(f.registry.file);assert.equal(roleTypeOf({id:'one',role:'프로그래머 2'}),'programmer');assert.equal(roleTypeOf({id:'one',role:'UI 전문가'}),'custom');
+ assert.equal(roleTypeOf({id:'one',role:'QA',roleType:'custom'}),'custom');assert.deepEqual(roleGuidance('custom').references,[]);assert.match(roleGuidance('qa').references[0],/qa-/);
+ const view=f.registry.roster('example');assert(view.roles.some(r=>r.id==='sound'));assert.equal(view.members[0].roleType,'director');assert(fs.readFileSync(f.registry.file).equals(bytes));
+ for(const [id,kind] of [['one','director'],['director','custom'],['one','unknown']])assert.throws(()=>f.update(roster.map(m=>m.id===id?{...m,roleType:kind}:m)));
+});
+test('selected kinds persist through legacy clients and automatically bind compact guidance at new assignment',t=>{
+ const f=fixture(t);f.update(roster.map(m=>m.id==='one'?{...m,role:'프로그래머',roleType:'programmer'}:m.id==='qa'?{...m,role:'QA',roleType:'custom'}:m));
+ f.update(f.registry.get('example').members.map(({roleType,...m})=>m));assert.equal(f.registry.get('example').members.find(m=>m.id==='one').roleType,'programmer');assert.equal(f.registry.get('example').members.find(m=>m.id==='qa').roleType,'custom');
+ const id=f.task(),assigned=ok(f.registry,'room_claim',{projectId:'example',requestId:id,memberId:'one'});
+ assert.equal(assigned.job.roleType,'programmer');assert.match(assigned.guidance.references[0],/프로그래머/);assert.match(assigned.guidance.common,/role-guidance/);
+ const custom=ok(f.registry,'room_claim',{projectId:'example',requestId:id,memberId:'qa'});assert.equal(custom.guidance.roleType,'custom');assert.deepEqual(custom.guidance.references,[]);
+ assert.equal(ok(f.registry,'room_claim',{projectId:'example',requestId:id,memberId:'one'}).guidance,undefined);
+ assert.throws(()=>f.update(f.registry.get('example').members.map(m=>m.id==='one'?{...m,roleType:'designer',role:'디자이너'}:m)),/역할 종류/);
+ f.store.reply({requestId:id,memberId:'one',text:'Synthetic implementation report'});
+ f.update(f.registry.get('example').members.map(m=>m.id==='one'?{...m,roleType:'designer',role:'디자이너'}:m));
+ assert.equal(f.store.get(id).request.jobs.find(j=>j.memberId==='one').roleType,'programmer');const next=f.task();assert.match(ok(f.registry,'room_claim',{projectId:'example',requestId:next,memberId:'one'}).guidance.references[0],/design-collaboration/);
+ const v=new Validation(f.control);assert.throws(()=>v.resume({requestId:next,memberId:'one',caseId:'anything',reason:'A label is not director authority'}),/총괄만/);
+});
+test('functional role changes retain ownership and question guards; explicit recovery binds the target kind',t=>{
+ const f=fixture(t),root=path.join(f.home,'workspace');fs.mkdirSync(root);f.control.configure({memberId:'director',workspaceRoot:root});
+ const id=f.task();f.store.claim({requestId:id,memberId:'one'});const lease=f.control.acquire({requestId:id,memberId:'one',key:'editor',paths:['@editor']});f.store.fail({requestId:id,memberId:'one',reason:'Synthetic stopped task'});
+ assert.throws(()=>f.update(roster.map(m=>m.id==='one'?{...m,role:'효과음',roleType:'sound'}:m)),/역할 종류/);f.control.release({requestId:id,memberId:'one',leaseId:lease.leaseId});
+ const question=f.store.post({requestId:id,memberId:'one',kind:'question',toMemberId:'qa',messageKey:'role-question',text:'Synthetic open handoff question'}).message;
+ assert.throws(()=>f.update(roster.map(m=>m.id==='one'?{...m,role:'효과음',roleType:'sound'}:m)),/역할 종류/);
+ f.store.post({requestId:id,memberId:'qa',kind:'answer',toMemberId:'one',replyTo:question.id,messageKey:'role-answer',text:'Synthetic resolved handoff question'});
+ const result=f.control.recover({requestId:id,memberId:'director',fromMemberId:'one',toMemberId:'qa',key:'recover-role',reason:'Explicit existing QA handoff',confirmedStopped:true});assert.equal(result.guidance.roleType,'qa');assert.equal(f.store.get(id).request.jobs.find(j=>j.memberId==='qa').roleType,'qa');
+});
+test('old member-edit receipts replay after role metadata changes without dropping or restoring kinds',t=>{
+ const f=fixture(t),legacy={projectId:'example',memberId:'director',expectedRevision:1,changeId:randomUUID(),members:roster};f.registry.updateMembers(legacy);
+ f.update(roster.map(m=>m.id==='one'?{...m,role:'디자이너',roleType:'designer'}:m));const current=f.registry.get('example');
+ const receipt=f.registry.updateMembers(legacy);assert.equal(receipt.replayed,true);assert.deepEqual(f.registry.get('example'),current);assert.equal(receipt.members.find(m=>m.id==='one').roleType,'designer');
+ const view=f.registry.roster('example'),selection=view.members.map(({roleType,...m})=>m),edit={projectId:'example',memberId:'director',expectedRevision:view.revision,optionsRevision:view.optionsRevision,changeId:randomUUID(),selection};f.registry.updateMembers(edit);
+ f.update(f.registry.get('example').members.map(m=>m.id==='one'?{...m,role:'QA',roleType:'qa'}:m));assert.equal(f.registry.updateMembers(edit).replayed,true);assert.equal(f.registry.get('example').members.find(m=>m.id==='one').roleType,'qa');
+});
 
 test('project-scoped roster choices are prepared once without activating staff or exposing routes',t=>{
  const f=fixture(t),requestId=f.task(),args={projectId:'example',operation:'register',memberId:'director',requestId,verified:true,candidates:[member('designer')]};

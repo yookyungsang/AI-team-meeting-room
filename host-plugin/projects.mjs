@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {transaction,hash,now} from './control.mjs';
+import {roleTypeOf,validateRoleType,roleCatalog} from './roles.mjs';
 
 const check=(ok,message)=>{if(!ok)throw new Error(message);};
 export const validId=value=>typeof value==='string'&&/^[a-z][a-z0-9_-]{0,63}$/.test(value)&&!['__proto__','constructor','prototype'].includes(value)&&!/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(value);
@@ -21,7 +22,7 @@ export function validateProject(input){
   check(validId(m.id)&&m.id!=='user','참여자 ID를 확인해 주세요.');
   check(label(m.name,80)&&label(m.role,80),'참여자 이름과 역할을 확인해 주세요.');
   check(label(m.threadId,160)&&label(m.hostId,160),'실제 기존 대화 ID와 호스트가 필요합니다.');
-  return {id:m.id,name:m.name.trim(),role:m.role.trim(),threadId:m.threadId,hostId:m.hostId};
+  validateRoleType(m);return {id:m.id,name:m.name.trim(),role:m.role.trim(),...(m.roleType===undefined?{}:{roleType:m.roleType}),threadId:m.threadId,hostId:m.hostId};
  });
  check(members.filter(m=>m.id==='director').length===1,'director 역할의 총괄이 한 명 필요합니다.');
  check(new Set(members.map(m=>m.id)).size===members.length,'참여자 ID는 중복될 수 없습니다.');
@@ -45,19 +46,19 @@ export class Projects {
   });
  }
  roster(projectId){
-  const p=this.get(projectId);return {projectId,revision:revision(p),optionsRevision:p.optionsRevision||1,members:p.members.map(({id,name,role})=>({id,name,role})),choices:selectableMembers(p).map(({id,name,role})=>({id,name,role}))};
+  const p=this.get(projectId),view=m=>({id:m.id,name:m.name,role:m.role,roleType:roleTypeOf(m)});return {projectId,revision:revision(p),optionsRevision:p.optionsRevision||1,roles:roleCatalog(),members:p.members.map(view),choices:selectableMembers(p).map(view)};
  }
  registerOptions({projectId,memberId,requestId,verified,candidates}){
   check(memberId==='director'&&verified===true,'총괄이 native 도구로 확인한 기존 채팅만 선택 후보로 저장합니다.');
   check(typeof requestId==='string'&&requestId.length>0,'목록 준비를 요청한 실제 회의 요청이 필요합니다.');
   check(Array.isArray(candidates)&&candidates.length<=100,'기존 채팅 후보는 100개 이내로 준비해 주세요.');
-  const normalized=candidates.map(m=>{check(label(m.name,80)&&label(m.role,80)&&label(m.threadId,160)&&label(m.hostId,160),'후보의 이름·역할·실제 기존 채팅과 호스트가 필요합니다.');return {name:m.name.trim(),role:m.role.trim(),threadId:m.threadId,hostId:m.hostId};});
+  const normalized=candidates.map(m=>{check(label(m.name,80)&&label(m.role,80)&&label(m.threadId,160)&&label(m.hostId,160),'후보의 이름·역할·실제 기존 채팅과 호스트가 필요합니다.');if(m.roleType!==undefined)validateRoleType({...m,id:m.roleType==='director'?'director':'candidate'});return {name:m.name.trim(),role:m.role.trim(),...(m.roleType===undefined?{}:{roleType:m.roleType}),threadId:m.threadId,hostId:m.hostId};});
   check(new Set(normalized.map(m=>m.hostId+'\0'+m.threadId)).size===normalized.length,'같은 채팅 후보를 중복 등록하지 않습니다.');
   return transaction(this.file,()=>({version:1,projects:[]}),state=>{
    const p=state.projects.find(p=>p.id===projectId);check(p,'연결되지 않은 프로젝트입니다.');const input=hash(JSON.stringify(normalized)),prior=p.optionChanges?.find(c=>c.requestId===requestId);
    if(prior){check(prior.input===input,'같은 목록 준비 요청의 후보를 바꾸지 않습니다. 새 명시적 요청을 사용하세요.');return {projectId,saved:true,replayed:true,optionsRevision:p.optionsRevision||1,count:p.memberOptions?.length||0};}
    const known=selectableMembers(p),options=normalized.map(m=>({...m,id:known.find(k=>sameRoute(k,m))?.id||'member_'+hash(JSON.stringify([m.hostId,m.threadId])).slice(0,24)}));
-   check(new Set(options.map(m=>m.id)).size===options.length&&!options.some(m=>known.some(k=>k.id===m.id&&!sameRoute(k,m))),'후보 식별자가 기존 채팅과 충돌합니다.');
+   options.forEach(validateRoleType);check(new Set(options.map(m=>m.id)).size===options.length&&!options.some(m=>known.some(k=>k.id===m.id&&!sameRoute(k,m))),'후보 식별자가 기존 채팅과 충돌합니다.');
    if(JSON.stringify(p.memberOptions||[])!==JSON.stringify(options)){p.memberOptions=options;p.optionsRevision=(p.optionsRevision||1)+1;}
    (p.optionChanges??=[]).push({requestId,input,at:now()});return {projectId,saved:true,optionsRevision:p.optionsRevision||1,count:options.length};
   });
@@ -75,13 +76,16 @@ export class Projects {
     transaction(this.file,()=>({version:1,projects:[]}),state=>{
      const old=state.projects.find(p=>p.id===projectId);check(old,'연결되지 않은 프로젝트입니다.');
      check(selection===undefined||members===undefined,'선택 목록과 직접 구성원 입력을 함께 사용하지 않습니다.');
-     if(selection!==undefined){check(Array.isArray(selection)&&selection.length>=1&&selection.length<=20,'총괄을 포함해 1~20명을 선택하세요.');const choices=selectableMembers(old);members=selection.map(row=>{const found=choices.find(m=>m.id===row?.id);check(found,'현재 프로젝트의 확인된 후보 중에서 선택해 주세요.');return {...found,name:row.name,role:row.role};});}
-     const desired=validateProject({...old,members}).members,input=hash(JSON.stringify([expectedRevision,desired]));
+     if(selection!==undefined){check(Array.isArray(selection)&&selection.length>=1&&selection.length<=20,'총괄을 포함해 1~20명을 선택하세요.');const choices=selectableMembers(old);members=selection.map(row=>{const found=choices.find(m=>m.id===row?.id);check(found,'현재 프로젝트의 확인된 후보 중에서 선택해 주세요.');return {id:found.id,name:row.name,role:row.role,threadId:found.threadId,hostId:found.hostId,...(row.roleType===undefined?{}:{roleType:row.roleType})};});}
+     // Fingerprint submitted fields before carrying forward new metadata. Old
+     // save receipts must remain replayable after a later role-kind edit.
+     const submitted=validateProject({...old,members}).members,input=hash(JSON.stringify([expectedRevision,submitted]));
      const previous=old.memberChanges?.find(c=>c.id===changeId);
      const receipt=(change,replayed)=>({updated:change.changed,replayed,appliedRevision:change.revision,revision:revision(old),members:old.members,retiredCount:old.retiredMembers?.length||0});
      if(previous){check(previous.input===input,'같은 changeId로 변경 내용을 바꿀 수 없습니다.');return receipt(previous,true);}
      if(selection!==undefined)check(optionsRevision===(old.optionsRevision||1),'선택 후보가 변경되었습니다. 목록을 새로고침한 뒤 다시 선택해 주세요.');
      check(revision(old)===expectedRevision,'구성이 변경되었습니다. room_state로 최신 revision과 구성원을 확인해 주세요.');
+     const desired=validateProject({...old,members:submitted.map(m=>{const prior=selectableMembers(old).find(p=>p.id===m.id);return m.roleType===undefined&&prior?.roleType!==undefined?{...m,roleType:prior.roleType}:m;})}).members;
      const known=knownMembers(old);
      for(const member of desired){
       const prior=known.find(m=>m.id===member.id);
@@ -89,6 +93,8 @@ export class Projects {
       check(!known.some(m=>m.id!==member.id&&sameRoute(m,member)),'기존 또는 제외된 담당자의 대화를 다른 ID로 중복 연결하지 않습니다.');
      }
      const removed=new Set(old.members.filter(m=>!desired.some(next=>next.id===m.id)).map(m=>m.id));
+     const changedRoles=new Set(old.members.filter(m=>{const next=desired.find(n=>n.id===m.id);return next&&roleTypeOf(next)!==roleTypeOf(m);}).map(m=>m.id));
+     check(!room.requests.some(r=>r.jobs.some(j=>changedRoles.has(j.memberId)&&['pending','reserved'].includes(j.state)))&&!room.messages.some(m=>m.kind==='question'&&(changedRoles.has(m.authorId)||changedRoles.has(m.toMemberId))&&!room.messages.some(a=>a.kind==='answer'&&a.requestId===m.requestId&&a.replyTo===m.id))&&!controls.leases.some(l=>l.projectId===projectId&&changedRoles.has(l.memberId)&&!l.releasedAt)&&!Object.values(controls.projects[projectId]?.cases||{}).some(c=>c.attempts.some(a=>changedRoles.has(a.memberId)&&a.status==='running')),'진행 중인 담당자의 역할 종류는 작업·질문·소유권·검증을 완료하거나 명시적으로 인계한 뒤 변경해 주세요.');
      check(!room.requests.some(r=>r.jobs.some(j=>removed.has(j.memberId)&&['pending','reserved'].includes(j.state))),'진행 중인 담당자는 작업을 완료하거나 명시적으로 인계한 뒤 제외해 주세요.');
      check(!room.messages.some(m=>m.kind==='question'&&(removed.has(m.authorId)||removed.has(m.toMemberId))&&!room.messages.some(a=>a.kind==='answer'&&a.requestId===m.requestId&&a.replyTo===m.id)),'답변이 남은 질문을 해결한 뒤 담당자를 제외해 주세요.');
      check(!controls.leases.some(l=>l.projectId===projectId&&removed.has(l.memberId)&&!l.releasedAt),'파일·Editor 소유권을 반환한 뒤 담당자를 제외해 주세요.');

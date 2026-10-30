@@ -3,14 +3,15 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import {randomUUID} from 'node:crypto';
+import {roleCatalog,roleTypeOf} from '../host-plugin/roles.mjs';
 const script=fs.readFileSync(new URL('../host-plugin/widget.html',import.meta.url),'utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
 class Element {
- constructor(tag='div'){this.tag=tag;this.children=[];this.events={};this.value='';this.disabled=false;this.hidden=false;this.scrollHeight=0;this.scrollTop=0;this.clientHeight=300;}
+ constructor(tag='div'){this.tag=tag;this.children=[];this.events={};this.value='';this.dataset={};this.disabled=false;this.hidden=false;this.scrollHeight=0;this.scrollTop=0;this.clientHeight=300;}
  append(...nodes){this.children.push(...nodes);}
  replaceChildren(...nodes){this.children=nodes;}
  addEventListener(name,fn){this.events[name]=fn;}
  requestSubmit(){return this.events.submit({preventDefault(){}});}
- querySelectorAll(){return this.children.flatMap(n=>[...(n.tag==='input'?[n]:[]),...n.querySelectorAll()]);}
+ querySelectorAll(selector='input'){const tags=selector.split(',').map(s=>s.trim());return this.children.flatMap(n=>[...(tags.includes(n.tag)?[n]:[]),...n.querySelectorAll(selector)]);}
  focus(){}
  pause(){this.paused=true;this.pauseCalls=(this.pauseCalls||0)+1;}
  load(){this.loadCalls=(this.loadCalls||0)+1;}
@@ -30,6 +31,7 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
  const chooser={project:null,projects,members:[],requests:[],messages:[],paused:true};
  const rosterPackets=[],rosterBehavior={hold:holdRoster,error:rosterError},rosterChanges=new Map();
  const catalogs=new Map([...states].map(([id,room])=>[id,{projectId:id,revision:1,optionsRevision:1,members:room.members.map(m=>({...m})),choices:[...room.members.map(m=>({...m})),{id:'designer',name:'선택 디자이너',role:'디자이너'}]}]));
+ for(const data of catalogs.values()){data.roles=roleCatalog();data.members=data.members.map(m=>({...m,roleType:roleTypeOf(m)}));data.choices=data.choices.map(m=>({...m,roleType:roleTypeOf(m)}));}
  const styles=new Map();
  const document={hidden:false,body:{hidden:false},documentElement:{style:{setProperty:(key,value)=>styles.set(key,value)}},activeElement:null,getElementById:id=>{if(!elements.has(id))elements.set(id,new Element());return elements.get(id);},createElement:tag=>new Element(tag),addEventListener:(name,fn)=>callbacks[name]=fn};
  const parent={postMessage:packet=>{sent.push(packet);if(packet.id===undefined)return;let result={};
@@ -67,6 +69,23 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
  const expire=()=>{for(const [id,fn] of [...timeouts]){timeouts.delete(id);fn();}};
  return {rosterPackets,rosterBehavior,catalogs,sent,elements,state,second,notify,callbacks,intervals,document,styles,receive,window,messagePackets,imagePackets,audioPackets,respondMessage,expire};
 }
+test('role picker links standard guidance, shows custom input only when selected and never wakes AI',async t=>{
+ const w=await widget(t);await w.elements.get('edit-roster').events.click();const rows=()=>w.elements.get('roster-rows').children;
+ assert.equal(rows()[0].children[1].children[0].children[0].disabled,true);
+ w.elements.get('roster-choice').value='designer';w.elements.get('roster-add').events.click();
+ const picker=()=>rows()[1].children[1].children[0].children[0];assert.equal(picker().value,'designer');assert.equal(rows()[1].children[1].children[1].hidden,true);
+ picker().value='programmer';picker().events.change();assert.match(visibleText(rows()[1]),/프로그래머 협업 지침/);
+ picker().value='custom';picker().events.change();const label=rows()[1].children[1].children[1];assert.equal(label.hidden,false);const field=label.children[0];field.value='번역 검수';field.events.input();
+ await w.elements.get('roster-save').events.click();const saved=w.rosterPackets.find(p=>p.params.arguments.operation==='apply').params.arguments.selection.find(m=>m.id==='designer');assert.equal(saved.roleType,'custom');assert.equal(saved.role,'번역 검수');assert.match(visibleText(rows()[1]),/공통 기본 지침/);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+});
+
+test('malformed role-catalog save receipts keep the exact pending edit for explicit retry',async t=>{
+ const w=await widget(t,{holdRoster:'apply'});await w.elements.get('edit-roster').events.click();w.elements.get('roster-choice').value='designer';w.elements.get('roster-add').events.click();
+ const saving=w.elements.get('roster-save').events.click();await settle();const call=w.rosterPackets.find(p=>p.params.arguments.operation==='apply');const bad={...w.catalogs.get('test')};delete bad.roles;
+ w.receive({id:call.id,result:{structuredContent:bad}});await saving;assert.match(w.elements.get('roster-status').textContent,/저장 결과를 확인/);assert.equal(w.elements.get('roster-rows').children.length,2);
+ w.rosterBehavior.hold=null;await w.elements.get('roster-save').events.click();const calls=w.rosterPackets.filter(p=>p.params.arguments.operation==='apply');assert.deepEqual(calls[0].params.arguments,calls[1].params.arguments);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+});
+
 test('menu roster edits add, rename and remove locally before an explicit save without AI or IDs',async t=>{
  const w=await widget(t),input=w.elements.get('text');input.value='보존할 입력';input.events.input();await w.elements.get('edit-roster').events.click();
  assert.equal(w.elements.get('roster-rows').children[0].children[2].disabled,true);w.elements.get('roster-choice').value='designer';w.elements.get('roster-add').events.click();

@@ -1,6 +1,6 @@
 {
   "name": "ai-team-meeting-room",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
   "description": "Project-scoped MCP meeting rooms for existing Codex chats",
