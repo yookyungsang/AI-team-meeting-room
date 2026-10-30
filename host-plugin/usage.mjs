@@ -43,7 +43,7 @@ export class UsageLedger{
  }
  attach(args){
   this.control.actor(args,{director:true,active:false});check(typeof args.file==='string'&&path.isAbsolute(args.file),'명시적으로 허용한 로컬 JSONL 파일의 절대 경로가 필요합니다.');
-  const member=this.control.project.members.find(m=>m.id===args.sourceMemberId);check(member,'이 프로젝트에 연결한 담당자의 사용량만 읽습니다.');
+  const member=this.control.project.members.find(m=>m.id===args.sourceMemberId);check(member,'현재 연결된 담당자의 사용량만 새로 연결합니다.');
   const file=fs.realpathSync(args.file);check(path.extname(file)==='.jsonl'&&fs.statSync(file).isFile(),'기존 Codex JSONL 사용량 기록을 지정해 주세요.');
   // Read only a bounded header to establish scope. Transcripts are never stored.
   const fd=fs.openSync(file,'r'),buffer=Buffer.alloc(65536);let text;
@@ -102,10 +102,10 @@ export class UsageLedger{
  }
  label(args){
   this.control.actor(args,{director:true,active:false});check(['meeting','waiting','validation','work','mixed','unclassified'].includes(args.activity)&&typeof args.turnId==='string'&&args.turnId.length<=160,'관찰한 턴 ID와 활동 분류를 지정해 주세요.');
-  return transaction(this.file,empty,state=>{const source=state.sources[args.sourceId];check(source&&this.control.project.members.some(m=>m.threadId===source.threadId),'이 프로젝트에 연결한 사용량 자료가 필요합니다.');check(source.samples.some(s=>s.turnId===args.turnId),'실제로 관찰한 턴만 분류할 수 있습니다.');source.labels??={};source.labels[args.turnId]=args.activity;return {saved:true};});
+  return transaction(this.file,empty,state=>{const source=state.sources[args.sourceId];check(source&&this.control.store.members.some(m=>m.threadId===source.threadId),'이 프로젝트에 연결한 사용량 자료가 필요합니다.');check(source.samples.some(s=>s.turnId===args.turnId),'실제로 관찰한 턴만 분류할 수 있습니다.');source.labels??={};source.labels[args.turnId]=args.activity;return {saved:true};});
  }
  summary(){
-  const ids=new Map(this.control.project.members.map(m=>[m.threadId,m.id])),sources=Object.values(this.read().sources).filter(s=>ids.has(s.threadId)),total=zero(),byActivity={};
+  const ids=new Map(this.control.store.members.map(m=>[m.threadId,m.id])),sources=Object.values(this.read().sources).filter(s=>ids.has(s.threadId)),total=zero(),byActivity={};
   for(const source of sources){for(const field of fields)total[field]+=source.total[field];for(const sample of source.samples){const activity=source.labels?.[sample.turnId]||group(source.turnTags[sample.turnId]||[]);byActivity[activity]??={...zero(),events:0};for(const field of fields)byActivity[activity][field]+=sample.usage[field];byActivity[activity].events++;}}
   return {available:sources.some(s=>s.samples.length>0),total:sources.some(s=>s.samples.length>0)?total:null,byActivity,sources:sources.map(s=>({sourceId:s.id,memberId:ids.get(s.threadId),events:s.samples.length,updatedAt:s.updatedAt||null,problem:s.problem||null,invalid:s.invalid,resets:s.resets})),scope:'Imported local chat usage; includes history in attached files. Activity groups describe whole turns, not exact per-action billing. Mixed/unknown turns are not guessed. Cached input is part of input; reasoning is part of output.'};
  }
@@ -113,7 +113,7 @@ export class UsageLedger{
   const room=this.control.store.read(),request=room.requests.find(r=>r.id===requestId);check(request&&!request.followUpTo&&['completed','failed'].includes(request.status),'완료된 원래 요청의 사용량만 보고합니다.');
   const sources=Object.values(this.read().sources),rows=[],total=zero();let measured=0;
   for(const job of request.jobs){
-   const member=this.control.project.members.find(m=>m.id===job.memberId),source=sources.find(s=>s.threadId===member?.threadId),start=Date.parse(job.memberId==='director'?request.createdAt:job.claimedAt||request.createdAt),end=Date.parse(job.completedAt||job.failedAt||job.supersededAt||room.messages.find(m=>m.requestId===request.id&&m.authorId===job.memberId&&m.kind==='final')?.createdAt||'');
+   const member=this.control.store.members.find(m=>m.id===job.memberId),source=sources.find(s=>s.threadId===member?.threadId),start=Date.parse(job.memberId==='director'?request.createdAt:job.claimedAt||request.createdAt),end=Date.parse(job.completedAt||job.failedAt||job.supersededAt||room.messages.find(m=>m.requestId===request.id&&m.authorId===job.memberId&&m.kind==='final')?.createdAt||'');
    let usage=null,status='unavailable',events=0;
    if(source&&Number.isFinite(start)&&Number.isFinite(end)){
     const selected=source.samples.filter(sample=>{const time=Date.parse(sample.at),turnStart=Date.parse(source.turnTimes?.[sample.turnId]?.start);return Number.isFinite(turnStart)?turnStart>=start&&turnStart<=end:time>=start&&time<=end;});
@@ -127,7 +127,7 @@ export class UsageLedger{
   return {requestId:request.id,rows,total:measured?total:null,complete:rows.every(r=>r.status==='measured'),quota:this.quota(Date.parse(request.createdAt),end),scope:'Observed whole-turn tokens within this task. Concurrent tasks are not split or guessed; unavailable rows are excluded from the measured subtotal.'};
  }
  quota(start,end){
-  const ledger=this.read(),ids=new Set(this.control.project.members.map(m=>m.threadId));
+  const ledger=this.read(),ids=new Set(this.control.store.members.map(m=>m.threadId));
   const snapshots=[...(ledger.hostLimits||[]),...Object.values(ledger.sources).filter(s=>ids.has(s.threadId)).flatMap(s=>s.limits||[])].sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
   const before=snapshots.filter(s=>Date.parse(s.at)<=start&&Date.parse(s.at)>=start-300000).at(-1);
   let after=snapshots.find(s=>Date.parse(s.at)>=end&&Date.parse(s.at)<=end+600000),provisional=false;

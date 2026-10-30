@@ -124,6 +124,16 @@ test('usage is shown only for completed reports, per participant, without an AI 
  w.elements.get('project').value='second';await w.elements.get('project').events.change();assert.doesNotMatch(visibleText(w.elements.get('usage-reports')),/120 토큰/);
 });
 const descendants=n=>[n,...n.children.flatMap(descendants)];
+test('roster refresh updates the active team while preserving past author roles, target names and the draft',async t=>{
+ const w=await widget(t),input=w.elements.get('text');input.value='보존할 초안';
+ w.state.members.push({id:'one',name:'새 표시 이름',role:'새 역할'},{id:'two',name:'새 담당자',role:'개발자'});
+ w.state.messages.push({id:'old-result',authorId:'one',authorName:'작성 당시 이름',authorRole:'작성 당시 역할',kind:'progress',toMemberId:'two',text:'기존 보고'});w.notify(w.state);
+ assert.match(visibleText(w.elements.get('messages')),/작성 당시 이름 · 작성 당시 역할/);
+ w.state.formerMembers=[w.state.members.find(m=>m.id==='two')];w.state.members=w.state.members.filter(m=>m.id!=='two');w.notify(w.state);
+ assert.doesNotMatch(visibleText(w.elements.get('members')),/새 담당자/);assert.match(visibleText(w.elements.get('messages')),/대상 새 담당자/);
+ assert.equal(input.value,'보존할 초안');assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+ assert.equal(w.sent.filter(p=>p.method==='tools/call'&&p.params.name==='room_submit').length,0);
+});
 const imageMessage=(id='preview')=>({id,requestId:'fixture-request',authorId:'director',kind:'progress',text:'중간 시안',images:[{id:'a'.repeat(64),caption:'시안 확인'}]});
 test('progress images render from UI-only data, zoom and refresh without another image or AI call',async t=>{
  const w=await widget(t);w.state.messages.push(imageMessage());w.notify(w.state);await settle();

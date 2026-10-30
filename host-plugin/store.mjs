@@ -3,13 +3,17 @@ import path from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {RoomImages} from './images.mjs';
 import {transaction} from './control.mjs';
+import {knownMembers} from './projects.mjs';
 
 const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const assert=(condition,message)=>{if(!condition)throw new Error(message);};
 const stamp=()=>new Date().toISOString();
 const empty=()=>({version:1,paused:false,requests:[],messages:[]});
 const kinds=new Set(['assignment','question','answer','progress','decision','blocker']);
-const publicMessage=({imageInputKey,...message})=>message;
+const publicMessage=({imageInputKey,...message},legacyMembers=[])=>{
+ const legacy=legacyMembers.find(m=>m.id===message.authorId);
+ return message.authorRole||!legacy?message:{...message,authorRole:legacy.role};
+};
 function validateDetails(details){assert(details===undefined||(typeof details==='string'&&details.trim()&&details.length<=20000),'작업 상세는 생략하거나 1~20000자로 작성해 주세요.');}
 function wakePrompt(project,request){
  // Preserve the original legacy envelope on explicit storage retries. New IDs
@@ -36,9 +40,11 @@ function source(members,{memberId,text,sourceThreadId,sourceTurnId,sourceMessage
 
 // No model, network, runtime-control or scheduling code belongs in this store.
 export class RoomStore {
- constructor(file,project){this.file=path.resolve(file);this.lock=this.file+'.lock';this.project=project;this.members=project.members;this.images=new RoomImages(this.file+'.images');}
+ constructor(file,project,resolveProject=()=>project){this.file=path.resolve(file);this.lock=this.file+'.lock';this.resolveProject=resolveProject;this.images=new RoomImages(this.file+'.images');}
+ get project(){return this.resolveProject();}
+ get members(){return knownMembers(this.project);}
  read(){return fs.existsSync(this.file)?JSON.parse(fs.readFileSync(this.file,'utf8')):empty();}
- snapshot(){const state=this.read();return {...state,messages:state.messages.map(publicMessage),members:this.members,project:{id:this.project.id,name:this.project.name,workspacePath:this.project.workspacePath},mode:'host-relay'};}
+ snapshot(){const state=this.read(),project=this.project;return {...state,messages:state.messages.map(m=>publicMessage(m,project.legacyMembers)),members:project.members,...(project.retiredMembers?.length?{formerMembers:project.retiredMembers.map(({id,name,role})=>({id,name,role}))}:{}),project:{id:project.id,name:project.name,workspacePath:project.workspacePath,revision:project.revision||1},mode:'host-relay'};}
  change(action){
   return transaction(this.file,empty,action);
  }
@@ -77,7 +83,10 @@ export class RoomStore {
   if(statusOnly)return {request:{id:request.id,status:request.status,openQuestionCount:request.openQuestionCount||0,openFollowUpCount:request.openFollowUpCount||0,jobs:request.jobs.map(({memberId,state,error,requireFinalImage})=>({memberId,state,...(error?{error}:{}),...(requireFinalImage?{requireFinalImage:true}:{})}))}};
   const parent=request.followUpTo&&state.requests.find(r=>r.id===request.followUpTo);
   const summary=({id,text,status,createdAt})=>({id,text,status,createdAt});
-  return {request,members:this.members,messages:state.messages.filter(m=>m.requestId===requestId).map(publicMessage),followUps:state.requests.filter(r=>r.followUpTo===requestId).map(summary),...(parent?{parentRequest:summary(parent)}:{}),...(includePrevious?{previousMessages:state.messages.filter(m=>m.requestId!==requestId).slice(-20).map(publicMessage)}:{})};
+  const message=m=>publicMessage(m,this.project.legacyMembers);
+  const messages=state.messages.filter(m=>m.requestId===requestId).map(message),previousMessages=includePrevious?state.messages.filter(m=>m.requestId!==requestId).slice(-20).map(message):[];
+  const relevant=new Set([...request.jobs.map(j=>j.memberId),...[...messages,...previousMessages].flatMap(m=>[m.authorId,m.toMemberId])]);
+  return {request,members:this.members.filter(m=>!m.retired||relevant.has(m.id)),messages,followUps:state.requests.filter(r=>r.followUpTo===requestId).map(summary),...(parent?{parentRequest:summary(parent)}:{}),...(includePrevious?{previousMessages}:{})};
  }
  image({requestId,messageId,imageId}){
   const message=this.read().messages.find(m=>m.requestId===requestId&&m.id===messageId);
@@ -90,6 +99,7 @@ export class RoomStore {
    const existing=state.requests.find(r=>r.id===requestId);
    assert(existing&&this.members.some(m=>m.id===memberId),'기존 회의 요청과 담당자가 필요합니다.');
    if(!existing.jobs.some(j=>j.memberId===memberId)){
+    assert(this.project.members.some(m=>m.id===memberId),'현재 회의실에 연결된 담당자에게만 새 작업을 배정합니다.');
     assert(!['completed','failed'].includes(existing.status),'끝난 요청에 새 작업을 배정하지 않습니다.');
     assert(!state.paused,'새 전달이 일시정지되어 있습니다.');
     existing.jobs.push({memberId,state:'pending',delegated:true});
@@ -101,6 +111,7 @@ export class RoomStore {
     job.requireFinalImage=true;
    }
    if(job.state!=='pending')return {dispatch:false,request,member,job};
+   assert(this.project.members.some(m=>m.id===memberId),'제외된 담당자에게 새 작업을 전달하지 않습니다.');
    assert(!state.paused,'새 전달이 일시정지되어 있습니다.');
    job.state='reserved';job.claimedAt=stamp();job.marker=`TEAM-ROOM ${this.project.id}/${requestId}/${memberId}`;request.status='processing';
    return {dispatch:true,request,member,job};
@@ -125,8 +136,10 @@ export class RoomStore {
    const old=state.messages.find(m=>m.requestId===requestId&&m.authorId===memberId&&(sourceMessageId===undefined?m.messageKey===messageKey:m.sourceMessageId===sourceMessageId&&m.sourceTurnId===sourceTurnId));
    if(old){assert(old.text===text&&old.details===details&&old.kind===kind&&old.toMemberId===toMemberId&&old.replyTo===replyTo&&old.imageInputKey===imageInput.key,'원본 발언은 덮어쓰지 않습니다.');return {created:false,message:old};}
    assert(!['completed','failed'].includes(request.status),'끝난 회의 요청에 발언을 추가하지 않습니다.');
+   assert(this.project.members.some(m=>m.id===memberId),'제외된 담당자는 새 발언을 기록하지 않습니다.');
+   if(toMemberId)assert(this.project.members.some(m=>m.id===toMemberId),'제외된 담당자에게 새 발언을 전달하지 않습니다.');
    if(kind==='question')assert(!state.paused,'새 질문 전달이 일시정지되어 있습니다.');
-   const message={id:randomUUID(),requestId,authorId:memberId,authorName:member.name,kind,text,...(details===undefined?{}:{details}),sourceThreadId:member.threadId,...(sourceMessageId?{sourceTurnId,sourceMessageId,sourceType:'native-reference'}:{messageKey,sourceType:'tool-authored'}),createdAt:stamp(),provenance:'participant-posted',...(toMemberId?{toMemberId}:{}),...(replyTo?{replyTo}:{})};
+   const message={id:randomUUID(),requestId,authorId:memberId,authorName:member.name,authorRole:member.role,kind,text,...(details===undefined?{}:{details}),sourceThreadId:member.threadId,...(sourceMessageId?{sourceTurnId,sourceMessageId,sourceType:'native-reference'}:{messageKey,sourceType:'tool-authored'}),createdAt:stamp(),provenance:'participant-posted',...(toMemberId?{toMemberId}:{}),...(replyTo?{replyTo}:{})};
    if(imageInput.items.length){message.images=this.images.capture(imageInput.items);message.imageInputKey=imageInput.key;}
    state.messages.push(message);this.update(request,state);return {created:true,message};
   });
@@ -144,7 +157,7 @@ export class RoomStore {
    if(memberId==='director')assert(!request.jobs.some(j=>j.memberId!=='director'&&j.requireFinalImage&&!['completed','superseded'].includes(j.state)),'완료 이미지 담당자의 최종 첨부 또는 미완료 사유를 먼저 확인해 주세요. 이미지가 누락되거나 차단된 작업을 성공으로 완료하지 않습니다.');
    if(memberId==='director')assert(!state.requests.some(r=>r.followUpTo===requestId&&r.status!=='completed'),'사용자가 추가로 보낸 요청을 확인하고 처리한 뒤 원래 요청을 완료해 주세요.');
    assert(!state.messages.some(m=>m.requestId===requestId&&m.authorId===memberId&&m.kind==='question'&&!state.messages.some(a=>a.requestId===requestId&&a.kind==='answer'&&a.replyTo===m.id)),'답변이 필요한 질문을 해결한 뒤 완료해 주세요.');
-   const message={id:randomUUID(),requestId,authorId:memberId,authorName:member.name,kind:'final',text,...(details===undefined?{}:{details}),sourceThreadId:member.threadId,...(sourceMessageId?{sourceTurnId,sourceMessageId,sourceType:'native-reference'}:{sourceType:'tool-authored'}),createdAt:stamp(),provenance:'participant-posted'};
+   const message={id:randomUUID(),requestId,authorId:memberId,authorName:member.name,authorRole:member.role,kind:'final',text,...(details===undefined?{}:{details}),sourceThreadId:member.threadId,...(sourceMessageId?{sourceTurnId,sourceMessageId,sourceType:'native-reference'}:{sourceType:'tool-authored'}),createdAt:stamp(),provenance:'participant-posted'};
    if(imageInput.items.length){message.images=this.images.capture(imageInput.items);message.imageInputKey=imageInput.key;}
    state.messages.push(message);job.state='completed';job.completedAt=stamp();
    this.update(request,state);return message;

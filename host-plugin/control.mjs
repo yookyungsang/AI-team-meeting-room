@@ -17,7 +17,7 @@ const inside=(root,target)=>target===root||target.startsWith(root+path.sep);
 
 // Cross-process, local-only transactions. Dead owners can be recovered without
 // guessing a timeout. Unknown legacy locks and live/reused PIDs remain blocked.
-export function transaction(file,initial,action){
+export function transaction(file,initial,action,{readOnly=false}={}){
  fs.mkdirSync(path.dirname(file),{recursive:true});
  const lock=file+'.lock',token=randomUUID();let fd;
  try{fd=fs.openSync(lock,'wx');}catch{
@@ -34,7 +34,7 @@ export function transaction(file,initial,action){
   fs.writeFileSync(fd,JSON.stringify({pid:process.pid,token}));
   const state=fs.existsSync(file)?JSON.parse(fs.readFileSync(file,'utf8')):initial();
   const result=action(state);
-  fs.writeFileSync(temp,JSON.stringify(state,null,2));fs.renameSync(temp,file);
+  if(!readOnly){fs.writeFileSync(temp,JSON.stringify(state,null,2));fs.renameSync(temp,file);}
   return result;
  }finally{
   fs.closeSync(fd);
@@ -47,12 +47,13 @@ export function transaction(file,initial,action){
 const empty=()=>({version:1,projects:{},leases:[]});
 const projectState=()=>({config:null,checkpoints:{},recoveries:{},cases:{},writes:{}});
 export class WorkControl{
- constructor(store,home){this.store=store;this.home=path.resolve(home);this.file=path.join(this.home,'work-control.json');this.project=store.project;}
+ constructor(store,home){this.store=store;this.home=path.resolve(home);this.file=path.join(this.home,'work-control.json');}
+ get project(){return this.store.project;}
  read(){return fs.existsSync(this.file)?JSON.parse(fs.readFileSync(this.file,'utf8')):empty();}
  state(document=this.read()){return document.projects[this.project.id]||projectState();}
  change(action){return transaction(this.file,empty,document=>{document.projects[this.project.id]??=projectState();return action(this.state(document),document);});}
  actor(args,{director=false,active=true}={}){
-  const member=this.project.members.find(m=>m.id===args.memberId);check(member,'이 프로젝트의 기존 담당자가 필요합니다.');
+  const member=this.store.members.find(m=>m.id===args.memberId);check(member,'이 프로젝트의 기존 담당자가 필요합니다.');
   if(director)check(member.id==='director','총괄만 이 작업을 승인할 수 있습니다.');
   if(active){const request=this.store.read().requests.find(r=>r.id===args.requestId);check(request&&!['completed','failed'].includes(request.status),'진행 중인 요청을 지정해 주세요.');check(request.jobs.some(j=>j.memberId===member.id&&j.state==='reserved'),'현재 작업을 배정받은 담당자만 실행할 수 있습니다.');}
   return member;
@@ -118,7 +119,7 @@ export class WorkControl{
  }
  recover(args){
   this.actor(args,{director:true,active:false});check(args.confirmedStopped===true&&bounded(args.reason)&&cleanKey(args.key),'기존 작업 중단 확인, 복구 이유와 고정 키가 필요합니다.');
-  const from=this.project.members.find(m=>m.id===args.fromMemberId),to=this.project.members.find(m=>m.id===args.toMemberId);check(from&&to,'이 프로젝트의 기존 담당자만 인계할 수 있습니다.');check(from.id!=='director'||to.id==='director','총괄 작업은 기존 총괄 채팅에서 재개해 주세요.');
+  const from=this.store.members.find(m=>m.id===args.fromMemberId),to=this.store.members.find(m=>m.id===args.toMemberId);check(from&&to,'이 프로젝트의 기존 담당자만 인계할 수 있습니다.');check(from.id!=='director'||to.id==='director','총괄 작업은 기존 총괄 채팅에서 재개해 주세요.');
   const result=this.change((state,document)=>{
    const key=args.requestId+':'+args.key,input=hash(JSON.stringify([from.id,to.id,args.reason]));
    if(state.recoveries[key]){check(state.recoveries[key].input===input,'같은 복구 키의 대상을 바꿀 수 없습니다.');return {...state.recoveries[key].result,dispatch:false};}
@@ -130,6 +131,7 @@ export class WorkControl{
     state.recoveries[key]={input,result:old.recoveryPlan.result,createdAt:now()};
     return {...old.recoveryPlan.result,dispatch:false,repaired:true,note:'중단된 저장을 복구했습니다. 이전 전달 여부를 확인하고, 필요하면 현재 담당자에게 새 복구 키로 명시적으로 재개해 주세요.'};
    }
+   check(this.project.members.some(m=>m.id===to.id),'현재 연결된 담당자에게만 새로 인계할 수 있습니다.');
    check(old&&old.state!=='completed'&&old.state!=='superseded','완료 또는 이미 인계된 작업을 다시 복구하지 않습니다.');check(from.id===to.id||!target||target.state==='pending','이미 수행 중인 다른 담당자의 작업을 덮어쓰지 않습니다.');
    const checkpoint=state.checkpoints[args.requestId+':'+from.id]||null;
    const changedFiles=checkpoint?.files.filter(f=>fileHash(this.resolve(f.path,state).absolute)!==f.hash).map(f=>f.path)||[];

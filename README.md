@@ -43,7 +43,7 @@ A private repository requires GitHub access. Make source changes in this indepen
 3. Ask: **“Open Team Meeting Room.”** `room_open(projectId)` opens that room; omitting the ID opens the project chooser.
 4. Send your goal in the room's input field. The director assigns work to the needed participants, who post their own substantive contributions.
 
-Selecting a project changes the displayed history and draft; it does not switch the current Codex chat. Open the room in that project's director chat when possible. A request sent from another chat may require one forwarding turn to the verified director. Existing routing cannot be overwritten, protecting history and active requests. Register a different roster under a new `projectId`.
+Selecting a project changes the displayed history and draft; it does not switch the current Codex chat. Open the room in that project's director chat when possible. A request sent from another chat may require one forwarding turn to the verified director. On explicit human request, the director uses `room_members` to add/remove/reactivate participants or change meeting names/roles in the same room. Revision and retry checks protect concurrent edits, while unfinished work, questions, ownership and validation block removal. Existing member IDs retain their chat/host; a replacement chat needs a new member ID. Replacing the director chat still needs a separate room.
 
 ## Progress images and final results
 

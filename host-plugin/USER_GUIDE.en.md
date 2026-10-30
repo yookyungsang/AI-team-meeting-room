@@ -4,7 +4,7 @@
 
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.4.3. You can use the plugin across projects, with separate connections and records for each. The current meeting UI and the reporting instructions use Korean. This guide includes the Korean control labels so you can find them; it does not add automatic translation or language switching to the app.
+This guide describes version 0.5.0. You can use the plugin across projects, with separate connections and records for each. The current meeting UI and the reporting instructions use Korean. This guide includes the Korean control labels so you can find them; it does not add automatic translation or language switching to the app.
 
 ## Get started
 
@@ -15,6 +15,14 @@ This guide describes version 0.4.3. You can use the plugin across projects, with
 5. Type your goal or question in the bottom input field and press **Enter**.
 
 The plugin uses real existing chats that you have authorized it to connect. It does not automatically create chats or staff. The director asks for clarification when the intended connections or roles are unclear.
+
+## Change the team
+
+Ask the director to **“Add a QA participant to this room,” “Change this participant's meeting name and role,”** or **“Remove this participant after handing off their work.”** The director checks the current roster and updates the same room. The team menu reflects changes through its normal refresh, while conversation history and existing work remain intact. This workflow uses a request to the director rather than a separate roster editor UI.
+
+Removal is blocked by pending/reserved work, unanswered questions, unreleased file/Editor ownership or running validation. Finish the work or explicitly confirm the stop and hand it off first. Excluded participants retain their past posts and already imported usage records and may rejoin under the same identity. New usage is not imported from excluded chats, so late records that have not yet been imported may remain unavailable.
+
+An existing participant ID cannot be assigned to another chat. Use a new participant ID for a replacement chat. Director routing stays fixed; replacing the director chat needs a separate room. Meeting labels do not automatically rename native Codex chats. The roster storage operation invokes no AI or participant messaging, but the director conversation requesting and applying it has ordinary usage.
 
 ## Install and update
 
@@ -172,7 +180,7 @@ The floating director composer above the full-view panel belongs to Codex. It is
 | An addition is not applied immediately | Codex may steer the active work or queue the message. Do not automatically or repeatedly resend it. |
 | New features are missing | Check that you installed the update from the source checkout. Finish active work, then fully quit and reopen Codex. |
 | An image is missing | Check the installed version, whether the report actually included an attachment, and whether the server could read the file. |
-| You want to change the participant roster | Ask the director explicitly for the new configuration. Existing routing is immutable; register the changed roster under a new room ID. |
+| You want to change the participant roster | Ask the director to add, rename/change roles, remove or reactivate members in the same room. Finish or explicitly hand off busy work before removal. |
 
 ## Keep and back up records
 

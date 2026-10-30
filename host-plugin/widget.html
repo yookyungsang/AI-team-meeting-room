@@ -243,7 +243,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     if(chunks.length<2){inlineText(node,text);return;}
     for(const chunk of chunks){const part=make('span','prose-chunk');inlineText(part,chunk);node.append(part);}
   }
-  const name = id => state?.members?.find(m => m.id===id)?.name || '담당자';
+  const name = id => [...(state?.members||[]),...(state?.formerMembers||[])].find(m => m.id===id)?.name || '담당자';
   const detailKey=message=>JSON.stringify([projectId,message.id]);
   function messageDetails(message){
     const detail=make('details','message-details'),label=make('summary','','작업 상세 보기');
@@ -259,7 +259,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   }
   const status = value => statuses[value] || '상태 확인 필요';
   const kinds = {assignment:'업무 배정',question:'질문',answer:'답변',progress:'진행',decision:'결정',blocker:'진행 장애',final:'최종 보고','follow-up':'사용자 추가 요청'};
-  const role = id => state?.members?.find(m=>m.id===id)?.role || (id==='user'?'사용자':id==='system'?'회의 안내':'역할 미기록');
+  const role = id => [...(state?.members||[]),...(state?.formerMembers||[])].find(m=>m.id===id)?.role || (id==='user'?'사용자':id==='system'?'회의 안내':'역할 미기록');
   function showError(text) { $('error').textContent=text; $('error').hidden=!text; }
   function activeRequest(){return state?.requests?.filter(r=>!r.followUpTo&&!['completed','failed'].includes(r.status)).at(-1);}
   function duplicateMessage(){return [...deliveries.values()].some(d=>d.projectId===projectId&&['saving','waiting','uncertain'].includes(d.status)&&d.text.trim()===$('text').value.trim());}
@@ -350,7 +350,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
       next.messages.forEach(m=>{
         const li=make('li','message'+(m.authorId==='user'?' user':'')),body=make('div','body'),heading=make('div','heading');
         const author=m.authorName||(m.authorId==='user'?'나':name(m.authorId));
-        heading.append(make('strong','',next.members.some(member=>member.id===m.authorId)?author+' · '+role(m.authorId):author),make('time','',time(m.createdAt)));
+        heading.append(make('strong','',(m.authorRole||[...next.members,...(next.formerMembers||[])].some(member=>member.id===m.authorId))?author+' · '+(m.authorRole||role(m.authorId)):author),make('time','',time(m.createdAt)));
         body.append(heading,make('div','message-meta',(kinds[m.kind] || (m.kind?'종류 미분류':'기존 발언'))+' · '+(m.toMemberId?'대상 '+(m.toMemberId==='all'?'전체':name(m.toMemberId)):'공용 기록')));
         if(m.replyTo){
           const original=next.messages.find(item=>item.id===m.replyTo);
@@ -496,7 +496,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   async function initialize(){
     if(window.parent===window){$('connection').textContent='단독 창에서는 연결할 수 없습니다.';showError('기존 채팅의 MCP App 패널에서 팀 회의실을 열어 주세요.');return;}
     try{
-      const result=await rpc('ui/initialize',{appInfo:{name:'team-room',version:'0.4.3'},appCapabilities:{availableDisplayModes:['inline','fullscreen']},protocolVersion:'2026-01-26'});
+      const result=await rpc('ui/initialize',{appInfo:{name:'team-room',version:'0.5.0'},appCapabilities:{availableDisplayModes:['inline','fullscreen']},protocolVersion:'2026-01-26'});
       if(disposed)return;
       if(result?.protocolVersion!=='2026-01-26')throw new Error('지원되는 호스트 통신 버전을 확인하지 못했습니다.');
       messageExtension=Boolean(result.hostCapabilities?.experimental?.['openai/message'] || result.hostCapabilities?.extensions?.['openai/message']);

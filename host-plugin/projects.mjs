@@ -1,10 +1,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import {transaction} from './control.mjs';
+import {transaction,hash,now} from './control.mjs';
 
 const check=(ok,message)=>{if(!ok)throw new Error(message);};
 export const validId=value=>typeof value==='string'&&/^[a-z][a-z0-9_-]{0,63}$/.test(value)&&!['__proto__','constructor','prototype'].includes(value)&&!/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(value);
 const label=(value,max)=>typeof value==='string'&&value.trim().length>0&&value.length<=max;
+export const knownMembers=project=>[...project.members,...(project.retiredMembers||[]).map(m=>({...m,retired:true}))];
+const revision=project=>project.revision||1;
+const sameRoute=(a,b)=>a.threadId===b.threadId&&a.hostId===b.hostId;
 export function validateProject(input){
  check(validId(input?.id),'프로젝트 ID는 영문 소문자로 시작하는 64자 이내 식별자여야 합니다.');
  check(label(input.name,120),'프로젝트 이름을 확인해 주세요.');
@@ -32,9 +35,47 @@ export class Projects {
   return transaction(this.file,()=>({version:1,projects:[]}),state=>{
    const old=state.projects.find(p=>p.id===project.id);
    // A room's routing never changes under an in-flight or historical request.
-   if(old){check(JSON.stringify(old)===JSON.stringify(project),'기존 연결은 덮어쓰지 않습니다. 다른 연결은 새 프로젝트 ID로 등록해 주세요.');return {created:false,project};}
-   state.projects.push(project);
-   return {created:true,project};
+   if(old){check(JSON.stringify(validateProject(old))===JSON.stringify(project),'기존 등록은 덮어쓰지 않습니다. 구성원 변경은 room_members로 요청해 주세요.');return {created:false,project,revision:revision(old)};}
+   state.projects.push({...project,revision:1});
+   return {created:true,project,revision:1};
   });
+ }
+ updateMembers({projectId,memberId,expectedRevision,changeId,members}){
+  check(validId(projectId),'명시적인 프로젝트 ID가 필요합니다.');
+  check(memberId==='director','총괄만 사용자 승인 범위 안에서 구성원을 변경할 수 있습니다.');
+  check(Number.isSafeInteger(expectedRevision)&&expectedRevision>=1,'현재 구성의 revision이 필요합니다.');
+  check(typeof changeId==='string'&&/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(changeId),'변경마다 고정된 UUID changeId가 필요합니다.');
+  this.get(projectId);
+  // Keep assignment/ownership locks through the registry commit. Inspecting the
+  // room and work controls must not create data files or rewrite their history.
+  return transaction(this.roomPath(projectId),()=>({requests:[],messages:[]}),room=>
+   transaction(path.join(this.home,'work-control.json'),()=>({projects:{},leases:[]}),controls=>
+    transaction(this.file,()=>({version:1,projects:[]}),state=>{
+     const old=state.projects.find(p=>p.id===projectId);check(old,'연결되지 않은 프로젝트입니다.');
+     const desired=validateProject({...old,members}).members,input=hash(JSON.stringify([expectedRevision,desired]));
+     const previous=old.memberChanges?.find(c=>c.id===changeId);
+     const receipt=(change,replayed)=>({updated:change.changed,replayed,appliedRevision:change.revision,revision:revision(old),members:old.members,retiredCount:old.retiredMembers?.length||0});
+     if(previous){check(previous.input===input,'같은 changeId로 변경 내용을 바꿀 수 없습니다.');return receipt(previous,true);}
+     check(revision(old)===expectedRevision,'구성이 변경되었습니다. room_state로 최신 revision과 구성원을 확인해 주세요.');
+     const known=knownMembers(old);
+     for(const member of desired){
+      const prior=known.find(m=>m.id===member.id);
+      check(!prior||sameRoute(prior,member),'기존 담당자 ID의 대화·호스트는 바꾸지 않습니다. 교체할 담당자는 새 ID로 연결해 주세요.');
+      check(!known.some(m=>m.id!==member.id&&sameRoute(m,member)),'기존 또는 제외된 담당자의 대화를 다른 ID로 중복 연결하지 않습니다.');
+     }
+     const removed=new Set(old.members.filter(m=>!desired.some(next=>next.id===m.id)).map(m=>m.id));
+     check(!room.requests.some(r=>r.jobs.some(j=>removed.has(j.memberId)&&['pending','reserved'].includes(j.state))),'진행 중인 담당자는 작업을 완료하거나 명시적으로 인계한 뒤 제외해 주세요.');
+     check(!room.messages.some(m=>m.kind==='question'&&(removed.has(m.authorId)||removed.has(m.toMemberId))&&!room.messages.some(a=>a.kind==='answer'&&a.requestId===m.requestId&&a.replyTo===m.id)),'답변이 남은 질문을 해결한 뒤 담당자를 제외해 주세요.');
+     check(!controls.leases.some(l=>l.projectId===projectId&&removed.has(l.memberId)&&!l.releasedAt),'파일·Editor 소유권을 반환한 뒤 담당자를 제외해 주세요.');
+     check(!Object.values(controls.projects[projectId]?.cases||{}).some(c=>c.attempts.some(a=>removed.has(a.memberId)&&a.status==='running')),'실행 중인 검증을 정리한 뒤 담당자를 제외해 주세요.');
+     const changed=JSON.stringify(old.members)!==JSON.stringify(desired);
+     if(changed){
+      old.legacyMembers??=known.map(({id,name,role})=>({id,name,role}));
+      old.retiredMembers=[...(old.retiredMembers||[]),...old.members.filter(m=>removed.has(m.id))].filter(m=>!desired.some(next=>next.id===m.id));
+      old.members=desired;old.revision=revision(old)+1;
+     }
+     const change={id:changeId,input,revision:revision(old),changed,at:now()};(old.memberChanges??=[]).push(change);
+     return receipt(change,false);
+    }),{readOnly:true}),{readOnly:true});
  }
 }

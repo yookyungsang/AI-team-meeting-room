@@ -46,7 +46,8 @@ for(const definition of TOOLS){
  }
 }
 TOOLS.push(tool('room_projects','List configured project names and IDs without loading conversations or invoking AI.',schema(),true));
-TOOLS.push(tool('room_configure','Register a project with verified existing chat IDs and explicit human authorization. Never create chats or infer permission from this record. Existing connections are immutable; same configuration is idempotent. This changes only meeting configuration, not filesystem access or projects in Codex.',schema({projectId:member,name:{type:'string',maxLength:120},workspacePath:{type:'string',maxLength:1000},members:{type:'array',minItems:1,maxItems:20,items:schema({id:member,name:str,role:str,threadId:str,hostId:str},['id','name','role','threadId','hostId'])}},['projectId','name','members']),false));
+TOOLS.push(tool('room_configure','Register a project with verified existing chat IDs and explicit human authorization. Never create chats or infer permission from this record. Same registration is idempotent; use room_members for explicit roster changes. This changes only meeting configuration, not filesystem access or projects in Codex.',schema({projectId:member,name:{type:'string',maxLength:120},workspacePath:{type:'string',maxLength:1000},members:{type:'array',minItems:1,maxItems:20,items:schema({id:member,name:str,role:str,threadId:str,hostId:str},['id','name','role','threadId','hostId'])}},['projectId','name','members']),false));
+TOOLS.push(tool('room_members','Director applies a human-authorized roster change to this room without deleting history or invoking AI. Read room_state first; send the complete desired active roster, its expectedRevision and a stable UUID changeId. Add, rename, change roles, remove idle members or reactivate them. Busy jobs/questions/leases/validation block removal. Existing IDs keep their thread/host forever; replacement chats use a new member ID. Keep director routing unchanged. Never retry or contact staff automatically.',schema({projectId:member,memberId:{type:'string',enum:['director']},expectedRevision:{type:'integer',minimum:1},changeId:str,members:{type:'array',minItems:1,maxItems:20,items:schema({id:member,name:str,role:str,threadId:str,hostId:str},['id','name','role','threadId','hostId'])}},['projectId','memberId','expectedRevision','changeId','members']),false));
 function resource(){return {uri,mimeType:'text/html;profile=mcp-app',text:fs.readFileSync(path.join(root,'widget.html'),'utf8'),_meta:{ui:{csp:{connectDomains:[],resourceDomains:[]}},'openai/ui':{availableDisplayModes:['inline','fullscreen'],preferredDisplayMode:'fullscreen'}}};}
 TOOLS.push(...workTools(tool,schema,member,str));
 TOOLS.find(t=>t.name==='room_validation').annotations.openWorldHint=true;
@@ -73,12 +74,13 @@ export function handle(request,registry=projects){
     let data;
     if(definition.inputSchema.required.some(key=>args[key]===undefined))throw new Error('필수 요청 필드를 확인해 주세요.');
     const project=args.projectId&&name!=='room_configure'?registry.get(args.projectId):null;
-    const store=project?new RoomStore(registry.roomPath(project.id),project):null;
+    const store=project?new RoomStore(registry.roomPath(project.id),project,()=>registry.get(project.id)):null;
     const control=store?new WorkControl(store,registry.home):null,usage=control?new UsageLedger(control):null;
     const snapshot=()=>{if(!store)return {version:1,paused:true,requests:[],messages:[],members:[],project:null,projects:registry.list(),mode:'host-relay'};new Validation(control).refresh();return {...store.snapshot(),projects:registry.list(),work:control.summary(),usageReports:usage.reports()};};
     switch(name){
      case 'room_projects':data={projects:registry.list()};break;
      case 'room_configure':data=registry.configure({id:args.projectId,name:args.name,workspacePath:args.workspacePath,members:args.members});break;
+     case 'room_members':data=registry.updateMembers(args);break;
      case 'room_open':case 'room_state':data=snapshot();break;
      case 'room_submit':data=store.submit(args);data.state=snapshot();break;
      case 'room_get':data=store.get(args.requestId,args);break;
