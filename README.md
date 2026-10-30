@@ -4,7 +4,25 @@
 
 A local Codex plugin that connects existing AI chats into project-based team meeting rooms. Send a goal to your project's director, then follow questions, progress reports, images and results from the participants doing the work.
 
-Start with the [English user guide](host-plugin/USER_GUIDE.en.md) or the [한국어 사용 설명서](host-plugin/USER_GUIDE.ko.md) for installation, setup, everyday use and troubleshooting.
+## Start here: set up your workers after installation
+
+**[한국어: 설치부터 작업자 생성까지 따라 하기](host-plugin/SETUP.ko.md)** · **[English: step-by-step team setup](host-plugin/SETUP.en.md)**
+
+1. [Install the plugin](#install), finish active work, and fully restart Codex.
+2. Open a chat in the **actual project you will work on**.
+3. Paste the request below, choose models from the returned role table, then open the connected director chat and ask **“Open Team Meeting Room.”**
+
+```text
+Set up Team Meeting Room for this project.
+Create a director, planner, designer, TWO programmers and QA in separate chats.
+First show role names, existing/new choices, models and reasoning levels.
+After I choose models, create/name the chats, add role instructions and connect them.
+Preserve any already connected staff. Only set up the team for now.
+```
+
+This is a chat-based setup workflow. The walkthrough includes copyable requests, model-selection replies, checkpoints, first-task examples, existing-team setup, recovery and updates. No manual chat-ID entry is needed.
+
+For everyday controls and reporting, see the [English user guide](host-plugin/USER_GUIDE.en.md) or [한국어 사용 설명서](host-plugin/USER_GUIDE.ko.md).
 
 ## Features and scope
 

@@ -7,6 +7,8 @@ description: Project-scoped meeting spaces for existing chats. Users address eac
 
 For user-facing setup, daily use and troubleshooting, consult the packaged [English user guide](../../USER_GUIDE.en.md) or [Korean user guide](../../USER_GUIDE.ko.md). Read only the relevant section when the user needs it; ordinary collaboration does not require loading the entire manual.
 
+For a first installation or questions about creating/configuring staff, use the step-by-step [Korean setup walkthrough](../../SETUP.ko.md) or [English setup walkthrough](../../SETUP.en.md). They include copyable human requests, model-choice replies, connection checkpoints and interrupted setup recovery.
+
 ## Enforced local work controls
 
 For actual file editing, QA execution, interruption recovery or usage measurement, read the relevant section of [local work controls](references/work-controls.md) once. These tools do not invoke AI. Configure an explicitly authorized workspace as director, acquire file ownership in a batch before editing, and use the guarded `room_work` writer with its lease and current hash for supported text files. Save a concise checkpoint at a necessary handoff and release ownership before completion. Native Editor/binary edits require one explicit operator; disclose that external tools can bypass plugin gates. Never claim an OS-wide lock.

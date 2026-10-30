@@ -2,9 +2,11 @@
 
 **English** | [한국어](USER_GUIDE.ko.md)
 
+**First installation? Follow [Create and configure your team](SETUP.en.md) for project selection, six staff chats, model choices, room connection and the first assignment.** This guide covers everyday use and feature reference.
+
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.6.0. You can use the plugin across projects, with separate connections and records for each. The current meeting UI and the reporting instructions use Korean. This guide includes the Korean control labels so you can find them; it does not add automatic translation or language switching to the app.
+This guide describes version 0.6.1. You can use the plugin across projects, with separate connections and records for each. The current meeting UI and the reporting instructions use Korean. This guide includes the Korean control labels so you can find them; it does not add automatic translation or language switching to the app.
 
 ## Get started
 
@@ -199,6 +201,7 @@ The default data location is `~/.codex/team-room` under the user's home director
 | File or directory | Contents |
 | --- | --- |
 | `projects.json` | Project connections to existing chats |
+| `team-setups.json` | New-team plans, model choices, creation progress and actual chat results |
 | Per-project JSON files in `rooms/` | Requests, posts, state and image attachment metadata |
 | A directory with `.images` appended to a project JSON filename | Copies of posted images |
 
