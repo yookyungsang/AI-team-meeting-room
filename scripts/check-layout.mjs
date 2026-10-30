@@ -294,6 +294,21 @@ try{
   await frame.waitForFunction(()=>document.querySelector('#roster-status').textContent.includes('구성원을 저장했습니다'));
   assert.equal(await frame.locator('#room-menu').evaluate(el=>el.scrollWidth>el.clientWidth),false);
   assert.equal(await frame.locator('#roster-editor').evaluate(el=>el.scrollWidth>el.clientWidth),false);
+  const rosterAlignment=await frame.locator('.roster-row').evaluateAll(rows=>rows.map(row=>{
+   const rect=el=>{const r=el.getBoundingClientRect();return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,height:r.height};};
+   return {name:rect(row.querySelector('input')),role:rect(row.querySelector('select')),action:rect(row.querySelector('button')),custom:row.querySelector('.roster-role label:nth-child(2)').hidden?null:rect(row.querySelector('.roster-role input'))};
+  }));
+  for(const row of rosterAlignment){
+   assert.ok(Math.abs(row.name.top-row.action.top)<=1,'member action must align with its name input');
+   assert.ok(Math.abs(row.name.height-row.role.height)<=1,'name and role controls must have equal heights');
+   assert.ok(Math.abs(row.name.height-row.action.height)<=1,'member action must match input height');
+   assert.ok(Math.abs(row.name.left-rosterAlignment[0].name.left)<=1,'name column must not shift across members');
+   assert.ok(Math.abs(row.role.left-rosterAlignment[0].role.left)<=1,'role column must not shift across members');
+   assert.ok(Math.abs(row.name.right-rosterAlignment[0].name.right)<=1,'name column width must remain consistent');
+   if(width>560)assert.ok(Math.abs(row.name.top-row.role.top)<=1,'name and role must align even for a custom role');
+   else{assert.ok(row.role.top>row.name.bottom,'narrow rows stack role below name');assert.ok(Math.abs(row.role.left-row.name.left)<=1,'stacked fields share a left edge');}
+   if(row.custom){assert.ok(row.custom.top>row.role.bottom,'custom role input stays below the selector');assert.ok(Math.abs(row.custom.left-row.role.left)<=1);}
+  }
   await frame.locator('#roster-save').scrollIntoViewIfNeeded();await frame.locator('#room-menu').screenshot({path:path.join(output,`roster-editor-${width}.png`)});
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),2,'roster selection and saving must not wake AI');
   await frame.locator('#close-menu').click();assert.equal(await frame.locator('#roster-editor').isVisible(),false);
@@ -318,7 +333,7 @@ try{
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='tools/call').length),calls);
   assert.equal(await frame.evaluate(()=>document.body.hidden),true);assert.equal(await frame.locator('#audio-full').getAttribute('src'),null);
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),2);
-  report.cases.push({width,transitions:20,heights,layout,typography,safeReadableMessages:true,foldedTechnicalDetails:true,audioPreview:{lazy:true,outsideDetails:true,decodedWav:true,manualPlay:true,refreshKeepsPlayback:true,cache:true,closeStops:true,lateAfterTeardown:'ignored'},detailsPreservedOnRefresh:true,naturalPeerExample:true,inlineImages:true,imageZoom:true,imageCache:true,finalUsageByParticipant:true,missingUsageNotZero:true,lateImagesAfterTeardown:'ignored',teardown:'acknowledged; no polling for 4.2 seconds',sendButtonVisible:false,keyboardSubmit:true,inFlightAddition:true,outOfOrderReceiptsPreserveDraft:true,simulatedHostMessages:2,modelCalls:0});
+  report.cases.push({width,transitions:20,heights,layout,typography,rosterAlignment,safeReadableMessages:true,foldedTechnicalDetails:true,audioPreview:{lazy:true,outsideDetails:true,decodedWav:true,manualPlay:true,refreshKeepsPlayback:true,cache:true,closeStops:true,lateAfterTeardown:'ignored'},detailsPreservedOnRefresh:true,naturalPeerExample:true,inlineImages:true,imageZoom:true,imageCache:true,finalUsageByParticipant:true,missingUsageNotZero:true,lateImagesAfterTeardown:'ignored',teardown:'acknowledged; no polling for 4.2 seconds',sendButtonVisible:false,keyboardSubmit:true,inFlightAddition:true,outOfOrderReceiptsPreserveDraft:true,simulatedHostMessages:2,modelCalls:0});
   await page.close();
  }
  fs.writeFileSync(path.join(output,process.env.TEAM_ROOM_LAYOUT_NARROW_ONLY==='1'?'layout-report-narrow.json':'layout-report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));
