@@ -6,17 +6,19 @@
 
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.10.0. You can use the plugin across projects, with separate connections and records for each. The current meeting UI uses Korean labels; reports follow the user's requested or established conversation language. This guide includes the Korean control labels so you can find them; it does not add automatic UI translation or language switching to the app.
+This guide describes version 0.11.0. You can use the plugin across projects, with separate connections and records for each. The current meeting UI uses Korean labels; reports follow the user's requested or established conversation language. This guide includes the Korean control labels so you can find them; it does not add automatic UI translation or language switching to the app.
 
 ## Get started
 
 1. Open the project's existing director chat.
 2. Ask: **“Connect this project and its existing participant chats to Team Meeting Room.”** Specify the participants, their roles and the scope of collaboration you authorize.
-3. After setup, ask: **“Open Team Meeting Room.”**
+3. After setup, open the **Team Meeting Room tab** in the project or ask: **“Open Team Meeting Room.”** Supported local Codex versions resolve the opening chat's project and select its single connected room automatically.
 4. Check that the intended project is selected at the top of the room.
 5. Type your goal or question in the bottom input field and press **Enter**.
 
 The plugin does not create missing staff during ordinary work. To create a team in new chats, explicitly request the workflow below. The director asks for clarification when the intended project or connections are unclear.
+
+A new project needs an initial room connection. Unregistered projects, multiple rooms in one project, and unsupported app/remote contexts retain the chooser with an explanation. Automatic selection invokes no AI and late results do not override manual selection or a typed draft. See [automatic opening and compatibility](skills/team-room/references/automatic-opening.md).
 
 ## Create a team in new chats
 

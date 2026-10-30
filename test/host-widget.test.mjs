@@ -22,8 +22,8 @@ class Element {
  set innerHTML(value){throw new Error('unsafe HTML rendering');}
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
-async function widget(t,{capability={},messageFails=false,autoSelect=true,deferMessages=false,holdSubmit=false,holdImages=false,badImage=false,holdAudio=false,badAudio=false,holdRoster=null,rosterError=null}={}){
- const elements=new Map(),sent=[],callbacks={},intervals=[],messagePackets=[],imagePackets=[],audioPackets=[],timeouts=new Map();let timeoutSeq=0;
+async function widget(t,{capability={},messageFails=false,autoSelect=true,deferMessages=false,holdSubmit=false,holdImages=false,badImage=false,holdAudio=false,badAudio=false,holdRoster=null,rosterError=null,currentProject=null,openingStatus='unavailable',holdOpening=false,initialInput}={}){
+ const elements=new Map(),sent=[],callbacks={},intervals=[],messagePackets=[],imagePackets=[],audioPackets=[],openingPackets=[],timeouts=new Map();let timeoutSeq=0;
  const projects=[{id:'test',name:'Test',directorName:'테스트 총괄'},{id:'second',name:'Second',directorName:'다른 총괄'}];
  const state={project:{id:'test',name:'Test'},projects,members:[{id:'director',name:'테스트 총괄',role:'총괄'}],requests:[],messages:[],paused:false};
  const second={project:{id:'second',name:'Second'},projects,members:[{id:'director',name:'다른 총괄',role:'리더'},{id:'writer',name:'작가',role:'작가'}],requests:[],messages:[],paused:false};
@@ -44,7 +44,10 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
     result=rosterBehavior.error?{isError:true,content:[{type:'text',text:rosterBehavior.error}]}:{structuredContent:{...data,members:data.members.map(m=>({...m}))}};
     if(rosterBehavior.hold===args.operation)return;
    }
-   if(name==='room_state')result={structuredContent:args.projectId?states.get(args.projectId):chooser};
+   if(name==='room_state'){
+    result={structuredContent:args.projectId?states.get(args.projectId):args.resolveCurrent&&currentProject?states.get(currentProject):{...chooser,...(args.resolveCurrent?{opening:{status:openingStatus}}:{})}};
+    if(args.resolveCurrent){openingPackets.push(packet);if(holdOpening)return;}
+   }
    if(name==='room_image'){
     imagePackets.push(packet);if(holdImages)return;
     result={structuredContent:{projectId:args.projectId,image:{id:args.imageId,mimeType:'image/png'}},_meta:{'team-room/imageData':badImage?'https://example.invalid/tracker.png':'data:image/png;base64,fixture'}};
@@ -57,6 +60,7 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
   }
   if(packet.method==='ui/message'&&deferMessages){messagePackets.push(packet);return;}
   queueMicrotask(()=>callbacks.message({source:parent,data:{jsonrpc:'2.0',id:packet.id,...(packet.method==='ui/message'&&messageFails?{error:{code:-1}}:{result})}}));
+  if(packet.method==='ui/initialize'&&initialInput!==undefined)queueMicrotask(()=>callbacks.message({source:parent,data:{jsonrpc:'2.0',method:'ui/notifications/tool-input',params:{arguments:initialInput}}}));
  }};
  const window={parent,addEventListener:(name,fn)=>callbacks[name]=fn};
  vm.runInNewContext(script,{window,document,crypto:{randomUUID},console,Intl,Date,Map,Set,Object,Array,JSON,setTimeout:fn=>{const id=++timeoutSeq;timeouts.set(id,fn);return id;},clearTimeout:id=>timeouts.delete(id),setInterval:fn=>{intervals.push(fn);return intervals.length;},clearInterval(){}});
@@ -67,8 +71,38 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
  const receive=data=>callbacks.message({source:parent,data:{jsonrpc:'2.0',...data}});
  const respondMessage=(index,result={})=>receive({id:messagePackets[index].id,result});
  const expire=()=>{for(const [id,fn] of [...timeouts]){timeouts.delete(id);fn();}};
- return {rosterPackets,rosterBehavior,catalogs,sent,elements,state,second,notify,callbacks,intervals,document,styles,receive,window,messagePackets,imagePackets,audioPackets,respondMessage,expire};
+ return {rosterPackets,rosterBehavior,catalogs,sent,elements,state,second,notify,callbacks,intervals,document,styles,receive,window,messagePackets,imagePackets,audioPackets,openingPackets,respondMessage,expire};
 }
+
+test('initial mount resolves its opening project once, then polls only that explicit room without AI',async t=>{
+ for(const currentProject of ['test','second']){
+  const w=await widget(t,{autoSelect:false,currentProject});assert.equal(w.elements.get('project').value,currentProject);
+  for(let i=0;i<3;i++)await w.intervals[0]();
+  assert.equal(w.openingPackets.length,1);assert(w.sent.filter(p=>p.params?.name==='room_state').slice(1).every(p=>p.params.arguments.projectId===currentProject));
+  assert.equal(w.sent.filter(p=>p.method==='ui/message'||p.params?.name==='room_submit').length,0);
+ }
+});
+
+test('opening input project takes precedence and later input cannot replace a manual selection',async t=>{
+ const w=await widget(t,{autoSelect:false,currentProject:'second',initialInput:{projectId:'test'}});assert.equal(w.elements.get('project').value,'test');assert.equal(w.openingPackets.length,0);
+ const select=w.elements.get('project');select.value='second';await select.events.change();
+ w.receive({method:'ui/notifications/tool-input',params:{arguments:{projectId:'test'}}});w.notify(w.state);assert.equal(select.value,'second');
+ select.value='';await select.events.change();w.notify(w.state);assert.equal(select.value,'','clearing a manual selection cannot be undone by a late opening result');
+});
+
+test('unavailable or unregistered openings keep the chooser with a stable notice and no discovery retry',async t=>{
+ for(const openingStatus of ['unavailable','unregistered','ambiguous']){
+  const w=await widget(t,{autoSelect:false,openingStatus});assert.equal(w.elements.get('project').value,'');assert.equal(w.elements.get('send').disabled,true);
+  const notice=w.elements.get('empty').textContent;assert.match(notice,/프로젝트/);await w.intervals[0]();assert.equal(w.elements.get('empty').textContent,notice);assert.equal(w.openingPackets.length,1);
+ }
+});
+
+test('late automatic opening cannot override a manual project, typed draft or closed panel',async t=>{
+ const w=await widget(t,{autoSelect:false,holdOpening:true}),packet=w.openingPackets[0];w.elements.get('project').value='second';await w.elements.get('project').events.change();w.elements.get('text').value='Other room draft';
+ w.receive({id:packet.id,result:{structuredContent:w.state}});await settle();assert.equal(w.elements.get('project').value,'second');assert.equal(w.elements.get('text').value,'Other room draft');
+ const d=await widget(t,{autoSelect:false,holdOpening:true});d.elements.get('text').value='Unscoped draft';d.elements.get('text').events.input();d.receive({id:d.openingPackets[0].id,result:{structuredContent:d.state}});await settle();assert.equal(d.elements.get('project').value,'');assert.equal(d.elements.get('text').value,'Unscoped draft');
+ const c=await widget(t,{autoSelect:false,holdOpening:true});c.callbacks.pagehide();await settle();const count=c.sent.length;c.receive({id:c.openingPackets[0].id,result:{structuredContent:c.state}});await settle();assert.equal(c.sent.length,count);assert.equal(c.document.body.hidden,true);
+});
 test('role picker links standard guidance, shows custom input only when selected and never wakes AI',async t=>{
  const w=await widget(t);await w.elements.get('edit-roster').events.click();const rows=()=>w.elements.get('roster-rows').children;
  assert.equal(rows()[0].children[1].children[0].children[0].disabled,true);

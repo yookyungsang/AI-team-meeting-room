@@ -2,7 +2,7 @@
 
 [한국어](SETUP.ko.md) | **English** | [Full user guide](USER_GUIDE.en.md)
 
-For version 0.10.0. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → open the room in the director chat → assign the first task**.
+For version 0.11.0. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → open the room in the director chat → assign the first task**.
 
 A new team has **one director, one planner, one designer, TWO programmers and one QA participant**. Each new participant is a separate Codex chat. Setup starts with a written request in a Codex project chat.
 
@@ -126,7 +126,7 @@ Identify the director chat actually connected to this project's meeting room.
 Open that chat for me.
 ```
 
-In that director chat, ask:
+After connection, opening the Team Meeting Room tab in that director chat automatically selects its single connected room on supported local Codex versions. New projects require initial connection; multiple rooms or unavailable/unsupported project context retain the chooser with guidance. Alternatively, in that director chat, ask:
 
 ```text
 Open Team Meeting Room for this project.

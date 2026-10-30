@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {randomUUID,createHash} from 'node:crypto';
-import {metadataPath,projectForThread,readNativeProjectChats} from '../host-plugin/native-chats.mjs';
+import {metadataPath,projectForThread,readNativeProjectChats,openingThread,findNativeMeetingProject} from '../host-plugin/native-chats.mjs';
 import {Projects} from '../host-plugin/projects.mjs';
 import {handle} from '../host-plugin/server.mjs';
 
@@ -30,13 +30,42 @@ function fixture(t){
   ['fixture-unassigned','Unassigned chat','Do not expose','/workspace/a',null,0,'user',1]
  ];for(const row of rows)db.prepare('INSERT INTO threads VALUES(?,?,?,?,?,?,?,?)').run(...row);db.close();
  const project={id:'meeting',name:'Meeting fixture',workspacePath:'/workspace/a',members};
- const registry=new Projects(path.join(home,'runtime'),{catalogReader:p=>readNativeProjectChats(p,{file})});registry.configure(project);
+ const registry=new Projects(path.join(home,'runtime'),{catalogReader:p=>readNativeProjectChats(p,{file}),openingReader:(projects,id)=>findNativeMeetingProject(projects,id,{file})});registry.configure(project);
  const mutate=sql=>{const d=new DatabaseSync(file);try{d.exec(sql);}finally{d.close();}};
  return {home,file,project,registry,mutate};
 }
 const call=(registry,name,args)=>handle({method:'tools/call',params:{name,arguments:args}},registry);
 const ok=(registry,name,args)=>{const r=call(registry,name,args);assert(!r.isError,JSON.stringify(r));return r.structuredContent;};
 const apply=(f,view,selection)=>f.registry.updateMembers({projectId:'meeting',memberId:'director',expectedRevision:view.revision,optionsRevision:view.optionsRevision,changeId:randomUUID(),selection});
+
+test('opening identity comes only from consistent bounded host metadata',()=>{
+ assert.equal(openingThread({thread_id:'fixture-new',threadId:'fixture-new'}),'fixture-new');
+ assert.equal(openingThread({'x-codex-turn-metadata':JSON.stringify({thread_id:'fixture-new',source:'mcp_app'})}),'fixture-new');
+ for(const meta of [undefined,{},[],{thread_id:'fixture-new',threadId:'other'},{thread_id:'fixture-new',hostId:'remote'},{thread_id:'  fixture-new'},{thread_id:42},{'x-codex-turn-metadata':'{'},{'x-codex-turn-metadata':'x'.repeat(8193)},{thread_id:'fixture-new','x-codex-turn-metadata':{thread_id:'other'}}])assert.equal(openingThread(meta),null);
+});
+
+sqliteTest('opening from each project selects its own registered meeting without changing any runtime data',t=>{
+ const f=fixture(t);f.registry.configure({...f.project,id:'second',name:'Second fixture',workspacePath:'/workspace/b',members:[{...members[0],threadId:'fixture-other'}]});
+ const before=fs.readFileSync(f.registry.file),dbBefore=fs.readFileSync(f.file);
+ const open=(name,args,threadId)=>handle({method:'tools/call',params:{name,arguments:args,_meta:{thread_id:threadId,threadId}}},f.registry).structuredContent;
+ assert.equal(open('room_open',{},'fixture-new').project.id,'meeting','an unconnected chat in the same project can open its meeting');
+ assert.equal(open('room_open',{},'fixture-other').project.id,'second');
+ assert.equal(open('room_state',{resolveCurrent:true},'fixture-other').project.id,'second');
+ assert.equal(open('room_state',{},'fixture-new').project,null,'ordinary unscoped polls do not resolve again');
+ assert.equal(open('room_open',{projectId:'meeting'},'fixture-other').project.id,'meeting','explicit selection takes precedence');
+ const blocked=handle({method:'tools/call',params:{name:'room_submit',arguments:{id:'test',text:'No implicit write',recipients:['director']},_meta:{thread_id:'fixture-new'}}},f.registry);assert.equal(blocked.isError,true);
+ assert(fs.readFileSync(f.registry.file).equals(before));assert(fs.readFileSync(f.file).equals(dbBefore));assert(!fs.existsSync(path.join(f.registry.home,'rooms')),'opening alone cannot create room history');
+});
+
+sqliteTest('ambiguous, unregistered, moved, internal and unavailable openings never fall back to another project',t=>{
+ const f=fixture(t),open=threadId=>f.registry.opening(threadId);
+ assert.deepEqual(open('fixture-new'),{status:'selected',projectId:'meeting'});
+ assert.deepEqual(open('fixture-nested'),{status:'unregistered'});
+ for(const id of ['fixture-unassigned','fixture-child','fixture-review','fixture-archived','missing',null])assert.deepEqual(open(id),{status:'unavailable'});
+ f.mutate("UPDATE threads SET project_id='beta' WHERE id='fixture-new'");assert.deepEqual(open('fixture-new'),{status:'unregistered'});
+ f.registry.configure({...f.project,id:'duplicate'});assert.deepEqual(open('fixture-chat-director'),{status:'ambiguous'});
+ f.registry.openingReader=()=>{throw new Error('Fixture unavailable');};assert.deepEqual(open('fixture-chat-director'),{status:'unavailable'});
+});
 
 test('native project matching respects explicit membership, nested roots and Windows path forms',()=>{
  const roots=[{project_id:'parent',path:'C:/work'},{project_id:'child',path:'C:/work/Game'}],ids=new Set(['parent','child']);

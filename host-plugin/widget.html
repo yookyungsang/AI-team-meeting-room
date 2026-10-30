@@ -82,6 +82,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   let signature = '';
   const deliveries=new Map();
   let projectId=null, projects=[], switching=false, selectionEpoch=0;
+  let openingAllowed=true, openingAttempted=false, openingInputSeen=false, initialProjectId=null, openingNotice='';
   const drafts=new Map();
   let roster=null;
   let disposed=false, hostContext={}, reportedHeight=null;
@@ -437,10 +438,11 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     const next=data?.state || data;
     if(!Array.isArray(next?.members)||!Array.isArray(next?.messages)||!Array.isArray(next?.requests)||typeof next.paused!=='boolean')throw new Error('회의실 상태 형식이 올바르지 않습니다.');
     if(Array.isArray(next.projects))projects=next.projects;
-    if(allowOpen && !projectId && !sending && next.project?.id){projectId=next.project.id;selectionEpoch++;expected=projectId;}
+    if(allowOpen && openingAllowed && !projectId && !sending && next.project?.id && (!initialProjectId||initialProjectId===next.project.id)){projectId=next.project.id;selectionEpoch++;expected=projectId;}
     renderProjects();
     if((next.project?.id||null)!==(expected||null) || projectId!==(expected||null))return false;
-    if(state?.project?.id===next.project?.id && (state.project.revision||1)>(next.project?.revision||1))return false;
+    if(state?.project && next.project && state.project.id===next.project.id && (state.project.revision||1)>(next.project.revision||1))return false;
+    if(next.opening&&!next.project)openingNotice=next.opening.status==='unregistered'?'현재 프로젝트에 연결된 회의실이 아직 없습니다. 총괄 채팅에서 회의실 연결을 먼저 요청해 주세요.':next.opening.status==='ambiguous'?'현재 프로젝트에 회의실이 여러 개 연결되어 있습니다. 상단에서 사용할 회의실을 선택해 주세요.':'현재 프로젝트를 자동으로 확인하지 못했습니다. 상단에서 프로젝트를 선택해 주세요.';
     state=next;
     renderProjects();
     const current=JSON.stringify(next);
@@ -479,7 +481,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
         li.append(make('span','avatar',m.authorId==='user'?'나':(m.authorName||name(m.authorId)).slice(0,1)),body);$('messages').append(li);
       });
       $('empty').hidden=next.messages.length>0;
-      if(!next.project)$('empty').textContent='상단에서 프로젝트를 선택하면 해당 회의 기록을 확인할 수 있습니다.';
+      if(!next.project)$('empty').textContent=openingNotice||'상단에서 프로젝트를 선택하면 해당 회의 기록을 확인할 수 있습니다.';
       else if(!next.messages.length)$('empty').textContent='총괄에게 목표나 질문을 남겨 주세요. 참여자가 직접 기록한 발언이 이곳에 표시됩니다.';
       if(bottom)records.scrollTop=records.scrollHeight;
       observeImages();
@@ -515,6 +517,12 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     }
     if(disposed)return;
     if(message.method==='ui/notifications/host-context-changed'){applyLayout(message.params||{});return;}
+    if(message.method==='ui/notifications/tool-input'){
+      if(openingInputSeen)return;openingInputSeen=true;
+      const id=message.params?.arguments?.projectId;
+      if(typeof id==='string'&&/^[a-z][a-z0-9_-]{0,63}$/.test(id)&&openingAllowed){initialProjectId=id;if(initialized&&!document.hidden)void selectProject(id,{automatic:true});}
+      return;
+    }
     if(!message.method && pending.has(message.id)){
       const request=pending.get(message.id);clearTimeout(request.timeout);pending.delete(message.id);
       if(message.error)request.reject(Object.assign(new Error('호스트가 요청을 거절했습니다.'),{rejected:true}));else if(Object.hasOwn(message,'result'))request.resolve(message.result);else request.reject(new Error('호스트 응답을 확인할 수 없습니다.'));
@@ -525,17 +533,21 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   async function poll(){
     if(disposed||!initialized||polling||document.hidden||sending||pausing||switching)return;
     polling=true;
-    const expected=projectId,epoch=selectionEpoch;
-    try{const data=await tool('room_state',expected?{projectId:expected}:{});if(disposed||document.hidden||epoch!==selectionEpoch)return;accept(data,{expected});$('connection').textContent=canMessage?'호스트 연결됨 · 전송 지원 확인':'조회 전용 · 호스트가 메시지 전송 기능을 제공하지 않습니다.';}
+    const expected=projectId,epoch=selectionEpoch,resolveCurrent=!expected&&openingAllowed&&!openingAttempted;
+    if(resolveCurrent)openingAttempted=true;
+    try{const data=await tool('room_state',expected?{projectId:expected}:resolveCurrent?{resolveCurrent:true}:{});if(disposed||document.hidden||epoch!==selectionEpoch)return;accept(data,{expected,allowOpen:resolveCurrent&&openingAllowed});$('connection').textContent=canMessage?'호스트 연결됨 · 전송 지원 확인':'조회 전용 · 호스트가 메시지 전송 기능을 제공하지 않습니다.';}
     catch{ if(!disposed)$('connection').textContent='상태 조회 실패 · 기록이 최신이 아닐 수 있습니다.'; }
     finally{polling=false;}
   }
   function schedule(){if(timer)clearInterval(timer);timer=null;if(!disposed&&initialized&&!document.hidden)timer=setInterval(poll,4000);}
   document.addEventListener('visibilitychange',()=>{schedule();if(document.hidden){resetAudio();closeRoster();}else poll();});
-  $('project').addEventListener('change',async()=>{
-    if(sending||pausing||switching){renderProjects();return;}
+  async function selectProject(selected,{automatic=false}={}){
+    if(disposed||!initialized||document.hidden||sending||pausing||switching){renderProjects();return;}
+    if(automatic&&!openingAllowed)return;
+    if(!automatic)openingAllowed=false;openingAttempted=true;openingNotice='';
+    if(projectId===selected&&state?.project?.id===selected)return;
     closeRoster();if(projectId)drafts.set(projectId,$('text').value);
-    projectId=$('project').value||null;
+    projectId=selected;
     $('text').value=drafts.get(projectId)||'';
     const expected=projectId,epoch=++selectionEpoch;
     switching=true;state=null;signature='';showError('');renderDeliveries();
@@ -545,14 +557,15 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     $('request-count').textContent='요청 처리 기록 · 0건';$('empty').hidden=false;$('empty').textContent='선택한 프로젝트 기록을 불러오고 있습니다.';$('paused').hidden=true;controls();
     try{
       const data=await tool('room_state',expected?{projectId:expected}:{});
-      if(epoch!==selectionEpoch)return;
+      if(disposed||document.hidden||epoch!==selectionEpoch)return;
       const accepted=accept(data,{expected});
       if(!accepted && expected)throw new Error('선택한 프로젝트의 기록을 확인하지 못했습니다.');
       if(!expected)$('empty').textContent='상단에서 프로젝트를 선택해 주세요.';
     }catch(err){if(epoch===selectionEpoch)showError('프로젝트 전환 실패 · '+err.message);}
     finally{if(epoch===selectionEpoch){switching=false;controls();}}
-  });
-  $('text').addEventListener('input',controls);
+  }
+  $('project').addEventListener('change',()=>selectProject($('project').value||null));
+  $('text').addEventListener('input',()=>{openingAllowed=false;controls();});
   let composing=false;
   $('text').addEventListener('compositionstart',()=>{composing=true;});
   $('text').addEventListener('compositionend',()=>{composing=false;});
@@ -608,14 +621,14 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   async function initialize(){
     if(window.parent===window){$('connection').textContent='단독 창에서는 연결할 수 없습니다.';showError('기존 채팅의 MCP App 패널에서 팀 회의실을 열어 주세요.');return;}
     try{
-      const result=await rpc('ui/initialize',{appInfo:{name:'team-room',version:'0.10.0'},appCapabilities:{availableDisplayModes:['inline','fullscreen']},protocolVersion:'2026-01-26'});
+      const result=await rpc('ui/initialize',{appInfo:{name:'team-room',version:'0.11.0'},appCapabilities:{availableDisplayModes:['inline','fullscreen']},protocolVersion:'2026-01-26'});
       if(disposed)return;
       if(result?.protocolVersion!=='2026-01-26')throw new Error('지원되는 호스트 통신 버전을 확인하지 못했습니다.');
       messageExtension=Boolean(result.hostCapabilities?.experimental?.['openai/message'] || result.hostCapabilities?.extensions?.['openai/message']);
       const textCapability=result.hostCapabilities?.message?.text;
       canMessage=textCapability===true || (textCapability!==null && typeof textCapability==='object' && !Array.isArray(textCapability));
       window.parent.postMessage({jsonrpc:'2.0',method:'ui/notifications/initialized',params:{}},'*');
-      initialized=true;applyLayout(result.hostContext||{});controls();await poll();schedule();
+      initialized=true;applyLayout(result.hostContext||{});controls();if(initialProjectId)await selectProject(initialProjectId,{automatic:true});else await poll();schedule();
     }catch(err){if(!disposed){showError('회의실 연결 실패 · '+err.message);$('connection').textContent='호스트 연결을 확인하지 못했습니다.';}}
   }
   initialize();

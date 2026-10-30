@@ -12,6 +12,7 @@ import {workTools} from './work-tools.mjs';
 import {TeamSetup} from './team-setup.mjs';
 import {ROLE_TYPES,roleGuidance} from './roles.mjs';
 import {ReadGate} from './read-gate.mjs';
+import {openingThread} from './native-chats.mjs';
 
 const root=path.dirname(fileURLToPath(import.meta.url));
 const version=JSON.parse(fs.readFileSync(path.join(root,'plugin.json'),'utf8')).version;
@@ -25,8 +26,8 @@ const images={type:'array',maxItems:4,items:schema({path:{type:'string',maxLengt
 const roleType={type:'string',enum:ROLE_TYPES,description:'Selected policy kind; custom uses common rules and assignment conditions only. It grants no permissions or model change.'};
 const audio={type:'array',maxItems:3,items:schema({path:{type:'string',maxLength:2000},caption:{type:'string',maxLength:300}},['path','caption'])};
 export const TOOLS=[
- {...tool('room_open','Open 팀 회의실 for an explicit project in its existing director chat. Without projectId, show the project chooser only. Idle refresh invokes no AI.',schema({projectId:member}),true,['app','model']),title:'팀 회의실',_meta:{ui:{resourceUri:uri},'openai/ui':{entrypoints:[{type:'thread'}]}}},
- tool('room_state','Read only the selected project. Without projectId return the chooser, never infer a project. No model/runtime calls.',schema({projectId:member}),true,['app','model']),
+ {...tool('room_open','Open 팀 회의실. Explicit projectId takes precedence. Without it, match the opening chat from host metadata to exactly one configured local project through read-only membership metadata; unavailable, unregistered or ambiguous context shows the chooser. Never guess from cwd/recency or create a room. Idle refresh invokes no AI.',schema({projectId:member}),true,['app','model']),title:'팀 회의실',_meta:{ui:{resourceUri:uri},'openai/ui':{entrypoints:[{type:'thread'}]}}},
+ tool('room_state','Read only the selected project. Without projectId return the chooser. The UI may set resolveCurrent:true once on initial mount to resolve the host-provided opening chat to one configured local project. No global selection, registration, AI or runtime calls.',schema({projectId:member,resolveCurrent:{type:'boolean'}}),true,['app','model']),
  tool('room_submit','Store an explicit human message, optionally linked to an active original request by followUpTo; does NOT start AI. The UI sends each wakePrompt once without blocking later messages.',schema({id:str,text:{type:'string',maxLength:6000},recipients:{type:'array',items:member,minItems:1,maxItems:6},followUpTo:str},['id','text','recipients']),false,['app']),
  tool('room_get','Read one request and its linked user follow-ups. Directors check these before decisions and completion, integrate additions without redispatching original jobs, and complete each follow-up. statusOnly:true omits text; unrelated history needs includePrevious:true.',schema({requestId:str,statusOnly:{type:'boolean'},includePrevious:{type:'boolean'}},['requestId']),true),
  tool('room_claim','Reserve one existing participant before native dispatch. For an image/visual deliverable, set requireFinalImage:true on its creator: their own final reply must attach the final image. Can add this requirement to active work without redispatch; cannot remove it. For audio creation set requireFinalAudio:true; their own final reply must attach the audio. Only dispatch:true permits a new assignment.',schema({requestId:str,memberId:member,requireFinalImage:{type:'boolean'},requireFinalAudio:{type:'boolean'}},['requestId','memberId']),false),
@@ -96,7 +97,10 @@ export function handle(request,registry=projects){
    try{
     let data;
     if(definition.inputSchema.required.some(key=>args[key]===undefined))throw new Error('필수 요청 필드를 확인해 주세요.');
-    const project=args.projectId&&!['room_configure','room_team'].includes(name)?registry.get(args.projectId):null;
+    if(args.resolveCurrent!==undefined&&typeof args.resolveCurrent!=='boolean')throw new Error('자동 프로젝트 확인 여부를 확인해 주세요.');
+    const opening=!args.projectId&&(name==='room_open'||name==='room_state'&&args.resolveCurrent===true)?registry.opening(openingThread(request.params?._meta)):null;
+    const selectedId=args.projectId||opening?.projectId;
+    const project=selectedId&&!['room_configure','room_team'].includes(name)?registry.get(selectedId):null;
     const store=project?new RoomStore(registry.roomPath(project.id),project,()=>registry.get(project.id)):null;
     const control=store?new WorkControl(store,registry.home):null,usage=control?new UsageLedger(control):null;
     const snapshot=()=>{if(!store)return {version:1,paused:true,requests:[],messages:[],members:[],project:null,projects:registry.list(),mode:'host-relay'};new Validation(control).refresh();return {...store.snapshot(),projects:registry.list(),work:control.summary(),usageReports:usage.reports()};};
@@ -115,7 +119,7 @@ export function handle(request,registry=projects){
       if(!['plan','approve','claim','record','block','retry','connect','status'].includes(args.operation))throw new Error('지원하지 않는 팀 구성 작업입니다.');
       data=new TeamSetup(registry)[args.operation](args);break;
      }
-     case 'room_open':case 'room_state':data=snapshot();break;
+     case 'room_open':case 'room_state':data={...snapshot(),...(opening?{opening}:{} )};break;
      case 'room_submit':data=store.submit(args);data.state=snapshot();break;
      case 'room_get':{
       data=store.get(args.requestId,args);

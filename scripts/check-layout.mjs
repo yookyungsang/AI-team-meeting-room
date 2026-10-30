@@ -11,14 +11,15 @@ const {chromium}=await import(modulePath?pathToFileURL(modulePath).href:'playwri
 const browser=await chromium.launch({headless:true,args:['--mute-audio'],...(process.env.BROWSER_EXECUTABLE?{executablePath:process.env.BROWSER_EXECUTABLE}:{})});
 const output=path.join(root,'.local');fs.mkdirSync(output,{recursive:true});
 const report={host:'isolated Chromium harness, not Codex',cases:[]};
-async function mount(page,html,width){
+async function mount(page,html,width,openingRoom=null){
  await page.setViewportSize({width,height:1000});
  // Intercept the entire fixture origin: no external server or network request.
  // A secure origin supplies native crypto.randomUUID used by explicit submits.
  await page.route('https://team-room.invalid/',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><html><body style="margin:0"><iframe title="Test meeting" style="display:block;border:0;width:100%;height:1000px"></iframe></body></html>'}));
  await page.goto('https://team-room.invalid/');
- await page.evaluate(({html,roles})=>{
+ await page.evaluate(({html,roles,openingRoom})=>{
   window.fixtureRoles=roles;
+  if(openingRoom)window.testRoomState=openingRoom;
   window.packets=[];
   const iframe=document.querySelector('iframe');
   window.addEventListener('message',event=>{
@@ -50,7 +51,7 @@ async function mount(page,html,width){
    event.source.postMessage({jsonrpc:'2.0',id:p.id,result},'*');
   });
   iframe.srcdoc=html.replace('<head>','<head><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\'; img-src data:; media-src data:">');
- },{html,roles:roleCatalog()});
+ },{html,roles:roleCatalog(),openingRoom});
  const frame=page.frames().find(f=>f!==page.mainFrame());
  await frame.waitForSelector('.shell');
  await page.waitForFunction(()=>window.packets.some(p=>p.method==='tools/call'));
@@ -346,6 +347,17 @@ try{
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),2);
   report.cases.push({width,transitions:20,heights,layout,typography,rosterAlignment,safeReadableMessages:true,foldedTechnicalDetails:true,audioPreview:{lazy:true,outsideDetails:true,decodedWav:true,manualPlay:true,refreshKeepsPlayback:true,cache:true,closeStops:true,lateAfterTeardown:'ignored'},detailsPreservedOnRefresh:true,naturalPeerExample:true,inlineImages:true,imageZoom:true,imageCache:true,finalUsageByParticipant:true,missingUsageNotZero:true,lateImagesAfterTeardown:'ignored',teardown:'acknowledged; no polling for 4.2 seconds',sendButtonVisible:false,keyboardSubmit:true,inFlightAddition:true,outOfOrderReceiptsPreserveDraft:true,simulatedHostMessages:2,modelCalls:0});
   await page.close();
+ }
+ const projects=[{id:'alpha',name:'예시 프로젝트 A',directorName:'A 총괄'},{id:'beta',name:'예시 프로젝트 B',directorName:'B 총괄'}];
+ for(const project of projects){
+  const room={project:{id:project.id,name:project.name},projects,members:[{id:'director',name:project.directorName,role:'총괄 디렉터'}],requests:[],messages:[],paused:false};
+  const page=await browser.newPage(),frame=await mount(page,fs.readFileSync(path.join(root,'host-plugin/widget.html'),'utf8'),1280,room);
+  await frame.waitForFunction(id=>document.querySelector('#project').value===id,project.id);
+  assert.match(await frame.locator('#input-label').textContent(),new RegExp(project.directorName));
+  assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.params?.name==='room_state'&&p.params.arguments.resolveCurrent).length),1);
+  assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message'||p.params?.name==='room_submit').length),0);
+  await frame.locator('.shell').screenshot({path:path.join(output,`automatic-project-${project.id}.png`)});
+  report.cases.push({automaticProject:project.id,selectedOnMount:true,manualSelection:false,modelCalls:0});await page.close();
  }
  fs.writeFileSync(path.join(output,process.env.TEAM_ROOM_LAYOUT_NARROW_ONLY==='1'?'layout-report-narrow.json':'layout-report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));
 }finally{await browser.close();}
