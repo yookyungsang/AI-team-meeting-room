@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {transaction,hash,now} from './control.mjs';
 import {roleTypeOf,validateRoleType,roleCatalog} from './roles.mjs';
-import {readNativeProjectChats,findNativeMeetingProject} from './native-chats.mjs';
+import {readNativeProjectChats,findNativeMeetingProject,readNativeOpeningProject} from './native-chats.mjs';
 
 const check=(ok,message)=>{if(!ok)throw new Error(message);};
 export const validId=value=>typeof value==='string'&&/^[a-z][a-z0-9_-]{0,63}$/.test(value)&&!['__proto__','constructor','prototype'].includes(value)&&!/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(value);
@@ -31,7 +31,7 @@ export function validateProject(input){
  return {id:input.id,name:input.name.trim(),...(input.workspacePath?{workspacePath:input.workspacePath}:{}),members};
 }
 export class Projects {
- constructor(home,{catalogReader=readNativeProjectChats,openingReader=findNativeMeetingProject}={}){this.home=path.resolve(home);this.file=path.join(this.home,'projects.json');this.catalogReader=catalogReader;this.openingReader=openingReader;}
+ constructor(home,{catalogReader=readNativeProjectChats,openingReader=findNativeMeetingProject,setupContextReader=readNativeOpeningProject}={}){this.home=path.resolve(home);this.file=path.join(this.home,'projects.json');this.catalogReader=catalogReader;this.openingReader=openingReader;this.setupContextReader=setupContextReader;}
  read(){return fs.existsSync(this.file)?JSON.parse(fs.readFileSync(this.file,'utf8')):{version:1,projects:[]};}
  list(){return this.read().projects.map(p=>({id:p.id,name:p.name,directorName:p.members.find(m=>m.id==='director').name}));}
  opening(threadId){

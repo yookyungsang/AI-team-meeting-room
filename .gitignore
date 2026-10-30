@@ -9,6 +9,7 @@ work-control.json
 usage-ledger.json
 validation/
 team-setups.json
+team-menu.json
 *.log
 *.lock
 *.next

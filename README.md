@@ -10,7 +10,7 @@ A local Codex plugin that connects existing AI chats into project-based team mee
 
 1. [Install the plugin](#install), finish active work, and fully restart Codex.
 2. Open a chat in the **actual project you will work on**.
-3. Paste the request below, choose models from the returned role table, then open the connected director chat and ask **“Open Team Meeting Room.”**
+3. Open the room tab and choose **메뉴 → 기본 팀 만들기**. Review six roles and Codex defaults, then click **설명 확인 · 팀 만들기** to create and connect the team. Preview/cancel invokes no AI; actual setup has normal usage. For specific model choices, use the conversational alternative below. [Menu setup details](host-plugin/skills/team-room/references/menu-team-setup.md).
 
 ```text
 Set up Team Meeting Room for this project.

@@ -6,9 +6,13 @@
 
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.11.1. You can use the plugin across projects, with separate connections and records for each. The current meeting UI uses Korean labels; reports follow the user's requested or established conversation language. This guide includes the Korean control labels so you can find them; it does not add automatic UI translation or language switching to the app.
+This guide describes version 0.12.0. You can use the plugin across projects, with separate connections and records for each. The current meeting UI uses Korean labels; reports follow the user's requested or established conversation language. This guide includes the Korean control labels so you can find them; it does not add automatic UI translation or language switching to the app.
 
 ## Get started
+
+For a new local project, choose **메뉴 → 기본 팀 만들기**. Review the project, six roles, default settings and initial usage, then select **설명 확인 · 팀 만들기**. The current chat creates a director, planner, designer, TWO programmers and QA in new chats and connects them. Preview/cancel invokes no AI; initialization has normal usage. Existing rooms/setups are not duplicated. After connection the room is displayed unless you manually selected another room or began typing. See [menu setup and compatibility](skills/team-room/references/menu-team-setup.md).
+
+Use the conversational workflow below for existing staff or specific models.
 
 1. Open the project's existing director chat.
 2. Ask: **“Connect this project and its existing participant chats to Team Meeting Room.”** Specify the participants, their roles and the scope of collaboration you authorize.

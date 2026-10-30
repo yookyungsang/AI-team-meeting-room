@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {randomUUID} from 'node:crypto';
 import {roleCatalog,roleTypeOf} from '../host-plugin/roles.mjs';
+import {TEAM_ROLES} from '../host-plugin/team-setup.mjs';
 const script=fs.readFileSync(new URL('../host-plugin/widget.html',import.meta.url),'utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
 class Element {
  constructor(tag='div'){this.tag=tag;this.children=[];this.events={};this.value='';this.dataset={};this.disabled=false;this.hidden=false;this.scrollHeight=0;this.scrollTop=0;this.clientHeight=300;}
@@ -22,8 +23,9 @@ class Element {
  set innerHTML(value){throw new Error('unsafe HTML rendering');}
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
-async function widget(t,{capability={},messageFails=false,autoSelect=true,deferMessages=false,holdSubmit=false,holdImages=false,badImage=false,holdAudio=false,badAudio=false,holdRoster=null,rosterError=null,currentProject=null,openingStatus='unavailable',holdOpening=false,initialInput}={}){
- const elements=new Map(),sent=[],callbacks={},intervals=[],messagePackets=[],imagePackets=[],audioPackets=[],openingPackets=[],timeouts=new Map();let timeoutSeq=0;
+async function widget(t,{capability={},messageFails=false,autoSelect=true,deferMessages=false,holdSubmit=false,holdImages=false,badImage=false,holdAudio=false,badAudio=false,holdRoster=null,rosterError=null,currentProject=null,openingStatus='unavailable',holdOpening=false,initialInput,holdTeam=null,teamStatus='preview'}={}){
+ const elements=new Map(),sent=[],callbacks={},intervals=[],messagePackets=[],imagePackets=[],audioPackets=[],openingPackets=[],teamPackets=[],timeouts=new Map();let timeoutSeq=0;
+ const teamData={previewId:randomUUID(),setupId:randomUUID(),projectId:'created',projectName:'가상 새 프로젝트',status:teamStatus,roles:TEAM_ROLES.map(r=>({id:r.id,name:r.name})),modelMode:'default'};
  const projects=[{id:'test',name:'Test',directorName:'테스트 총괄'},{id:'second',name:'Second',directorName:'다른 총괄'}];
  const state={project:{id:'test',name:'Test'},projects,members:[{id:'director',name:'테스트 총괄',role:'총괄'}],requests:[],messages:[],paused:false};
  const second={project:{id:'second',name:'Second'},projects,members:[{id:'director',name:'다른 총괄',role:'리더'},{id:'writer',name:'작가',role:'작가'}],requests:[],messages:[],paused:false};
@@ -38,6 +40,11 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
   if(packet.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostCapabilities:{message:{text:capability},experimental:{'openai/message':{}}}};
   if(packet.method==='tools/call'){
    const {name,arguments:args}=packet.params;
+   if(name==='room_team_setup'){
+    teamPackets.push(packet);if(args.operation==='apply')teamData.status='requested';
+    result={structuredContent:{...teamData,...(args.operation==='apply'?{dispatch:true,prompt:'Synthetic human-confirmed team creation request'}:{})}};
+    if(holdTeam===args.operation)return;
+   }
    if(name==='room_roster'){
     rosterPackets.push(packet);const data=catalogs.get(args.projectId);
     if(args.operation==='apply'&&!rosterBehavior.error){if(!rosterChanges.has(args.changeId)){data.members=args.selection.map(m=>({...m}));data.revision++;rosterChanges.set(args.changeId,true);states.get(args.projectId).members=data.members;states.get(args.projectId).project.revision=data.revision;}}
@@ -71,8 +78,43 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
  const receive=data=>callbacks.message({source:parent,data:{jsonrpc:'2.0',...data}});
  const respondMessage=(index,result={})=>receive({id:messagePackets[index].id,result});
  const expire=()=>{for(const [id,fn] of [...timeouts]){timeouts.delete(id);fn();}};
- return {rosterPackets,rosterBehavior,catalogs,sent,elements,state,second,notify,callbacks,intervals,document,styles,receive,window,messagePackets,imagePackets,audioPackets,openingPackets,respondMessage,expire};
+ return {rosterPackets,rosterBehavior,catalogs,sent,elements,state,second,states,chooser,notify,callbacks,intervals,document,styles,receive,window,messagePackets,imagePackets,audioPackets,openingPackets,teamPackets,teamData,respondMessage,expire};
 }
+
+async function explainTeam(w){w.elements.get('open-menu').events.click();await w.elements.get('create-team').events.click();}
+test('new-project menu explains six roles and defaults before an explicit apply, while cancel invokes no AI',async t=>{
+ const w=await widget(t,{autoSelect:false,openingStatus:'unregistered'});assert.equal(w.elements.get('team-setup-entry').hidden,false);await explainTeam(w);
+ assert.equal(w.elements.get('team-setup').hidden,false);assert.equal(w.elements.get('team-setup-roles').children.length,6);assert.equal(w.elements.get('team-setup-apply').disabled,false);assert.match(w.elements.get('team-setup-project').textContent,/가상 새 프로젝트/);
+ w.elements.get('team-setup-cancel').events.click();assert.equal(w.elements.get('team-setup').hidden,true);assert.deepEqual(w.teamPackets.map(p=>p.params.arguments.operation),['preview']);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+});
+
+test('team menu apply sends one human-confirmed setup request and selects the connected room on a later local refresh',async t=>{
+ const w=await widget(t,{autoSelect:false,openingStatus:'unregistered'});await explainTeam(w);
+ const pending=w.elements.get('team-setup-apply').events.click();await w.elements.get('team-setup-apply').events.click();await pending;
+ const applies=w.teamPackets.filter(p=>p.params.arguments.operation==='apply');assert.equal(applies.length,1);assert.equal(applies[0].params.arguments.confirmed,true);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,1);assert.equal(w.elements.get('team-setup-apply').disabled,true);
+ const project={id:'created',name:'가상 새 프로젝트',directorName:'새 총괄'};w.chooser.projects.push(project);w.states.set(project.id,{project,members:[{id:'director',name:'새 총괄',role:'총괄'}],projects:w.chooser.projects,messages:[],requests:[],paused:false});
+ await w.intervals[0]();assert.equal(w.elements.get('project').value,'created');assert.equal(w.elements.get('team-setup-entry').hidden,true);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,1);
+});
+
+test('existing setups and hosts without message support cannot apply another menu team',async t=>{
+ for(const options of [{teamStatus:'existing'},{teamStatus:'requested'},{capability:false}]){const w=await widget(t,{autoSelect:false,...options});await explainTeam(w);assert.equal(w.elements.get('team-setup-apply').disabled,true);await w.elements.get('team-setup-apply').events.click();assert.equal(w.teamPackets.length,1);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);}
+});
+
+test('late menu apply after close, switch, hide or teardown never dispatches a setup request',async t=>{
+ for(const action of ['close','switch','hide','teardown']){
+  const w=await widget(t,{autoSelect:false,holdTeam:'apply'});await explainTeam(w);const applying=w.elements.get('team-setup-apply').events.click();await settle();const packet=w.teamPackets.at(-1);
+  if(action==='close')w.elements.get('close-menu').events.click();
+  if(action==='switch'){w.elements.get('project').value='second';await w.elements.get('project').events.change();}
+  if(action==='hide'){w.document.hidden=true;w.callbacks.visibilitychange();}
+  if(action==='teardown')w.callbacks.pagehide();
+  w.receive({id:packet.id,result:{structuredContent:{...w.teamData,dispatch:true,prompt:'Late setup request'}}});await applying;assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0,action);assert.equal(w.elements.get('team-setup').hidden,true);
+ }
+});
+
+test('rejected and uncertain setup deliveries never auto resend or reenable creation',async t=>{
+ const rejected=await widget(t,{autoSelect:false,messageFails:true});await explainTeam(rejected);await rejected.elements.get('team-setup-apply').events.click();assert.match(rejected.elements.get('team-setup-status').textContent,/자동 재전송/);await rejected.intervals[0]();assert.equal(rejected.sent.filter(p=>p.method==='ui/message').length,1);assert.equal(rejected.elements.get('team-setup-apply').disabled,true);
+ const w=await widget(t,{autoSelect:false,deferMessages:true});await explainTeam(w);const applying=w.elements.get('team-setup-apply').events.click();await settle();w.expire();assert.match(w.elements.get('team-setup-status').textContent,/자동 재전송/);await w.elements.get('team-setup-apply').events.click();assert.equal(w.messagePackets.length,1);w.respondMessage(0);await applying;assert.equal(w.messagePackets.length,1);
+});
 
 test('initial mount resolves its opening project once, then polls only that explicit room without AI',async t=>{
  for(const currentProject of ['test','second']){

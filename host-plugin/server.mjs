@@ -13,6 +13,7 @@ import {TeamSetup} from './team-setup.mjs';
 import {ROLE_TYPES,roleGuidance} from './roles.mjs';
 import {ReadGate} from './read-gate.mjs';
 import {openingThread} from './native-chats.mjs';
+import {MenuTeam} from './menu-team.mjs';
 
 const root=path.dirname(fileURLToPath(import.meta.url));
 const version=JSON.parse(fs.readFileSync(path.join(root,'plugin.json'),'utf8')).version;
@@ -61,6 +62,7 @@ TOOLS.push(tool('room_members','Director applies a human-authorized roster chang
 TOOLS.push(tool('room_roster','Menu roster editor; no AI/native execution. read returns project-scoped labels, choices and revisions. apply resolves selected IDs server-side and preserves membership guards/history. register is director-only after an explicit human request: verify this project’s existing chats with native tools, then save candidate names/roles/routes with verified:true and requestId. Never create/contact chats or change active members just to prepare choices.',schema({projectId:member,operation:{type:'string',enum:['read','register','apply']},memberId:{type:'string',enum:['director']},requestId:str,verified:{type:'boolean'},candidates:{type:'array',maxItems:100,items:schema({name:str,role:str,roleType,threadId:str,hostId:str},['name','role','threadId','hostId'])},expectedRevision:{type:'integer',minimum:1},optionsRevision:{type:'integer',minimum:1},changeId:str,selection:{type:'array',minItems:1,maxItems:20,items:schema({id:member,name:str,role:str,roleType},['id','name','role'])}},['projectId','operation']),false,['app','model']));
 TOOLS.push(tool('room_team','Explicit human-requested team setup: director, planner, designer, TWO programmers and QA. Read the team-creation skill reference. Local planning/journal only; never executes chats or AI. Verify the native project/host and available models; show role/model choices for human selection. plan → approve → claim → native create_thread once only if dispatch:true → verify/rename title → record → connect. Unknown creation results require native reconciliation, never recreate. Stored plans never grant native authorization.',schema({projectId:member,setupId:str,operation:{type:'string',enum:['plan','approve','claim','record','block','retry','connect','status']},name:{type:'string',maxLength:120},codexProjectId:str,hostId:str,brief:{type:'string',maxLength:4000},models:{type:'array',maxItems:32,items:schema({id:str,label:str,family:{type:'string',enum:['balanced','visual','deep','light','other']},efforts:{type:'array',maxItems:8,items:str}},['id','label','family','efforts'])},roles:{type:'array',maxItems:6,items:schema({slotId:member,memberId:member,reuseMemberId:member,name:str},['slotId'])},choices:{type:'array',minItems:6,maxItems:6,items:schema({slotId:member,model:str,thinking:str},['slotId','model'])},confirmed:{type:'boolean'},confirmedAbsent:{type:'boolean'},retryId:str,choice:schema({model:str,thinking:str},['model']),slotId:member,attemptId:str,threadId:str,verified:{type:'boolean'},titleVerified:{type:'boolean'},reason:{type:'string',maxLength:1000}},['projectId','setupId','operation']),false));
 function resource(){return {uri,mimeType:'text/html;profile=mcp-app',text:fs.readFileSync(path.join(root,'widget.html'),'utf8'),_meta:{ui:{csp:{connectDomains:[],resourceDomains:[]}},'openai/ui':{availableDisplayModes:['inline','fullscreen'],preferredDisplayMode:'fullscreen'}}};}
+TOOLS.push(tool('room_team_setup','Human menu onboarding only. preview shows six roles and default model settings for the verified opening local project; it creates no chats or model work. apply requires confirmed:true and the original preview/request IDs, revalidates scope, approves a guarded plan and returns dispatch:true once for one user-initiated ui/message. Never create native chats in the server, guess a project, retry delivery or replace an existing room/setup.',schema({operation:{type:'string',enum:['preview','apply']},previewId:str,requestId:str,confirmed:{type:'boolean'}},['operation']),false,['app']));
 TOOLS.push(...workTools(tool,schema,member,str));
 TOOLS.find(t=>t.name==='room_roster').inputSchema.properties.operation.enum.push('discover');
 TOOLS.find(t=>t.name==='room_roster').description+=' discover reads only local Codex chat titles and project membership through a read-only metadata compatibility adapter, on explicit editor open/refresh; no AI or messages. It prepares same-project choices without activating them. UI additions are revalidated at save. Unsupported/remote indexes return an unavailable notice, never a global chat list.';
@@ -105,6 +107,12 @@ export function handle(request,registry=projects){
     const control=store?new WorkControl(store,registry.home):null,usage=control?new UsageLedger(control):null;
     const snapshot=()=>{if(!store)return {version:1,paused:true,requests:[],messages:[],members:[],project:null,projects:registry.list(),mode:'host-relay'};new Validation(control).refresh();return {...store.snapshot(),projects:registry.list(),work:control.summary(),usageReports:usage.reports()};};
     switch(name){
+     case 'room_team_setup':{
+      const menu=new MenuTeam(registry),input={...args,threadId:openingThread(request.params?._meta)};
+      if(args.operation==='preview')data=menu.preview(input);
+      else if(args.operation==='apply')data=menu.apply(input);
+      else throw new Error('지원하지 않는 팀 만들기 작업입니다.');break;
+     }
      case 'room_projects':data={projects:registry.list()};break;
      case 'room_configure':data=registry.configure({id:args.projectId,name:args.name,workspacePath:args.workspacePath,members:args.members});break;
      case 'room_members':data=registry.updateMembers(args);break;

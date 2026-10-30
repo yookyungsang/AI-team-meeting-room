@@ -61,7 +61,8 @@ function withNativeIndex({file=path.join(process.env.CODEX_HOME||path.join(os.ho
   };
   const threadScope=id=>{const row=db.prepare('SELECT id,project_id,archived,thread_source FROM threads WHERE id=?').get(id);return row&&!row.archived&&row.thread_source==='user'?resolve(row.id,row.project_id):null;};
   const workspaceMatches=(project,scopeId)=>!project.workspacePath||projectForThread({cwd:project.workspacePath},roots.filter(r=>r.project_id===scopeId),ids)===scopeId;
-  return read({db,resolve,threadScope,workspaceMatches});
+  const nativeIds=scopeId=>[...Object.entries(mapping).filter(([,id])=>id===scopeId).map(([id])=>id),scopeId].filter(id=>typeof id==='string'&&id.length>0&&id.length<=200);
+  return read({db,resolve,threadScope,workspaceMatches,nativeIds});
  }finally{db?.close();}
 }
 export function readNativeProjectChats(project,options){
@@ -95,5 +96,13 @@ export function findNativeMeetingProject(projects,threadId,options){
   const scopeId=threadScope(threadId);if(!scopeId)return {status:'unavailable'};
   const matches=projects.filter(project=>{const director=project.members.find(m=>m.id==='director');return director?.hostId==='local'&&threadScope(director.threadId)===scopeId&&workspaceMatches(project,scopeId);});
   return matches.length===1?{status:'selected',projectId:matches[0].id}:{status:matches.length?'ambiguous':'unregistered'};
+ });
+}
+export function readNativeOpeningProject(threadId,options){
+ return withNativeIndex(options,({db,threadScope,nativeIds})=>{
+  const scopeId=threadScope(threadId);check(scopeId,'현재 대화창의 로컬 프로젝트를 확인할 수 없습니다.');
+  const name=db.prepare('SELECT name FROM projects WHERE id=?').get(scopeId)?.name;
+  check(typeof name==='string'&&name.trim(),'현재 프로젝트의 이름을 확인할 수 없습니다.');
+  return {scopeId,name:Array.from(name.trim()).slice(0,120).join(''),nativeProjectIds:nativeIds(scopeId)};
  });
 }

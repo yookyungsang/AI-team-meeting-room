@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {randomUUID,createHash} from 'node:crypto';
-import {metadataPath,projectForThread,readNativeProjectChats,openingThread,findNativeMeetingProject} from '../host-plugin/native-chats.mjs';
+import {metadataPath,projectForThread,readNativeProjectChats,openingThread,findNativeMeetingProject,readNativeOpeningProject} from '../host-plugin/native-chats.mjs';
 import {Projects} from '../host-plugin/projects.mjs';
 import {handle} from '../host-plugin/server.mjs';
 
@@ -132,5 +132,6 @@ sqliteTest('legacy desktop assignments are explicit and projectless, remote or c
  const assignment=projectId=>({projectKind:'local',projectId});
  fs.writeFileSync(stateFile,JSON.stringify({'thread-project-assignments':{'fixture-chat-director':assignment('legacy-alpha'),'fixture-new':assignment('legacy-alpha'),'fixture-chat-one':assignment('legacy-alpha')},'app-server-project-id-by-legacy-project-id-by-host':{['local:'+path.dirname(f.file)]:{'legacy-alpha':'alpha'}},'projectless-thread-ids':['fixture-new'],'thread-project-membership-host-ids':{'fixture-chat-one':'remote'}}));
  const result=readNativeProjectChats(f.project,{file:f.file});assert.deepEqual(result.candidates.map(c=>c.threadId),['fixture-chat-director','fixture-explicit']);
+ const context=readNativeOpeningProject('fixture-chat-director',{file:f.file});assert.equal(context.name,'Fixture alpha');assert.deepEqual(context.nativeProjectIds,['legacy-alpha','alpha']);
  f.mutate("UPDATE threads SET project_id='beta' WHERE id='fixture-chat-director'");assert.throws(()=>readNativeProjectChats(f.project,{file:f.file}));
 });

@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {pathToFileURL} from 'node:url';
 import {wav} from '../test/audio.fixture.mjs';
 import {roleCatalog} from '../host-plugin/roles.mjs';
+import {TEAM_ROLES} from '../host-plugin/team-setup.mjs';
 const root=path.resolve(import.meta.dirname,'..');
 const modulePath=process.env.PLAYWRIGHT_MODULE;
 const {chromium}=await import(modulePath?pathToFileURL(modulePath).href:'playwright');
@@ -32,7 +33,11 @@ async function mount(page,html,width,openingRoom=null){
    if(p.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostCapabilities:{message:{text:{}}},hostContext:{displayMode:'fullscreen',containerDimensions:{height:1000}}};
    if(p.method==='tools/call'){
     const empty={project:null,projects:[],members:[],requests:[],messages:[],paused:true};
-    if(p.params.name==='room_submit'){
+    if(p.params.name==='room_team_setup'){
+     const fixture=window.menuTeamFixture,a=p.params.arguments;
+     if(a.operation==='apply')fixture.status='requested';
+     result={structuredContent:{...fixture,...(a.operation==='apply'?{dispatch:true,prompt:'Synthetic approved setup request'}:{})}};
+    }else if(p.params.name==='room_submit'){
      const request={...p.params.arguments,status:'pending',jobs:[]};
      window.testRoomState.requests.push(request);
      result={structuredContent:{request,state:window.testRoomState,wakePrompt:'isolated keyboard fixture '+request.id}};
@@ -347,6 +352,22 @@ try{
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),2);
   report.cases.push({width,transitions:20,heights,layout,typography,rosterAlignment,safeReadableMessages:true,foldedTechnicalDetails:true,audioPreview:{lazy:true,outsideDetails:true,decodedWav:true,manualPlay:true,refreshKeepsPlayback:true,cache:true,closeStops:true,lateAfterTeardown:'ignored'},detailsPreservedOnRefresh:true,naturalPeerExample:true,inlineImages:true,imageZoom:true,imageCache:true,finalUsageByParticipant:true,missingUsageNotZero:true,lateImagesAfterTeardown:'ignored',teardown:'acknowledged; no polling for 4.2 seconds',sendButtonVisible:false,keyboardSubmit:true,inFlightAddition:true,outOfOrderReceiptsPreserveDraft:true,simulatedHostMessages:2,modelCalls:0});
   await page.close();
+ }
+ for(const width of [1280,420]){
+  const page=await browser.newPage(),frame=await mount(page,fs.readFileSync(path.join(root,'host-plugin/widget.html'),'utf8'),width);
+  await page.evaluate(roles=>{window.menuTeamFixture={previewId:crypto.randomUUID(),setupId:crypto.randomUUID(),projectId:'created',projectName:'처음 시작하는 예시 프로젝트',status:'preview',modelMode:'default',roles};},TEAM_ROLES.map(r=>({id:r.id,name:r.name})));
+  await frame.locator('#open-menu').click();await frame.locator('#create-team').click();await frame.locator('#team-setup-apply').waitFor({state:'visible'});
+  await frame.waitForFunction(()=>!document.querySelector('#team-setup-apply').disabled);
+  assert.equal(await frame.locator('#team-setup-roles li').count(),6);assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),0);
+  await frame.locator('#team-setup-cancel').click();assert.equal(await frame.locator('#team-setup').isVisible(),false);assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.params?.name==='room_team_setup'&&p.params.arguments.operation==='apply').length),0);
+  await frame.locator('#create-team').click();await frame.waitForFunction(()=>!document.querySelector('#team-setup-apply').disabled);
+  assert.equal(await frame.locator('#room-menu').evaluate(el=>el.scrollWidth>el.clientWidth),false);
+  await frame.locator('#team-setup-apply').scrollIntoViewIfNeeded();await frame.locator('#room-menu').screenshot({path:path.join(output,`menu-team-setup-${width}.png`)});
+  await frame.locator('#team-setup-apply').click();await frame.waitForFunction(()=>document.querySelector('#team-setup-status').textContent.includes('요청을 보냈습니다'));
+  await frame.locator('#team-setup-apply').evaluate(el=>el.click());assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),1);assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.params?.name==='room_team_setup'&&p.params.arguments.operation==='apply').length),1);
+  await page.evaluate(()=>{const project={id:'created',name:'처음 시작하는 예시 프로젝트'};window.testRoomState={project,projects:[project],members:[{id:'director',name:'예시 총괄',role:'총괄 디렉터'}],messages:[],requests:[],paused:false};});
+  await frame.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await frame.waitForFunction(()=>document.querySelector('#project').value==='created');
+  assert.equal(await frame.locator('#team-setup-entry').isVisible(),false);report.cases.push({width,menuTeamSetup:{explanationBeforeApply:true,roles:6,cancelWithoutAI:true,explicitApply:true,singleSimulatedHostRequest:true,connectedRoomSelected:true},modelCalls:0});await page.close();
  }
  const projects=[{id:'alpha',name:'예시 프로젝트 A',directorName:'A 총괄'},{id:'beta',name:'예시 프로젝트 B',directorName:'B 총괄'}];
  for(const project of projects){
