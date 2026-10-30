@@ -58,7 +58,7 @@ test('two panels in one project cannot dispatch two teams while separate project
 
 test('existing rooms and prior conversational setup plans block duplicate menu creation',t=>{
  const f=fixture(t);f.linked.add('scope-alpha');assert.equal(call(f,{operation:'preview'}).isError,true);f.linked.clear();
- f.team.plan({projectId:'existing-plan',setupId:randomUUID(),name:'Existing fixture',codexProjectId:'native-alpha',hostId:'local',models:[]});const view=ok(f,{operation:'preview'});assert.equal(view.status,'existing');assert.equal(view.previewId,undefined);assert.equal(f.team.read().setups.length,1);
+ f.team.plan({projectId:'existing-plan',setupId:randomUUID(),name:'Existing fixture',codexProjectId:'native-alpha',hostId:'local',models:[]});const view=ok(f,{operation:'preview'});assert.equal(view.status,'existing');assert.equal(view.previewId,undefined);assert.equal(view.modelMode,'default');assert.equal(f.team.read().setups.length,1);
 });
 
 test('interruption between plan creation and menu receipt reuses the same setup without losing reservations',t=>{
@@ -81,4 +81,9 @@ test('missing models, unsupported effort and changed approvals block before crea
 test('an old default-only preview keeps its original consent after a role-preset update',t=>{
  const f=fixture(t),preview=ok(f,{operation:'preview'}),state=JSON.parse(fs.readFileSync(f.menu.file));delete state.requests[0].choices;fs.writeFileSync(f.menu.file,JSON.stringify(state));
  const receipt=ok(f,approve(preview)),setup=f.team.status(receipt);assert.equal(receipt.modelMode,'default');assert.equal(setup.status,'approved');assert.equal(setup.requestedChoices,undefined);assert(setup.roles.every(r=>r.model.model==='default'));const claim=f.team.claim({...receipt,slotId:'director'});assert.equal(claim.action.model,undefined);assert.equal(claim.action.thinking,undefined);
+});
+
+test('a denied native attempt reopens the same setup with explicit human continuation, never a new dispatch',t=>{
+ const f=fixture(t),preview=ok(f,{operation:'preview'}),args=approve(preview),receipt=ok(f,args);f.team.catalog({...receipt,models:observed});f.team.approve({...receipt,confirmed:true,choices:requested});const claim=f.team.claim({...receipt,slotId:'director'});f.team.block({...receipt,slotId:'director',attemptId:claim.attemptId,reason:'Fixture host requires direct user confirmation'});
+ const before=fs.readFileSync(f.team.file),again=ok(f,{operation:'preview'});assert.equal(again.setupId,receipt.setupId);assert.equal(again.status,'requested');assert.equal(again.setupStatus,'attention');assert.equal(again.readyCount,0);assert(again.continuationPrompt.includes(receipt.setupId));assert.match(again.continuationPrompt,/GPT-6 Luna · Medium/);assert.match(again.continuationPrompt,/기존 설정/);assert.equal(ok(f,args).dispatch,false);assert.equal(f.team.read().setups.length,1);assert(fs.readFileSync(f.team.file).equals(before));assert.equal(receipt.handoff,'editable-draft');
 });

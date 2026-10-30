@@ -23,9 +23,9 @@ class Element {
  set innerHTML(value){throw new Error('unsafe HTML rendering');}
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
-async function widget(t,{capability={},messageFails=false,autoSelect=true,deferMessages=false,holdSubmit=false,holdImages=false,badImage=false,holdAudio=false,badAudio=false,holdRoster=null,rosterError=null,currentProject=null,openingStatus='unavailable',holdOpening=false,initialInput,holdTeam=null,teamStatus='preview',holdManage=null,busyRoom=false}={}){
- const elements=new Map(),sent=[],callbacks={},intervals=[],messagePackets=[],imagePackets=[],audioPackets=[],openingPackets=[],teamPackets=[],timeouts=new Map();let timeoutSeq=0;
- const teamData={previewId:randomUUID(),setupId:randomUUID(),projectId:'created',projectName:'가상 새 프로젝트',status:teamStatus,roles:TEAM_ROLES.map(r=>({id:r.id,name:r.name})),modelMode:'default'};
+async function widget(t,{capability={},messageFails=false,autoSelect=true,deferMessages=false,holdSubmit=false,holdImages=false,badImage=false,holdAudio=false,badAudio=false,holdRoster=null,rosterError=null,currentProject=null,openingStatus='unavailable',holdOpening=false,initialInput,holdTeam=null,teamStatus='preview',holdManage=null,busyRoom=false,draftSupport=true,openingProjectName}={}){
+ const elements=new Map(),sent=[],callbacks={},intervals=[],messagePackets=[],imagePackets=[],audioPackets=[],openingPackets=[],teamPackets=[],copied=[],timeouts=new Map();let timeoutSeq=0;
+ const teamData={previewId:randomUUID(),setupId:randomUUID(),projectId:'created',projectName:'가상 새 프로젝트',status:teamStatus,roles:TEAM_ROLES.map(r=>({id:r.id,name:r.name})),modelMode:'default',continuationPrompt:'Synthetic original team request',setupStatus:'planned',readyCount:0};
  const projects=[{id:'test',name:'Test',directorName:'테스트 총괄'},{id:'second',name:'Second',directorName:'다른 총괄'}];
  const state={project:{id:'test',name:'Test'},projects,members:[{id:'director',name:'테스트 총괄',role:'총괄'}],requests:[],messages:[],paused:false};
  const second={project:{id:'second',name:'Second'},projects,members:[{id:'director',name:'다른 총괄',role:'리더'},{id:'writer',name:'작가',role:'작가'}],requests:[],messages:[],paused:false};
@@ -38,7 +38,7 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
  const styles=new Map();
  const document={hidden:false,body:{hidden:false},documentElement:{style:{setProperty:(key,value)=>styles.set(key,value)}},activeElement:null,getElementById:id=>{if(!elements.has(id))elements.set(id,new Element());return elements.get(id);},createElement:tag=>new Element(tag),addEventListener:(name,fn)=>callbacks[name]=fn};
  const parent={postMessage:packet=>{sent.push(packet);if(packet.id===undefined)return;let result={};
-  if(packet.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostCapabilities:{message:{text:capability},experimental:{'openai/message':{}}}};
+  if(packet.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostCapabilities:{message:{text:capability},experimental:draftSupport?{'openai/message':{}}:{}}};
   if(packet.method==='tools/call'){
    const {name,arguments:args}=packet.params;
    if(name==='room_manage'){
@@ -60,7 +60,7 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
     if(rosterBehavior.hold===args.operation)return;
    }
    if(name==='room_state'){
-    result={structuredContent:args.projectId?(archived.has(args.projectId)?{...chooser,deletedProjectId:args.projectId,opening:{status:'deleted'}}:states.get(args.projectId)):args.resolveCurrent&&currentProject?states.get(currentProject):{...chooser,...(args.resolveCurrent?{opening:{status:openingStatus}}:{})}};
+    result={structuredContent:args.projectId?(archived.has(args.projectId)?{...chooser,deletedProjectId:args.projectId,opening:{status:'deleted'}}:states.get(args.projectId)):args.resolveCurrent&&currentProject?states.get(currentProject):{...chooser,...(args.resolveCurrent?{opening:{status:openingStatus,...(openingProjectName?{projectName:openingProjectName}:{})}}:{})}};
     if(args.resolveCurrent){openingPackets.push(packet);if(holdOpening)return;}
    }
    if(name==='room_image'){
@@ -78,7 +78,7 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
   if(packet.method==='ui/initialize'&&initialInput!==undefined)queueMicrotask(()=>callbacks.message({source:parent,data:{jsonrpc:'2.0',method:'ui/notifications/tool-input',params:{arguments:initialInput}}}));
  }};
  const window={parent,addEventListener:(name,fn)=>callbacks[name]=fn};
- vm.runInNewContext(script,{window,document,crypto:{randomUUID},console,Intl,Date,Map,Set,Object,Array,JSON,setTimeout:fn=>{const id=++timeoutSeq;timeouts.set(id,fn);return id;},clearTimeout:id=>timeouts.delete(id),setInterval:fn=>{intervals.push(fn);return intervals.length;},clearInterval(){}});
+ vm.runInNewContext(script,{window,document,navigator:{clipboard:{writeText:async value=>{copied.push(value);}}},crypto:{randomUUID},console,Intl,Date,Map,Set,Object,Array,JSON,setTimeout:fn=>{const id=++timeoutSeq;timeouts.set(id,fn);return id;},clearTimeout:id=>timeouts.delete(id),setInterval:fn=>{intervals.push(fn);return intervals.length;},clearInterval(){}});
  t.after(async()=>{callbacks.pagehide();await settle();});
  await settle();
  const notify=data=>callbacks.message({source:parent,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:data}}});
@@ -86,7 +86,7 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
  const receive=data=>callbacks.message({source:parent,data:{jsonrpc:'2.0',...data}});
  const respondMessage=(index,result={})=>receive({id:messagePackets[index].id,result});
  const expire=()=>{for(const [id,fn] of [...timeouts]){timeouts.delete(id);fn();}};
- return {rosterPackets,rosterBehavior,catalogs,sent,elements,state,second,states,chooser,notify,callbacks,intervals,document,styles,receive,window,messagePackets,imagePackets,audioPackets,openingPackets,teamPackets,teamData,respondMessage,expire,managePackets,manageBehavior,archived};
+ return {rosterPackets,rosterBehavior,catalogs,sent,elements,state,second,states,chooser,notify,callbacks,intervals,document,styles,receive,window,messagePackets,imagePackets,audioPackets,openingPackets,teamPackets,teamData,respondMessage,expire,managePackets,manageBehavior,archived,copied};
 }
 
 async function previewDelete(w){w.elements.get('open-menu').events.click();await w.elements.get('delete-room').events.click();}
@@ -116,6 +116,18 @@ test('an archived state clears selection and cannot be undone by a late historic
 });
 
 async function explainTeam(w){w.elements.get('open-menu').events.click();await w.elements.get('create-team').events.click();}
+test('the basic-team trigger toggles closed even during preview and ignores the late response',async t=>{
+ const w=await widget(t,{autoSelect:false,holdTeam:'preview'});w.elements.get('open-menu').events.click();const loading=w.elements.get('create-team').events.click();await settle();assert.equal(w.elements.get('create-team').disabled,false);await w.elements.get('create-team').events.click();assert.equal(w.elements.get('team-setup').hidden,true);assert.equal(w.elements.get('create-team').textContent,'기본 팀 만들기');w.receive({id:w.teamPackets[0].id,result:{structuredContent:w.teamData}});await loading;assert.equal(w.elements.get('team-setup').hidden,true);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+});
+test('existing blocked setup exposes the original continuation and drafts only on explicit choice',async t=>{
+ const w=await widget(t,{autoSelect:false,teamStatus:'requested'});w.teamData.setupStatus='attention';w.teamData.continuationPrompt='Original setup and exact role models';await explainTeam(w);assert.equal(w.elements.get('team-setup-request-text').value,w.teamData.continuationPrompt);assert.match(w.elements.get('team-setup-status').textContent,/사용자 확인/);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);await w.elements.get('team-setup-copy').events.click();assert.equal(w.copied[0],w.teamData.continuationPrompt);await w.elements.get('team-setup-draft').events.click();await w.elements.get('team-setup-draft').events.click();const packets=w.sent.filter(p=>p.method==='ui/message');assert.equal(packets.length,1);assert.equal(packets[0].params._meta['openai/message'].send,false);assert.equal(w.teamPackets.filter(p=>p.params.arguments.operation==='apply').length,0);await w.elements.get('create-team').events.click();assert.equal(w.elements.get('team-setup').hidden,true);
+});
+test('hosts without editable-draft support prepare copyable text without a message fallback',async t=>{
+ for(const options of [{draftSupport:false},{capability:false}]){const w=await widget(t,{autoSelect:false,...options});await explainTeam(w);await w.elements.get('team-setup-apply').events.click();assert.equal(w.elements.get('team-setup-handoff').hidden,false);assert.equal(w.elements.get('team-setup-draft').hidden,true);await w.elements.get('team-setup-copy').events.click();assert.equal(w.copied.length,1);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);}
+});
+test('an unconnected opening displays its verified project name without creating or selecting a room',async t=>{
+ const w=await widget(t,{autoSelect:false,openingStatus:'unregistered',openingProjectName:'가상 새 프로젝트'});assert.equal(w.elements.get('project').children[0].textContent,'가상 새 프로젝트 · 팀 연결 전');assert.equal(w.elements.get('project').value,'');assert.equal(w.elements.get('send').disabled,true);assert.match(w.elements.get('empty').textContent,/메뉴 → 기본 팀 만들기/);assert.equal(w.teamPackets.length,0);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+});
 test('new-project menu explains six roles and defaults before an explicit apply, while cancel invokes no AI',async t=>{
  const w=await widget(t,{autoSelect:false,openingStatus:'unregistered'});assert.equal(w.elements.get('team-setup-entry').hidden,false);await explainTeam(w);
  assert.equal(w.elements.get('team-setup').hidden,false);assert.equal(w.elements.get('team-setup-roles').children.length,6);assert.equal(w.elements.get('team-setup-apply').disabled,false);assert.match(w.elements.get('team-setup-project').textContent,/가상 새 프로젝트/);
@@ -129,16 +141,16 @@ test('menu role presets display exact model and effort labels before confirmatio
  const roles=w.elements.get('team-setup-roles').children.map(r=>r.textContent).join('\n');assert.match(roles,/총괄 디렉터 · GPT-6.1 Sol · Extra High/);assert.match(roles,/프로그래머 2 · GPT-6.1 Sol · High/);assert.match(roles,/QA 담당자 · GPT-6 Luna · Medium/);assert.match(roles,/디자이너 · Codex 기본 설정/);assert.equal(w.elements.get('team-setup-apply').disabled,false);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
 });
 
-test('team menu apply sends one human-confirmed setup request and selects the connected room on a later local refresh',async t=>{
+test('team menu apply prepares one editable draft without submission and selects the connected room on a later local refresh',async t=>{
  const w=await widget(t,{autoSelect:false,openingStatus:'unregistered'});await explainTeam(w);
  const pending=w.elements.get('team-setup-apply').events.click();await w.elements.get('team-setup-apply').events.click();await pending;
- const applies=w.teamPackets.filter(p=>p.params.arguments.operation==='apply');assert.equal(applies.length,1);assert.equal(applies[0].params.arguments.confirmed,true);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,1);assert.equal(w.elements.get('team-setup-apply').disabled,true);
+ const applies=w.teamPackets.filter(p=>p.params.arguments.operation==='apply');assert.equal(applies.length,1);assert.equal(applies[0].params.arguments.confirmed,true);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,1);assert.equal(w.sent.find(p=>p.method==='ui/message').params._meta['openai/message'].send,false);assert.equal(w.elements.get('team-setup-apply').disabled,true);
  const project={id:'created',name:'가상 새 프로젝트',directorName:'새 총괄'};w.chooser.projects.push(project);w.states.set(project.id,{project,members:[{id:'director',name:'새 총괄',role:'총괄'}],projects:w.chooser.projects,messages:[],requests:[],paused:false});
  await w.intervals[0]();assert.equal(w.elements.get('project').value,'created');assert.equal(w.elements.get('team-setup-entry').hidden,true);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,1);
 });
 
-test('existing setups and hosts without message support cannot apply another menu team',async t=>{
- for(const options of [{teamStatus:'existing'},{teamStatus:'requested'},{capability:false}]){const w=await widget(t,{autoSelect:false,...options});await explainTeam(w);assert.equal(w.elements.get('team-setup-apply').disabled,true);await w.elements.get('team-setup-apply').events.click();assert.equal(w.teamPackets.length,1);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);}
+test('existing setups cannot apply another menu team',async t=>{
+ for(const options of [{teamStatus:'existing'},{teamStatus:'requested'}]){const w=await widget(t,{autoSelect:false,...options});await explainTeam(w);assert.equal(w.elements.get('team-setup-apply').disabled,true);await w.elements.get('team-setup-apply').events.click();assert.equal(w.teamPackets.length,1);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);}
 });
 
 test('late menu apply after close, switch, hide or teardown never dispatches a setup request',async t=>{
@@ -154,7 +166,7 @@ test('late menu apply after close, switch, hide or teardown never dispatches a s
 
 test('rejected and uncertain setup deliveries never auto resend or reenable creation',async t=>{
  const rejected=await widget(t,{autoSelect:false,messageFails:true});await explainTeam(rejected);await rejected.elements.get('team-setup-apply').events.click();assert.match(rejected.elements.get('team-setup-status').textContent,/자동 재전송/);await rejected.intervals[0]();assert.equal(rejected.sent.filter(p=>p.method==='ui/message').length,1);assert.equal(rejected.elements.get('team-setup-apply').disabled,true);
- const w=await widget(t,{autoSelect:false,deferMessages:true});await explainTeam(w);const applying=w.elements.get('team-setup-apply').events.click();await settle();w.expire();assert.match(w.elements.get('team-setup-status').textContent,/자동 재전송/);await w.elements.get('team-setup-apply').events.click();assert.equal(w.messagePackets.length,1);w.respondMessage(0);await applying;assert.equal(w.messagePackets.length,1);
+ const w=await widget(t,{autoSelect:false,deferMessages:true});await explainTeam(w);const applying=w.elements.get('team-setup-apply').events.click();await settle();w.expire();await applying;assert.match(w.elements.get('team-setup-status').textContent,/자동 재전송/);await w.elements.get('team-setup-apply').events.click();assert.equal(w.messagePackets.length,1);w.respondMessage(0);assert.equal(w.messagePackets.length,1);
 });
 
 test('initial mount resolves its opening project once, then polls only that explicit room without AI',async t=>{

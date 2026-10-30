@@ -60,9 +60,9 @@ sqliteTest('opening from each project selects its own registered meeting without
 sqliteTest('ambiguous, unregistered, moved, internal and unavailable openings never fall back to another project',t=>{
  const f=fixture(t),open=threadId=>f.registry.opening(threadId);
  assert.deepEqual(open('fixture-new'),{status:'selected',projectId:'meeting'});
- assert.deepEqual(open('fixture-nested'),{status:'unregistered'});
+ assert.deepEqual(open('fixture-nested'),{status:'unregistered',projectName:'Fixture nested'});
  for(const id of ['fixture-unassigned','fixture-child','fixture-review','fixture-archived','missing',null])assert.deepEqual(open(id),{status:'unavailable'});
- f.mutate("UPDATE threads SET project_id='beta' WHERE id='fixture-new'");assert.deepEqual(open('fixture-new'),{status:'unregistered'});
+ f.mutate("UPDATE threads SET project_id='beta' WHERE id='fixture-new'");assert.deepEqual(open('fixture-new'),{status:'unregistered',projectName:'Fixture beta'});
  f.registry.configure({...f.project,id:'duplicate'});assert.deepEqual(open('fixture-chat-director'),{status:'ambiguous'});
  f.registry.openingReader=()=>{throw new Error('Fixture unavailable');};assert.deepEqual(open('fixture-chat-director'),{status:'unavailable'});
 });

@@ -13,7 +13,7 @@ A local Codex plugin that connects existing AI chats into project-based team mee
 
 1. [Install the plugin](#install), finish active work, and fully restart Codex.
 2. Open a chat in the **actual project you will work on**.
-3. Open the room tab and choose **메뉴 → 기본 팀 만들기**. Review six roles and their displayed model/effort settings, then click **설명 확인 · 팀 만들기** to create and connect the team. Preview/cancel invokes no AI; actual setup has normal usage. For specific model choices, use the conversational alternative below. [Menu setup details](host-plugin/skills/team-room/references/menu-team-setup.md).
+3. Open the room tab and choose **메뉴 → 기본 팀 만들기**. Review six roles and their displayed model/effort settings, then click **설명 확인 · 요청문 준비** to prepare an editable request. Review and send it yourself in the project chat; copy/paste the visible request if draft insertion is unavailable. Preparation invokes no AI; actual setup after direct submission has normal usage. For specific model choices, use the conversational alternative below. [Menu setup details](host-plugin/skills/team-room/references/menu-team-setup.md).
 
 ```text
 Set up Team Meeting Room for this project.
@@ -155,7 +155,7 @@ npm start
 GitHub runs the package check and existing tests on Node 22, Windows and Linux
 for main-branch pushes and pull requests. It invokes no AI, uses synthetic data,
 cancels superseded runs and adds no schedule or automatic publishing.
-[Release notes](docs/releases/v0.13.0.md) include version-specific installation
+[Release notes](docs/releases/v0.13.2.md) include version-specific installation
 and update instructions. [Check scope and release procedure](docs/RELEASING.md).
 
 `npm start` launches a JSON-RPC stdio MCP server, not an HTTP website. It cannot be opened directly at a browser address. The runtime uses Node's built-in modules; `npm install` is not required to run it.

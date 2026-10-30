@@ -30,13 +30,13 @@ async function mount(page,html,width,openingRoom=null){
    if(p.id===undefined||!p.method)return;
    if(p.method==='ui/message'&&window.deferMessageReceipts){(window.delayedReceipts||=[]).push(p.id);return;}
    let result={};
-   if(p.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostCapabilities:{message:{text:{}}},hostContext:{displayMode:'fullscreen',containerDimensions:{height:1000}}};
+   if(p.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostCapabilities:{message:{text:{}},experimental:{'openai/message':{}}},hostContext:{displayMode:'fullscreen',containerDimensions:{height:1000}}};
    if(p.method==='tools/call'){
     const empty={project:null,projects:[],members:[],requests:[],messages:[],paused:true};
     if(p.params.name==='room_team_setup'){
      const fixture=window.menuTeamFixture,a=p.params.arguments;
-     if(a.operation==='apply')fixture.status='requested';
-     result={structuredContent:{...fixture,...(a.operation==='apply'?{dispatch:true,prompt:'Synthetic approved setup request'}:{})}};
+     if(a.operation==='apply')fixture.status='requested';fixture.continuationPrompt='Synthetic original setup request';fixture.setupStatus='planned';fixture.readyCount=0;
+     result={structuredContent:{...fixture,...(a.operation==='apply'?{dispatch:true,prompt:'Synthetic original setup request'}:{})}};
     }else if(p.params.name==='room_manage'){
      const a=p.params.arguments,f=window.lifecycleFixture,room=f.room;
      if(a.operation==='preview_delete')result={structuredContent:{projectId:room.project.id,name:room.project.name,revision:1,canDelete:true,reasons:[],counts:{members:room.members.length,requests:room.requests.length,messages:room.messages.length,images:0,audio:0}}};
@@ -360,21 +360,25 @@ try{
   await page.close();
  }
  for(const width of [1280,420]){
-  const page=await browser.newPage(),frame=await mount(page,fs.readFileSync(path.join(root,'host-plugin/widget.html'),'utf8'),width);
+  const opening={project:null,projects:[],members:[],requests:[],messages:[],paused:true,opening:{status:'unregistered',projectName:'처음 시작하는 예시 프로젝트'}};
+  const page=await browser.newPage(),frame=await mount(page,fs.readFileSync(path.join(root,'host-plugin/widget.html'),'utf8'),width,opening);
+  await frame.waitForFunction(()=>document.querySelector('#project option').textContent.includes('팀 연결 전'));
   await page.evaluate(roles=>{window.menuTeamFixture={previewId:crypto.randomUUID(),setupId:crypto.randomUUID(),projectId:'created',projectName:'처음 시작하는 예시 프로젝트',status:'preview',modelMode:'role-preset',roles};},TEAM_ROLES.map(r=>({id:r.id,name:r.name,modelLabel:r.id==='director'?'GPT-6.1 Sol · Extra High':r.id.startsWith('programmer')?'GPT-6.1 Sol · High':r.id==='qa'?'GPT-6 Luna · Medium':'Codex 기본 설정'})));
   await frame.locator('#open-menu').click();await frame.locator('#create-team').click();await frame.locator('#team-setup-apply').waitFor({state:'visible'});
   await frame.waitForFunction(()=>!document.querySelector('#team-setup-apply').disabled);
   assert.equal(await frame.locator('#team-setup-roles li').count(),6);assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),0);
   assert.match(await frame.locator('#team-setup-roles').textContent(),/GPT-6.1 Sol · Extra High/);assert.match(await frame.locator('#team-setup-roles').textContent(),/GPT-6 Luna · Medium/);
-  await frame.locator('#team-setup-cancel').click();assert.equal(await frame.locator('#team-setup').isVisible(),false);assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.params?.name==='room_team_setup'&&p.params.arguments.operation==='apply').length),0);
+  await frame.locator('#create-team').click();assert.equal(await frame.locator('#team-setup').isVisible(),false);assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.params?.name==='room_team_setup'&&p.params.arguments.operation==='apply').length),0);
   await frame.locator('#create-team').click();await frame.waitForFunction(()=>!document.querySelector('#team-setup-apply').disabled);
   assert.equal(await frame.locator('#room-menu').evaluate(el=>el.scrollWidth>el.clientWidth),false);
   await frame.locator('#team-setup-apply').scrollIntoViewIfNeeded();await frame.locator('#room-menu').screenshot({path:path.join(output,`menu-team-setup-${width}.png`)});
-  await frame.locator('#team-setup-apply').click();await frame.waitForFunction(()=>document.querySelector('#team-setup-status').textContent.includes('요청을 보냈습니다'));
-  await frame.locator('#team-setup-apply').evaluate(el=>el.click());assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),1);assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.params?.name==='room_team_setup'&&p.params.arguments.operation==='apply').length),1);
+  await frame.locator('#team-setup-apply').click();await frame.waitForFunction(()=>document.querySelector('#team-setup-status').textContent.includes('직접 전송하세요'));
+  await frame.locator('#team-setup-apply').evaluate(el=>el.click());assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').every(p=>p.params._meta?.['openai/message']?.send===false)),true);assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),1);assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.params?.name==='room_team_setup'&&p.params.arguments.operation==='apply').length),1);
+  await frame.locator('#team-setup-request-text').scrollIntoViewIfNeeded();await frame.locator('#room-menu').screenshot({path:path.join(output,`menu-team-draft-${width}.png`)});
+  await frame.locator('#create-team').click();assert.equal(await frame.locator('#team-setup').isVisible(),false);await frame.locator('#create-team').click();await frame.locator('#team-setup-request-text').waitFor({state:'visible'});assert.equal(await frame.locator('#team-setup-apply').isDisabled(),true);assert.equal(await frame.locator('#team-setup-request-text').inputValue(),'Synthetic original setup request');
   await page.evaluate(()=>{const project={id:'created',name:'처음 시작하는 예시 프로젝트'};window.testRoomState={project,projects:[project],members:[{id:'director',name:'예시 총괄',role:'총괄 디렉터'}],messages:[],requests:[],paused:false};});
   await frame.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await frame.waitForFunction(()=>document.querySelector('#project').value==='created');
-  assert.equal(await frame.locator('#team-setup-entry').isVisible(),false);report.cases.push({width,menuTeamSetup:{explanationBeforeApply:true,roles:6,cancelWithoutAI:true,explicitApply:true,singleSimulatedHostRequest:true,connectedRoomSelected:true},modelCalls:0});await page.close();
+  assert.equal(await frame.locator('#team-setup-entry').isVisible(),false);report.cases.push({width,menuTeamSetup:{explanationBeforeApply:true,roles:6,cancelWithoutAI:true,explicitApply:true,singleEditableDraft:true,noAutomaticSubmission:true,toggleCloses:true,existingSetupContinuation:true,verifiedProjectBeforeConnection:true,connectedRoomSelected:true},modelCalls:0});await page.close();
  }
  for(const width of [1280,420]){
   const project={id:'delete-fixture',name:'삭제와 복구를 확인하는 예시 프로젝트'},room={project,projects:[project],members:[{id:'director',name:'예시 총괄',role:'총괄 디렉터'}],requests:[],messages:[],paused:false};

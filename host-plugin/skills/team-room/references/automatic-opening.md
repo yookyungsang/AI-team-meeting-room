@@ -21,3 +21,7 @@ room_open에서 projectId를 직접 지정하면 그 값이 우선합니다. ID 
 ## Archived rooms
 
 Deleted rooms retain their original connection and history. Use the human menu to restore them before new work or setup; never create a replacement team automatically. See [deletion and restoration](room-lifecycle.md).
+
+## 연결 전 프로젝트 표시
+
+등록된 회의실이 없으면 확인된 프로젝트 이름과 “팀 연결 전”을 표시합니다. 읽기만으로 회의실을 만들거나 현재 채팅을 총괄로 연결하지 않습니다. 메뉴에서 요청문을 준비해 같은 프로젝트 채팅에서 직접 전송하고 팀 연결을 마치면 원래 승인한 회의실이 표시됩니다. 미확인 프로젝트 이름이나 작업 폴더로 소속을 추측하지 않습니다.

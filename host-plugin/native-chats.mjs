@@ -92,10 +92,12 @@ export function openingThread(meta){
  return new Set(values).size===1?values[0]:null;
 }
 export function findNativeMeetingProject(projects,threadId,options){
- return withNativeIndex(options,({threadScope,workspaceMatches})=>{
+ return withNativeIndex(options,({db,threadScope,workspaceMatches})=>{
   const scopeId=threadScope(threadId);if(!scopeId)return {status:'unavailable'};
   const matches=projects.filter(project=>{const director=project.members.find(m=>m.id==='director');return director?.hostId==='local'&&threadScope(director.threadId)===scopeId&&workspaceMatches(project,scopeId);});
-  return matches.length===1?{status:'selected',projectId:matches[0].id}:{status:matches.length?'ambiguous':'unregistered'};
+  if(matches.length)return matches.length===1?{status:'selected',projectId:matches[0].id}:{status:'ambiguous'};
+  const name=db.prepare('SELECT name FROM projects WHERE id=?').get(scopeId)?.name;
+  return {status:'unregistered',...(typeof name==='string'&&name.trim()?{projectName:Array.from(name.trim()).slice(0,120).join('')}:{})};
  });
 }
 export function readNativeOpeningProject(threadId,options){
