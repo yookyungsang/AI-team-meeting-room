@@ -334,7 +334,8 @@ try{
    window.testRoomState.messages.push({id:'image-late',requestId:'image-request',authorId:'director',kind:'progress',text:'다음 시안',images:[{id:'b'.repeat(64),caption:'늦은 이미지 응답 예시'}]});
    document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:window.testRoomState}},'*');
   });
-  await frame.locator('.image-preview').last().scrollIntoViewIfNeeded();
+  const lateImage=frame.getByRole('button',{name:'늦은 이미지 응답 예시 · 크게 보기',exact:true});
+  await lateImage.waitFor({state:'attached'});await lateImage.scrollIntoViewIfNeeded();
   await page.waitForFunction(()=>window.delayedImages?.length>0);
   await page.evaluate(()=>{
    window.deferAudio=true;
@@ -355,10 +356,11 @@ try{
  }
  for(const width of [1280,420]){
   const page=await browser.newPage(),frame=await mount(page,fs.readFileSync(path.join(root,'host-plugin/widget.html'),'utf8'),width);
-  await page.evaluate(roles=>{window.menuTeamFixture={previewId:crypto.randomUUID(),setupId:crypto.randomUUID(),projectId:'created',projectName:'처음 시작하는 예시 프로젝트',status:'preview',modelMode:'default',roles};},TEAM_ROLES.map(r=>({id:r.id,name:r.name})));
+  await page.evaluate(roles=>{window.menuTeamFixture={previewId:crypto.randomUUID(),setupId:crypto.randomUUID(),projectId:'created',projectName:'처음 시작하는 예시 프로젝트',status:'preview',modelMode:'role-preset',roles};},TEAM_ROLES.map(r=>({id:r.id,name:r.name,modelLabel:r.id==='director'?'GPT-6.1 Sol · Extra High':r.id.startsWith('programmer')?'GPT-6.1 Sol · High':r.id==='qa'?'GPT-6 Luna · Medium':'Codex 기본 설정'})));
   await frame.locator('#open-menu').click();await frame.locator('#create-team').click();await frame.locator('#team-setup-apply').waitFor({state:'visible'});
   await frame.waitForFunction(()=>!document.querySelector('#team-setup-apply').disabled);
   assert.equal(await frame.locator('#team-setup-roles li').count(),6);assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),0);
+  assert.match(await frame.locator('#team-setup-roles').textContent(),/GPT-6.1 Sol · Extra High/);assert.match(await frame.locator('#team-setup-roles').textContent(),/GPT-6 Luna · Medium/);
   await frame.locator('#team-setup-cancel').click();assert.equal(await frame.locator('#team-setup').isVisible(),false);assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.params?.name==='room_team_setup'&&p.params.arguments.operation==='apply').length),0);
   await frame.locator('#create-team').click();await frame.waitForFunction(()=>!document.querySelector('#team-setup-apply').disabled);
   assert.equal(await frame.locator('#room-menu').evaluate(el=>el.scrollWidth>el.clientWidth),false);

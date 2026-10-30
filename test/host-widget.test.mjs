@@ -88,6 +88,13 @@ test('new-project menu explains six roles and defaults before an explicit apply,
  w.elements.get('team-setup-cancel').events.click();assert.equal(w.elements.get('team-setup').hidden,true);assert.deepEqual(w.teamPackets.map(p=>p.params.arguments.operation),['preview']);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
 });
 
+test('menu role presets display exact model and effort labels before confirmation',async t=>{
+ const w=await widget(t,{autoSelect:false});w.teamData.modelMode='role-preset';
+ const labels={director:'GPT-6.1 Sol · Extra High',programmer1:'GPT-6.1 Sol · High',programmer2:'GPT-6.1 Sol · High',qa:'GPT-6 Luna · Medium'};
+ w.teamData.roles=w.teamData.roles.map(r=>({...r,modelLabel:labels[r.id]||'Codex 기본 설정'}));await explainTeam(w);
+ const roles=w.elements.get('team-setup-roles').children.map(r=>r.textContent).join('\n');assert.match(roles,/총괄 디렉터 · GPT-6.1 Sol · Extra High/);assert.match(roles,/프로그래머 2 · GPT-6.1 Sol · High/);assert.match(roles,/QA 담당자 · GPT-6 Luna · Medium/);assert.match(roles,/디자이너 · Codex 기본 설정/);assert.equal(w.elements.get('team-setup-apply').disabled,false);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+});
+
 test('team menu apply sends one human-confirmed setup request and selects the connected room on a later local refresh',async t=>{
  const w=await widget(t,{autoSelect:false,openingStatus:'unregistered'});await explainTeam(w);
  const pending=w.elements.get('team-setup-apply').events.click();await w.elements.get('team-setup-apply').events.click();await pending;

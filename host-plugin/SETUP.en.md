@@ -2,7 +2,7 @@
 
 [한국어](SETUP.ko.md) | **English** | [Full user guide](USER_GUIDE.en.md)
 
-For version 0.12.0. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → open the room in the director chat → assign the first task**.
+For version 0.12.1. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → open the room in the director chat → assign the first task**.
 
 A new team has **one director, one planner, one designer, TWO programmers and one QA participant**. Each new participant is a separate Codex chat. Setup starts with a written request in a Codex project chat.
 
@@ -54,7 +54,7 @@ If several projects match, select the intended one. **You do not need to locate 
 
 ## Request six staff chats
 
-For a first local connection, you may instead use **메뉴 → 기본 팀 만들기 → 설명 확인 · 팀 만들기**. This creates six chats with Codex defaults, initializes roles and connects the room. Preview/cancel invokes no AI; creation has normal usage. Existing setups are not duplicated. See [menu setup](skills/team-room/references/menu-team-setup.md). The conversational path below also supports explicit model selection.
+For a first local connection, you may instead use **메뉴 → 기본 팀 만들기 → 설명 확인 · 팀 만들기**. This creates six chats with the displayed role-specific models/efforts, initializes roles and connects the room. Preview/cancel invokes no AI; creation has normal usage. Existing setups are not duplicated. See [menu setup](skills/team-room/references/menu-team-setup.md). The conversational path below also supports explicit model selection.
 
 Paste this into the **Codex chat for the intended project**. A meeting room does not need to exist yet.
 

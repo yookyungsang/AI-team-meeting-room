@@ -12,7 +12,7 @@ is unavailable, report that limitation. Never invent chat IDs or simulate succes
 
 ## Plan once
 
-The [first-project menu workflow](menu-team-setup.md) explains six roles and defaults before a separate human Apply click. That explicit request already authorizes defaults and has a saved approved plan. Read that exact setup with status, verify the native project and continue claim/record/connect; do not create another plan or ask for the same choices again. Feature development or opening/canceling the explanation never authorizes creating staff now.
+The [first-project menu workflow](menu-team-setup.md) explains six roles and exact model/effort choices before a separate human Apply click. That request authorizes the saved requestedChoices, not a claim of host availability. Read the exact setup, verify native project/capabilities, bind the observed catalog once and approve those identical choices before claim/record/connect. Default roles omit both native model/thinking. Old default-only menu requests keep their original approved settings. Do not create another plan or ask for the same choices again. Feature development or opening/canceling an explanation never authorizes creating staff now.
 
 1. Use native `list_projects` to verify the intended saved Codex project and its
    host. Ask for the project only if ambiguous. Use `list_threads`/`read_thread`

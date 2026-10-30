@@ -8,6 +8,8 @@ import {Projects} from '../host-plugin/projects.mjs';
 import {MenuTeam} from '../host-plugin/menu-team.mjs';
 import {TeamSetup,TEAM_ROLES} from '../host-plugin/team-setup.mjs';
 import {handle,TOOLS} from '../host-plugin/server.mjs';
+const requested=[{slotId:'director',model:'gpt-6.1-sol',thinking:'xhigh'},{slotId:'planner',model:'default'},{slotId:'designer',model:'default'},{slotId:'programmer1',model:'gpt-6.1-sol',thinking:'high'},{slotId:'programmer2',model:'gpt-6.1-sol',thinking:'high'},{slotId:'qa',model:'gpt-6-luna',thinking:'medium'}];
+const observed=[{id:'gpt-6.1-sol',label:'Fixture observed Sol',family:'balanced',efforts:['medium','high','xhigh']},{id:'gpt-6-luna',label:'Fixture observed Luna',family:'light',efforts:['medium']}];
 
 function fixture(t){
  const base=fileURLToPath(new URL('../.local/test-data/',import.meta.url));fs.mkdirSync(base,{recursive:true});const home=fs.mkdtempSync(path.join(base,'menu-team-'));
@@ -22,18 +24,20 @@ const approve=(preview,requestId=randomUUID())=>({operation:'apply',previewId:pr
 
 test('menu preview is local, stable and cannot initialize chats or a room before confirmation',t=>{
  const f=fixture(t),first=ok(f,{operation:'preview'}),again=ok(f,{operation:'preview'});
- assert.equal(first.previewId,again.previewId);assert.equal(first.status,'preview');assert.equal(first.roles.length,6);assert.equal(first.roles.filter(r=>r.id.startsWith('programmer')).length,2);assert.equal(first.modelMode,'default');assert.equal(first.prompt,undefined);
+ assert.equal(first.previewId,again.previewId);assert.equal(first.status,'preview');assert.equal(first.roles.length,6);assert.equal(first.roles.filter(r=>r.id.startsWith('programmer')).length,2);assert.equal(first.modelMode,'role-preset');assert.equal(first.prompt,undefined);
+ assert.match(first.roles.find(r=>r.id==='director').modelLabel,/GPT-6.1 Sol · Extra High/);assert.match(first.roles.find(r=>r.id==='qa').modelLabel,/GPT-6 Luna · Medium/);
  assert(!fs.existsSync(f.team.file));assert(!fs.existsSync(f.registry.file));assert(!fs.existsSync(path.join(f.home,'rooms')));
  assert.deepEqual(TOOLS.find(t=>t.name==='room_team_setup')._meta.ui.visibility,['app']);
 });
 
-test('confirmed menu setup approves defaults once, preserves native reservations and connects six synthetic identities',t=>{
+test('confirmed role models are verified before approval and reach native actions exactly without changing default roles',t=>{
  const f=fixture(t),preview=ok(f,{operation:'preview'}),args=approve(preview),receipt=ok(f,args);
- assert.equal(receipt.dispatch,true);assert.match(receipt.prompt,/프로그래머 2명/);assert.match(receipt.prompt,/기본 모델/);
+ assert.equal(receipt.dispatch,true);assert.match(receipt.prompt,/프로그래머 2명/);assert.match(receipt.prompt,/역할별 모델/);
  assert.equal(ok(f,args).dispatch,false);assert.equal(new MenuTeam(f.registry).apply({...args,threadId:'alpha-one'}).dispatch,false);
  assert.equal(call(f,{...args,requestId:randomUUID()}).isError,true);
- const setup=f.team.status(receipt);assert.equal(setup.status,'approved');assert(setup.roles.every(r=>r.model.model==='default'));
- for(const role of setup.roles){const claim=f.team.claim({...receipt,slotId:role.slotId});assert.equal(claim.dispatch,true);assert.equal(claim.action.model,undefined);assert.equal(claim.action.thinking,undefined);assert.equal(claim.action.target.projectId,'native-alpha');assert.equal(f.team.claim({...receipt,slotId:role.slotId}).dispatch,false);f.team.record({...receipt,slotId:role.slotId,attemptId:claim.attemptId,threadId:'fixture-'+role.slotId,hostId:'local',codexProjectId:'native-alpha',verified:true,titleVerified:true});}
+ const setup=f.team.status(receipt);assert.equal(setup.status,'planned');assert.deepEqual(setup.requestedChoices,requested);assert.throws(()=>f.team.claim({...receipt,slotId:'director'}),/승인/);
+ const catalogReply=handle({method:'tools/call',params:{name:'room_team',arguments:{projectId:receipt.projectId,setupId:receipt.setupId,operation:'catalog',models:observed}}},f.registry);assert(!catalogReply.isError);f.team.approve({...receipt,confirmed:true,choices:requested});
+ for(const role of setup.roles){const choice=requested.find(c=>c.slotId===role.slotId),claim=f.team.claim({...receipt,slotId:role.slotId});assert.equal(claim.dispatch,true);assert.equal(claim.action.model,choice.model==='default'?undefined:choice.model);assert.equal(claim.action.thinking,choice.thinking);assert.equal(claim.action.target.projectId,'native-alpha');assert.equal(f.team.claim({...receipt,slotId:role.slotId}).dispatch,false);f.team.record({...receipt,slotId:role.slotId,attemptId:claim.attemptId,threadId:'fixture-'+role.slotId,hostId:'local',codexProjectId:'native-alpha',verified:true,titleVerified:true});}
  f.team.connect(receipt);const members=f.registry.get(receipt.projectId).members;assert.equal(members.length,6);assert.equal(members.filter(m=>m.roleType==='programmer').length,2);assert.equal(members.find(m=>m.id==='director').threadId,'fixture-director');
  assert.equal(ok(f,args).dispatch,false,'late exact replay cannot create another team after connection');
 });
@@ -57,8 +61,24 @@ test('existing rooms and prior conversational setup plans block duplicate menu c
  f.team.plan({projectId:'existing-plan',setupId:randomUUID(),name:'Existing fixture',codexProjectId:'native-alpha',hostId:'local',models:[]});const view=ok(f,{operation:'preview'});assert.equal(view.status,'existing');assert.equal(view.previewId,undefined);assert.equal(f.team.read().setups.length,1);
 });
 
-test('interruption between plan approval and menu receipt reuses the same setup without losing reservations',t=>{
- const f=fixture(t),preview=ok(f,{operation:'preview'}),args={...approve(preview),threadId:'alpha-one'},original=f.menu.team.approve.bind(f.menu.team);
- f.menu.team.approve=input=>{original(input);throw new Error('Fixture interruption before receipt');};assert.throws(()=>f.menu.apply(args),/Fixture interruption/);assert.equal(f.team.read().setups.length,1);
+test('interruption between plan creation and menu receipt reuses the same setup without losing reservations',t=>{
+ const f=fixture(t),preview=ok(f,{operation:'preview'}),args={...approve(preview),threadId:'alpha-one'},original=f.menu.team.plan.bind(f.menu.team);
+ f.menu.team.plan=input=>{original(input);throw new Error('Fixture interruption before receipt');};assert.throws(()=>f.menu.apply(args),/Fixture interruption/);assert.equal(f.team.read().setups.length,1);
  const resumed=new MenuTeam(f.registry).apply(args);assert.equal(resumed.dispatch,true);assert.equal(resumed.setupId,preview.setupId);assert.equal(f.team.read().setups.length,1);assert.equal(new MenuTeam(f.registry).apply(args).dispatch,false);
+});
+
+test('missing models, unsupported effort and changed approvals block before creating any native reservation',t=>{
+ const f=fixture(t),preview=ok(f,{operation:'preview'}),receipt=ok(f,approve(preview));
+ assert.throws(()=>f.team.approve({...receipt,confirmed:true,choices:requested}),/호스트/);
+ assert.throws(()=>f.team.catalog({...receipt,models:observed.slice(0,1)}),/지원하지 않습니다/);
+ assert.throws(()=>f.team.catalog({...receipt,models:observed.map(m=>({...m,efforts:['medium','high']}))}),/지원하지 않습니다/);
+ f.team.catalog({...receipt,models:observed});const bytes=fs.readFileSync(f.team.file);f.team.catalog({...receipt,models:observed});assert(fs.readFileSync(f.team.file).equals(bytes));
+ assert.throws(()=>f.team.catalog({...receipt,models:[...observed,{id:'fixture-other',label:'Other',family:'other',efforts:[]}]}),/덮어쓰지/);
+ assert.throws(()=>f.team.approve({...receipt,confirmed:true,choices:requested.map(c=>c.slotId==='director'?{...c,thinking:'high'}:c)}),/그대로/);
+ assert(f.team.status(receipt).roles.every(r=>r.state==='planned'));assert(!fs.existsSync(f.registry.file));
+});
+
+test('an old default-only preview keeps its original consent after a role-preset update',t=>{
+ const f=fixture(t),preview=ok(f,{operation:'preview'}),state=JSON.parse(fs.readFileSync(f.menu.file));delete state.requests[0].choices;fs.writeFileSync(f.menu.file,JSON.stringify(state));
+ const receipt=ok(f,approve(preview)),setup=f.team.status(receipt);assert.equal(receipt.modelMode,'default');assert.equal(setup.status,'approved');assert.equal(setup.requestedChoices,undefined);assert(setup.roles.every(r=>r.model.model==='default'));const claim=f.team.claim({...receipt,slotId:'director'});assert.equal(claim.action.model,undefined);assert.equal(claim.action.thinking,undefined);
 });

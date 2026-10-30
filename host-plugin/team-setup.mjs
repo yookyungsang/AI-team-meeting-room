@@ -39,6 +39,10 @@ function selectedModel(setup,slot,choice){
  const model=setup.models.find(m=>m.id===choice.model);check(model&&(!choice.thinking||model.efforts.includes(choice.thinking)),'이 호스트에서 확인한 모델·추론 조합만 선택해 주세요.');
  return {model:model.id,...(choice.thinking?{thinking:choice.thinking}:{})};
 }
+function requestedChoices(input){
+ check(Array.isArray(input)&&input.length===6&&new Set(input.map(c=>c.slotId)).size===6&&TEAM_ROLES.every(r=>input.some(c=>c.slotId===r.id)),'설명에서 확인한 여섯 역할의 모델 선택이 필요합니다.');
+ return TEAM_ROLES.map(role=>{const choice=input.find(c=>c.slotId===role.id);check(text(choice.model,120)&&/^[a-z0-9][a-z0-9._/-]*$/.test(choice.model)&&(choice.thinking===undefined||efforts.has(choice.thinking))&&(choice.model!=='default'||choice.thinking===undefined),'요청한 모델·추론 설정을 확인해 주세요.');return {slotId:role.id,model:choice.model,...(choice.thinking?{thinking:choice.thinking}:{})};});
+}
 function prompt(setup,slot){
  return `[TEAM-ROOM-SETUP ${setup.projectId} ${setup.id} ${slot.id}]\n프로젝트: ${setup.name}\n당신의 역할: ${slot.name}\n회의실 참여자 ID: ${slot.memberId}\n${TEAM_ROLES.find(r=>r.id===slot.id).duty}\n\n공통 운영: 설치된 team-room 스킬과 그 안의 협업 지침을 실제 배정 때 확인하세요. 파일당 편집자 한 명, 공유 Editor 조작자 한 명을 유지하고 인계·검증 실패·원문과 사용자 승인 범위를 보존하세요. 보고는 사용자가 지정했거나 원래 요청에서 계속 사용한 언어와 짧은 문단으로 작성하세요. 게시 전 같은 작성 턴에서 언어 혼입을 한 번 점검하고 코드·인용·사용자 원문은 보존하세요. 별도 번역 호출은 하지 말고 기술 근거는 작업 상세에 남기세요. 필요한 담당자만 협업하며 대기 중 AI 호출·반복 확인·자동 재전송을 만들지 마세요.\n\n이번 메시지는 역할 설정입니다. 아직 구현·파일 수정·이미지 생성·검증·다른 채팅 연락을 시작하지 마세요. 회의실 연결 후 사용자의 요청과 총괄의 실제 배정에 따라 작업합니다.${setup.brief?'\n\n사용자가 제공한 프로젝트 설명:\n'+setup.brief:''}`;
 }
@@ -47,7 +51,7 @@ export class TeamSetup{
  read(){return fs.existsSync(this.file)?JSON.parse(fs.readFileSync(this.file,'utf8')):empty();}
  find(state,{projectId,setupId}){check(validId(projectId)&&uuid(setupId),'프로젝트 ID와 팀 구성 setupId를 확인해 주세요.');const setup=state.setups.find(s=>s.id===setupId&&s.projectId===projectId);check(setup,'이 프로젝트의 팀 구성 계획을 찾을 수 없습니다.');return setup;}
  view(setup,{includeCatalog=false}={}){
-  return {projectId:setup.projectId,setupId:setup.id,name:setup.name,status:setup.status,codexProjectId:setup.codexProjectId,hostId:setup.hostId,roles:setup.slots.map(s=>({slotId:s.id,memberId:s.memberId,name:s.name,role:s.role,title:s.title,state:s.state,reused:!!s.existing,...(s.existing?{model:{model:'default',reason:'기존 채팅 설정 유지'}}:{suggested:s.suggested,...(s.choice?{model:s.choice}:{})}),...(s.attemptId?{attemptId:s.attemptId}:{}),...(s.identity?{threadId:s.identity.threadId,hostId:s.identity.hostId}:{}),...(s.reason?{reason:s.reason}:{})})),...(includeCatalog?{modelOptions:[{id:'default',label:'호스트 기본 모델',efforts:[]},...setup.models]}:{})};
+  return {projectId:setup.projectId,setupId:setup.id,name:setup.name,status:setup.status,codexProjectId:setup.codexProjectId,hostId:setup.hostId,...(setup.requestedChoices?{requestedChoices:setup.requestedChoices}:{}),roles:setup.slots.map(s=>({slotId:s.id,memberId:s.memberId,name:s.name,role:s.role,title:s.title,state:s.state,reused:!!s.existing,...(s.existing?{model:{model:'default',reason:'기존 채팅 설정 유지'}}:{suggested:s.suggested,...(s.choice?{model:s.choice}:{})}),...(s.attemptId?{attemptId:s.attemptId}:{}),...(s.identity?{threadId:s.identity.threadId,hostId:s.identity.hostId}:{}),...(s.reason?{reason:s.reason}:{})})),...(includeCatalog?{modelOptions:[{id:'default',label:'호스트 기본 모델',efforts:[]},...setup.models]}:{})};
  }
  status(args){return this.view(this.find(this.read(),args));}
  plan(args){
@@ -55,7 +59,7 @@ export class TeamSetup{
   check(validId(projectId)&&uuid(setupId)&&text(name,120)&&text(codexProjectId,200)&&text(hostId,160),'회의실·계획 ID와 확인한 Codex 프로젝트·호스트가 필요합니다.');
   check(typeof brief==='string'&&brief.length<=4000,'프로젝트 설명은 4000자까지입니다.');
   check(Array.isArray(roles)&&roles.length<=6&&roles.every(r=>TEAM_ROLES.some(t=>t.id===r.slotId))&&new Set(roles.map(r=>r.slotId)).size===roles.length,'역할 설정은 기본 여섯 역할별로 한 번만 지정해 주세요.');
-  const models=catalog(args.models),input=hash(JSON.stringify([projectId,name,codexProjectId,hostId,brief,roles,models]));
+  const models=catalog(args.models),requested=args.requestedChoices===undefined?null:requestedChoices(args.requestedChoices),input=hash(JSON.stringify([projectId,name,codexProjectId,hostId,brief,roles,models,...(requested?[requested]:[])]));
   return transaction(this.file,empty,state=>{
    const old=state.setups.find(s=>s.id===setupId);if(old){check(old.projectId===projectId&&old.input===input,'같은 setupId로 구성 계획을 바꿀 수 없습니다.');return this.view(old,{includeCatalog:true});}
    check(!state.setups.some(s=>s.projectId===projectId&&s.status!=='connected'),'이 회의실의 진행 중인 구성 계획을 먼저 확인해 주세요. 새 계획으로 중복 생성하지 않습니다.');
@@ -73,9 +77,20 @@ export class TeamSetup{
     return {id:role.id,memberId:reused?.id||memberId,name:label,role:reused?.role||role.name,title:name.slice(0,60)+' · '+label.slice(0,50),state:reused?'ready':'planned',...(reused?{existing:reused,identity:{threadId:reused.threadId,hostId:reused.hostId}}:{suggested:suggestion(role,models)})};
    });
    check(new Set(slots.map(s=>s.memberId)).size===6,'한 담당자를 여러 역할에 중복 연결하지 않습니다.');
+   check(!requested||slots.every(s=>!s.existing||requested.find(c=>c.slotId===s.id).model==='default'),'기존 채팅의 모델을 새 팀 설정으로 바꾸지 않습니다.');
    check(base.length+slots.filter(s=>!s.existing).length<=20,'기존 담당자를 포함해 최대 20명까지 연결할 수 있습니다.');
-   const setup={id:setupId,projectId,name,codexProjectId,hostId,brief,models,input,slots,baseMembers:base,baseRevision:existing?.revision||1,existingRoom:!!existing,...(existing?.workspacePath?{workspacePath:existing.workspacePath}:{}),status:'planned',createdAt:now()};
+   const setup={id:setupId,projectId,name,codexProjectId,hostId,brief,models,input,slots,...(requested?{requestedChoices:requested}:{}),baseMembers:base,baseRevision:existing?.revision||1,existingRoom:!!existing,...(existing?.workspacePath?{workspacePath:existing.workspacePath}:{}),status:'planned',createdAt:now()};
    state.setups.push(setup);return this.view(setup,{includeCatalog:true});
+  });
+ }
+ catalog(args){
+  const models=catalog(args.models),key=hash(JSON.stringify(models));
+  return transaction(this.file,empty,state=>{
+   const setup=this.find(state,args);check(setup.requestedChoices,'역할별 모델이 명시된 메뉴 계획에서만 지원 목록을 연결합니다.');
+   if(setup.catalogKey){check(setup.catalogKey===key,'확인한 모델 목록은 덮어쓰지 않습니다. 지원 변경은 원래 설정의 장애로 보고해 주세요.');return this.view(setup,{includeCatalog:true});}
+   check(!setup.approval&&setup.status==='planned'&&setup.slots.every(s=>s.state==='planned'||s.existing),'모델 승인·생성 전에 실제 호스트 지원 목록을 확인해 주세요.');
+   for(const choice of setup.requestedChoices.filter(c=>c.model!=='default')){const model=models.find(m=>m.id===choice.model);check(model&&(!choice.thinking||model.efforts.includes(choice.thinking)),'요청한 모델·추론을 이 호스트가 지원하지 않습니다: '+choice.model+(choice.thinking?' / '+choice.thinking:'')+'. 다른 모델로 자동 변경하지 않습니다.');}
+   setup.models=models;setup.catalogKey=key;return this.view(setup,{includeCatalog:true});
   });
  }
  approve(args){
@@ -86,6 +101,7 @@ export class TeamSetup{
    const normalized=setup.slots.map(slot=>{
     return {slotId:slot.id,...selectedModel(setup,slot,choices.find(c=>c.slotId===slot.id))};
    });
+   check(!setup.requestedChoices||JSON.stringify(normalized)===JSON.stringify(setup.requestedChoices),'설명에서 승인한 역할별 모델·추론을 그대로 사용해 주세요. 다른 모델로 대체하지 않습니다.');
    const approval=hash(JSON.stringify(normalized));
    if(setup.approval){check(setup.approval===approval,'승인 후 모델 선택을 몰래 바꾸지 않습니다.');return this.view(setup);}
    setup.approval=approval;setup.approvedAt=now();setup.status='approved';for(const slot of setup.slots){const {slotId,...choice}=normalized.find(c=>c.slotId===slot.id);slot.choice=choice;}
