@@ -7,6 +7,12 @@ import {check,hash,cleanKey,now} from './control.mjs';
 const live=new Map();
 const text=value=>typeof value==='string'&&value.trim().length>0&&value.length<=4000;
 const statuses=['passed','failed','blocked','unverified'];
+function reopen(state,c,args){
+ c.decisions??=[];c.decisions.push({at:now(),reason:args.reason,action:args.operation,...(args.operation==='retest'?{requestId:args.requestId,toMemberId:args.toMemberId,key:args.key}:{})});
+ if(args.operation==='waive'){c.waived=true;c.blocked=false;}
+ else{c.generation++;c.blocked=false;delete c.waived;if(state.unityBlocked?.caseId===c.id)delete state.unityBlocked;const errorKey=c.attempts.at(-1)?.errorKey;if(errorKey&&state.errorCounts)state.errorCounts[errorKey]=0;}
+ return {caseId:c.id,generation:c.generation,waived:!!c.waived};
+}
 export function parseNUnit(xml){
  const root=xml.match(/<test-run\b([^>]*)>/),attrs={};if(!root||!xml.includes('</test-run>'))return null;
  for(const match of root[1].matchAll(/([\w-]+)=["']([^"']*)["']/g))attrs[match[1]]=match[2];
@@ -30,13 +36,14 @@ export class Validation{
   });
  }
  begin(args,definition){
-  this.control.actor(args);check(cleanKey(args.key),'재시도에도 같은 실행 요청 키가 필요합니다.');
+  this.control.actor(args);check(cleanKey(args.key),'새 검증 실행에는 새 key(영문·숫자·_ . : -, 1~120자)를 지정하세요. 같은 호출의 저장 재시도만 같은 key를 사용합니다.');
   return this.control.change(state=>{
    if(definition&&!state.cases[definition.id])state.cases[definition.id]={...definition,required:true,generation:0,attempts:[],blocked:false};
    const caseId=args.caseId||definition?.id,c=Object.hasOwn(state.cases,caseId)?state.cases[caseId]:null;check(c,'총괄이 정의한 검증을 지정해 주세요.');
    const old=c.attempts.find(a=>a.key===args.key);if(old){check(old.requestId===args.requestId&&old.memberId===args.memberId,'같은 실행 키로 요청이나 담당자를 바꿀 수 없습니다.');return {created:false,caseId:c.id,attempt:old};}
+   const prepared=c.retestKeys&&Object.hasOwn(c.retestKeys,args.key)?c.retestKeys[args.key]:null;if(prepared)check(prepared.generation===c.generation&&prepared.requestId===args.requestId&&prepared.memberId===args.memberId,'이 key는 이전 승인 또는 다른 담당자의 실행용입니다. 현재 재검증 지시에 포함된 key를 사용하세요.');
    const attempts=c.attempts.filter(a=>a.generation===c.generation),last=attempts.at(-1);
-   check(!c.blocked&&!c.waived,'차단된 검증은 총괄의 명시적 재개가 필요합니다.');check(!last||last.status!=='running','이미 실행 중인 검증을 중복 시작하지 않습니다.');check(!last||last.status!=='passed','통과한 검증은 변경 근거 없이 반복하지 않습니다.');
+   check(!c.blocked&&!c.waived,'차단된 검증은 총괄이 room_validation(operation="retest")로 재개 승인과 재검증 지시를 함께 기록해야 합니다.');check(!last||last.status!=='running','이미 실행 중인 검증을 중복 시작하지 않습니다.');check(!last||last.status!=='passed','통과한 검증은 변경 근거 없이 반복하지 않습니다.');
    check(attempts.length<2,'최초 실행과 재시도 1회를 모두 사용했습니다. 총괄에게 보고해 주세요.');if(last)check(text(args.analysis),'재시도 전에 최초 실패의 원인 분석을 기록해 주세요.');
    const attempt={id:randomUUID(),key:args.key,requestId:args.requestId,memberId:args.memberId,generation:c.generation,status:'running',startedAt:now(),...(args.analysis?{analysis:args.analysis}:{}),...(args.leaseId?{leaseId:args.leaseId}:{})};c.attempts.push(attempt);return {created:true,caseId:c.id,attempt};
   });
@@ -55,12 +62,41 @@ export class Validation{
     if(args.errorKey){state.errorCounts??={};state.errorCounts[args.errorKey]=(state.errorCounts[args.errorKey]||0)+1;if(state.errorCounts[args.errorKey]>=2)c.blocked=true;}
     if(args.status==='blocked'||c.blocked)state.unityBlocked={caseId:c.id,summary:args.summary};
    }
-   return {saved:true,caseId:c.id,attemptId:attempt.id,status:attempt.status,blocked:c.blocked,next:c.blocked?'총괄에게 보고하고 명시적인 조치를 기다려 주세요.':args.status==='failed'?'원인 분석 후 필요한 경우 한 번만 재시도할 수 있습니다.':null};
+   return {saved:true,caseId:c.id,attemptId:attempt.id,status:attempt.status,blocked:c.blocked,next:c.blocked?'총괄에게 수정·환경 조치 후 retest로 재개 승인과 지시를 함께 기록하도록 요청하세요.':args.status==='failed'?'원인 분석 후 필요한 경우 새 key로 한 번만 재시도할 수 있습니다. 같은 호출의 저장 재시도는 원래 key를 유지하세요.':null};
   });
  }
  resume(args){
   this.control.actor(args,{director:true});check(text(args.reason),'수정·환경 조치 또는 검증 예외의 구체적인 근거가 필요합니다.');
-  return this.control.change(state=>{const c=state.cases[args.caseId];check(c,'검증 항목을 지정해 주세요.');check(!c.attempts.some(a=>a.status==='running'),'실행 중이거나 상태 미확인인 검증은 먼저 확인해 주세요.');c.decisions??=[];c.decisions.push({at:now(),reason:args.reason,action:args.operation});if(args.operation==='waive'){c.waived=true;c.blocked=false;}else{c.generation++;c.blocked=false;delete c.waived;if(state.unityBlocked?.caseId===c.id)delete state.unityBlocked;const errorKey=c.attempts.at(-1)?.errorKey;if(errorKey&&state.errorCounts)state.errorCounts[errorKey]=0;}return {caseId:c.id,generation:c.generation,waived:!!c.waived};});
+  return this.control.change(state=>{const c=state.cases[args.caseId];check(c,'검증 항목을 지정해 주세요.');check(!c.attempts.some(a=>a.status==='running'),'실행 중이거나 상태 미확인인 검증은 먼저 확인해 주세요.');return reopen(state,c,args);});
+ }
+ retest(args){
+  this.control.actor(args,{director:true,active:false});
+  check(cleanKey(args.key)&&text(args.reason)&&text(args.summary),'재검증 지시에는 새 key, 구체적인 수정·환경 조치 근거(reason), 실행 범위·조건(summary)이 필요합니다. 같은 지시의 저장 재시도는 동일한 key와 내용을 유지하세요.');
+  check(Array.isArray(args.caseIds)&&args.caseIds.length>0&&args.caseIds.length<=100&&args.caseIds.every(cleanKey)&&new Set(args.caseIds).size===args.caseIds.length,'중복 없이 실제 canonical caseIds를 1~100개 지정하세요.');
+  const orderKey=args.requestId+':'+args.key,input=hash(JSON.stringify([args.toMemberId,args.caseIds,args.reason,args.summary]));
+  const plan=this.control.change(state=>{
+   const old=state.retests?.[orderKey];if(old){check(old.input===input,'같은 재검증 지시 키의 담당자·범위·근거·내용을 바꿀 수 없습니다.');return {...old,superseded:old.cases.some(c=>state.cases[c.caseId]?.generation!==c.generation)};}
+   this.control.actor(args,{director:true});const member=this.control.actor({...args,memberId:args.toMemberId});
+   check(this.control.project.members.some(m=>m.id===member.id),'현재 연결된 기존 담당자에게만 재검증을 지시합니다.');
+   const selected=args.caseIds.map(id=>{const c=Object.hasOwn(state.cases,id)?state.cases[id]:null;check(c,'총괄이 정의한 실제 canonical 검증 항목을 지정하세요.');check(c.attempts.length,'최초 검증은 begin으로 시작하세요.');check(!c.attempts.some(a=>a.status==='running'),'실행 중이거나 상태 미확인인 검증은 먼저 확인해 주세요.');return c;});
+   const usesUnity=selected.some(c=>c.mode||c.id.startsWith('unity:'));
+   check(!usesUnity||!state.unityBlocked||args.caseIds.includes(state.unityBlocked.caseId),'Unity 차단 원인 사례의 조치·재개도 함께 지정해야 합니다. 다른 사례로 우회하지 않습니다.');
+   const cases=selected.map(c=>({caseId:c.id,generation:c.generation+1,key:'retest-'+randomUUID()}));
+   const details=['reason: '+args.reason,'caseId | generation | executionKey',...cases.map(c=>c.caseId+' | '+c.generation+' | '+c.key)].join('\n');
+   check(details.length<=20000,'재검증 지시 상세가 너무 큽니다. 필요한 사례와 근거만 지정하세요.');
+   // Approval is journaled before publishing an instruction. A storage retry
+   // reuses this exact plan; it cannot advance generations or mint new keys.
+   for(const [i,c] of selected.entries()){reopen(state,c,{...args,operation:'retest'});c.retest={orderKey,requestId:args.requestId,generation:c.generation};c.retestKeys??={};c.retestKeys[cases[i].key]={generation:c.generation,requestId:args.requestId,memberId:member.id};}
+   const plan={input,requestId:args.requestId,member:{id:member.id,name:member.name,role:member.role,threadId:member.threadId,hostId:member.hostId},cases,text:args.summary,details,messageKey:'retest_'+hash(orderKey),createdAt:now()};
+   state.retests??={};state.retests[orderKey]=plan;return plan;
+  });
+  // If posting failed, repeat the SAME call. If posting succeeded but its
+  // receipt was lost, created:false prevents another native delivery.
+  if(plan.superseded)return {dispatch:false,superseded:true,requestId:plan.requestId,member:plan.member,cases:plan.cases};
+  const existing=this.control.store.read().messages.some(m=>m.requestId===plan.requestId&&m.authorId==='director'&&m.messageKey===plan.messageKey);
+  if(!existing){this.control.actor(args,{director:true});this.control.actor({requestId:plan.requestId,memberId:plan.member.id});check(this.control.project.members.some(m=>m.id===plan.member.id),'현재 연결된 담당자에게만 새 지시를 게시합니다.');}
+  const posted=this.control.store.post({requestId:plan.requestId,memberId:'director',kind:'assignment',toMemberId:plan.member.id,messageKey:plan.messageKey,text:plan.text,details:plan.details});
+  return {dispatch:posted.created,requestId:plan.requestId,member:plan.member,messageId:posted.message.id,cases:plan.cases};
  }
  start(args){
   this.control.actor(args);check(['compile','editmode','playmode','build'].includes(args.mode),'지원하는 Unity 검증 모드를 지정해 주세요.');

@@ -35,6 +35,24 @@ The first failure permits at most one retry, with `analysis` required on the nex
 
 These counters enforce runs registered through the tools. They cannot intercept arbitrary external test commands. QA must use begin/result around external verification and must not bypass a blocked case by renaming it or running commands directly. No extra model evaluates whether another attempt is needed.
 
+### Retest directives and execution keys
+
+After verifying a repair or environment action, the director uses **one** `room_validation(operation="retest", requestId, memberId="director", caseIds=[canonical IDs], toMemberId, key, reason, summary)` in the existing assignment turn. `reason` records the concrete change; `summary` states the checks/manifest and limits to execute. Include failed/newly affected cases and any actually necessary regression, not unchanged passing checks by default. A previously passing case needs a real change reason too. The recipient must be an existing, currently connected participant with a reserved job in this active request. This does not reopen completed requests/jobs, create staff or grant new work permissions; use an authorized active assignment instead of rewriting finished history.
+
+The operation validates the whole batch, journals its resume decisions while retaining all attempts, generates fresh per-case keys and saves one director-authored assignment addressed to that participant. Approval is durable **before** the instruction is published. The ordinary text contains `summary`; folded details keep the repair reason and canonical `caseId`, generation and execution-key table, fully available to participant reads. No Unity process, Editor lease or native message starts here. Existing running/unknown runs must be reconciled first. A Unity-wide block cannot be bypassed by selecting another mode/case; include its actual blocking cause and the action taken.
+
+Only `dispatch:true` permits **one** native delta to the returned existing chat/host, within already verified human messaging authorization. Include `[TEAM-ROOM-WORK projectId requestId]`, the necessary changed context and returned caseId/key pairs. Do not re-claim, restart the original task, separately `room_post` the same directive or ask QA to self-approve. `dispatch:false` never authorizes an automatic resend. Reconcile uncertain native delivery before any authorized further action. This tool stores authorization decisions; it does not independently authenticate the caller or establish human consent.
+
+| Key | Meaning |
+| --- | --- |
+| `retest.key` | A new stable identity for this director directive. Retrying storage after an error/lost receipt uses exactly the same key, cases, recipient, reason and summary. |
+| Returned `cases[].key` | A fresh key for that case's new real `begin`/`unity` execution. Pass its `caseId` and `key`; the returned generation is descriptive, not an extra tool argument. |
+| A later real retry | Use another new key and the required `analysis`; the one-retry cap still applies. Reusing an executed key retrieves its original attempt, it does not rerun it. |
+
+Old execution keys need no recovery or reissuance for a new test. If publication fails after approval, repeat the same `retest` call: it reuses the journal and keys without another generation/decision. If the post already exists, the receipt returns `dispatch:false`; if a newer director decision superseded an unexecuted plan, its old prepared keys cannot start that later generation. Required pending retests cannot be completed using an earlier generation's passing result.
+
+Legacy `resume`, `waive` and `reconcile` remain available for explicit director administration; use `retest` when issuing QA revalidation so the approval is not forgotten. No extra approval conversation, model, polling or automatic execution is added. Normal tool/instruction context still has usage; local batch persistence replaces separate approval/post calls rather than adding a monitoring turn.
+
 ## Unity automation
 
 Configure the official **Unity CLI** executable, not the Unity Editor executable. Editors/licenses and the project's Unity Test Framework must already be available. The runner never installs an Editor, changes license settings or adds packages automatically. It uses `shell:false`, explicit project paths, hidden Windows helper processes and isolated external evidence directories.

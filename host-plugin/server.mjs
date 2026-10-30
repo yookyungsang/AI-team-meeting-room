@@ -56,6 +56,7 @@ TOOLS.push(tool('room_members','Director applies a human-authorized roster chang
 TOOLS.push(tool('room_team','Explicit human-requested team setup: director, planner, designer, TWO programmers and QA. Read the team-creation skill reference. Local planning/journal only; never executes chats or AI. Verify the native project/host and available models; show role/model choices for human selection. plan → approve → claim → native create_thread once only if dispatch:true → verify/rename title → record → connect. Unknown creation results require native reconciliation, never recreate. Stored plans never grant native authorization.',schema({projectId:member,setupId:str,operation:{type:'string',enum:['plan','approve','claim','record','block','retry','connect','status']},name:{type:'string',maxLength:120},codexProjectId:str,hostId:str,brief:{type:'string',maxLength:4000},models:{type:'array',maxItems:32,items:schema({id:str,label:str,family:{type:'string',enum:['balanced','visual','deep','light','other']},efforts:{type:'array',maxItems:8,items:str}},['id','label','family','efforts'])},roles:{type:'array',maxItems:6,items:schema({slotId:member,memberId:member,reuseMemberId:member,name:str},['slotId'])},choices:{type:'array',minItems:6,maxItems:6,items:schema({slotId:member,model:str,thinking:str},['slotId','model'])},confirmed:{type:'boolean'},confirmedAbsent:{type:'boolean'},retryId:str,choice:schema({model:str,thinking:str},['model']),slotId:member,attemptId:str,threadId:str,verified:{type:'boolean'},titleVerified:{type:'boolean'},reason:{type:'string',maxLength:1000}},['projectId','setupId','operation']),false));
 function resource(){return {uri,mimeType:'text/html;profile=mcp-app',text:fs.readFileSync(path.join(root,'widget.html'),'utf8'),_meta:{ui:{csp:{connectDomains:[],resourceDomains:[]}},'openai/ui':{availableDisplayModes:['inline','fullscreen'],preferredDisplayMode:'fullscreen'}}};}
 TOOLS.push(...workTools(tool,schema,member,str));
+TOOLS.find(t=>t.name==='room_post').description+=' Retest directives use room_validation(operation="retest") instead: it records resume approvals and the assignment together.';
 TOOLS.find(t=>t.name==='room_validation').annotations.openWorldHint=true;
 export function compactResult(name,data){
  if(name==='room_claim')return {dispatch:data.dispatch,request:{id:data.request.id,status:data.request.status},member:data.member,job:data.job};
@@ -103,7 +104,7 @@ export function handle(request,registry=projects){
       else{if(!['configure','acquire','write','release','checkpoint','recover'].includes(args.operation))throw new Error('지원하지 않는 작업 제어입니다.');data=control[args.operation](args);}break;
      }
      case 'room_validation':{
-      const validator=new Validation(control),method={define:'define',begin:'begin',result:'result',resume:'resume',waive:'resume',unity:'start',cancel:'cancel',reconcile:'cancel'}[args.operation];
+      const validator=new Validation(control),method={define:'define',begin:'begin',result:'result',retest:'retest',resume:'resume',waive:'resume',unity:'start',cancel:'cancel',reconcile:'cancel'}[args.operation];
       if(!method)throw new Error('지원하지 않는 검증 제어입니다.');data=validator[method](args);break;
      }
      case 'room_usage':{

@@ -155,7 +155,7 @@ export class WorkControl{
  assertCompletable(args){
   const document=this.read(),state=this.state(document);
   check(!document.leases.some(l=>l.projectId===this.project.id&&l.requestId===args.requestId&&l.memberId===args.memberId&&!l.releasedAt),'파일·Editor 소유권을 반환하고 완료해 주세요.');
-  for(const c of Object.values(state.cases)){const last=c.attempts.at(-1);if(!last||last.requestId!==args.requestId)continue;check(last.status!=='running','진행 중인 검증을 완료한 뒤 답변해 주세요.');if(args.memberId==='director'&&c.required!==false)check(last.status==='passed'||c.waived,'실패·차단·미검증이 남아 있습니다. 수정·재검증하거나 한계를 명시하여 총괄이 예외를 기록해 주세요.');}
+  for(const c of Object.values(state.cases)){const last=c.attempts.at(-1);if(last?.requestId!==args.requestId&&c.retest?.requestId!==args.requestId)continue;check(last?.status!=='running','진행 중인 검증을 완료한 뒤 답변해 주세요.');if(args.memberId==='director'&&c.required!==false)check(last?.status==='passed'&&last.generation===c.generation||c.waived,'실패·차단·미검증 또는 아직 실행하지 않은 재검증이 남아 있습니다. 수정·재검증하거나 한계를 명시하여 총괄이 예외를 기록해 주세요.');}
  }
  summary(){const document=this.read(),state=this.state(document);return {configured:!!state.config,unityReady:!!state.config?.unityCli,locks:document.leases.filter(l=>l.projectId===this.project.id&&!l.releasedAt).map(l=>({memberId:l.memberId,requestId:l.requestId,paths:l.targets.map(t=>t.relative)})),checkpoints:Object.keys(state.checkpoints).length,validations:Object.values(state.cases).map(c=>({id:c.id,label:c.label,status:c.attempts.at(-1)?.status||'pending',attempts:c.attempts.length,blocked:c.blocked,waived:!!c.waived})),recoveryCount:Object.keys(state.recoveries).length};}
 }

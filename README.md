@@ -101,6 +101,8 @@ The [collaboration efficiency rules](docs/collaboration-efficiency.md) give addi
 
 ## Enforced work controls (0.4.0)
 
+For QA revalidation, the director's `room_validation(operation="retest")` [records batch resume approvals and one scoped directive together](host-plugin/skills/team-room/references/work-controls.md#retest-directives-and-execution-keys). It preserves history, supplies fresh execution keys, deduplicates storage retries and does not launch tests or AI. A new actual run uses a new key; only a retry of storing the same call reuses its key/body.
+
 The director configures a human-authorized workspace once. `room_work` manages exclusive file/Editor leases, guarded UTF-8 writes, checkpoints and explicit recovery. `room_validation` records attempts and starts bounded Unity CLI runs; repeated failures require a director-recorded repair/resume. These gates apply to operations routed through the plugin. Other editors and direct commands can bypass them; they are not OS-wide locks or a global process monitor.
 
 `room_usage` imports existing local JSONL usage without calling AI. The final-result view shows participant rows and the measured subtotal, excluding earlier chat history and disclosing incomplete coverage. Cached input and reasoning tokens are subsets, not extra totals. Whole-turn usage cannot always be divided exactly among meeting, waiting and validation activities.
