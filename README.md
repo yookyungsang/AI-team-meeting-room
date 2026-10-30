@@ -69,6 +69,8 @@ Role choices bind **common plus professional guidance**, while Custom binds **co
 
 ## Designer collaboration
 
+Before UI assignments, the director applies the [design-decision criteria](host-plugin/skills/team-room/references/collaboration-policy.md#ui-디자인-판단과-단순-수정의-배정-기준): include the existing designer for unresolved layout, interaction or readability choices; send exact approved-design fixes directly to developers. Independent logic may proceed in parallel. No separate classifier AI, periodic checks or mandatory new mockups are added.
+
 The [detailed designer workflow](host-plugin/skills/team-room/references/design-collaboration.md) covers 2D/UI/3D specifications, representative candidate review, batched revisions, version preservation, developer handoff and independent QA. Read relevant sections only for actual design assignments. Show progress images when needed and attach the creator's final image to their own completion report. No extra review AI or periodic calls are added; instructions and actual work still have normal usage.
 
 ## Edit the team from the menu

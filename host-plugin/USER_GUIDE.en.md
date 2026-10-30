@@ -6,7 +6,7 @@
 
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.9.1. You can use the plugin across projects, with separate connections and records for each. The current meeting UI uses Korean labels; reports follow the user's requested or established conversation language. This guide includes the Korean control labels so you can find them; it does not add automatic UI translation or language switching to the app.
+This guide describes version 0.9.2. You can use the plugin across projects, with separate connections and records for each. The current meeting UI uses Korean labels; reports follow the user's requested or established conversation language. This guide includes the Korean control labels so you can find them; it does not add automatic UI translation or language switching to the app.
 
 ## Get started
 
@@ -147,6 +147,14 @@ The [complete collaboration policy](skills/team-room/references/collaboration-po
 - Reduce duplicate assignments, repeated analysis and unnecessary status requests or reports. This does not reduce authorized work or required validation.
 
 Apply these rules only to actual connected participants within human-authorized scope. Project-specific roles, data preservation rules and host/tool restrictions take precedence. Model-selection guidance applies only when the tools and authorization permit it; the plugin does not automatically change chat models.
+
+## When UI work includes a designer
+
+In the initial assignment turn, the director checks whether layout, interaction, small-screen/text sizing or readability/accessibility choices remain. If so, an existing designer supplies a brief specification before the dependent UI implementation. Users do not need to list the roles every time. Straightforward fixes following an exact approved design/component go directly to developers.
+
+Independent logic can proceed alongside design review; recurring meetings or new mockup images are not mandatory. Missing design staff/access is disclosed instead of creating a chat or pretending review occurred. An omission during ongoing work is handled as a scoped delta without restarting the original job. Developer self-checks and independent QA still validate actual screens/behavior.
+
+These are director assignment instructions, not server-side text classification or automatic dispatch. No separate classifier AI or periodic checks are added; necessary designer work and instruction reading still have normal usage. See the [assignment criteria](skills/team-room/references/collaboration-policy.md#ui-디자인-판단과-단순-수정의-배정-기준) (Korean).
 
 ## Request QA revalidation
 
