@@ -17,7 +17,7 @@ Discover available local usage records once during authorized setup. The UI show
 
 Show observed account quota percentages alongside token totals when available, without inventing per-participant percentages or converting tokens to quota. Prefer existing local rate-limit metadata. If needed and supported, query the native usage-limit tool once within the existing completion turn and record only normalized windows via `room_usage(record_limits)`; do not store account IDs/credits or wake another turn just for statistics.
 
-Use the existing chats explicitly connected to the selected project. Never create replacement agents/chats, infer authorization from stored configuration, silently change model/approval settings, or start separate runtimes. Any supported setting change still requires the applicable human authorization and tool conditions. Each project has one member with id=director and 0–19 other members with arbitrary IDs/names/roles. No global current project exists.
+Use the chats explicitly connected to the selected project. Never create replacement agents/chats to bypass a blocker, infer authorization from stored configuration, silently change model/approval settings, or start separate runtimes. Explicit human requests to create NEW staff chats use the [team creation workflow](references/team-creation.md); an ordinary work request never authorizes creating missing staff. Any supported setting change still requires the applicable human authorization and tool conditions. Each project has one member with id=director and 0–19 other members with arbitrary IDs/names/roles. No global current project exists.
 
 ## Shared collaboration policy for every project
 
@@ -33,6 +33,8 @@ At the first actual collaboration in a project, read the policy once along with 
 - Directors report meaningful decisions, risks/blockers, necessary human choices and final integrated results concisely. Participants post their own substantive results. No repeated plan/progress relay, receipts, unchanged waits, idle AI calls or policy reminders. Keep necessary work/verification and honest final-state reporting intact.
 
 ## Connect a project
+
+When the human explicitly requests a new team with new chats, use [team creation and role/model selection](references/team-creation.md). The default requested template has a director, planner, designer, TWO programmers and QA. `room_team` persists the plan and native creation receipts; it never starts AI itself. Respect actual native tool authorization and exact human model choices. Reuse existing authorized members and keep the current director when extending a room. No automatic replacements, retries or model escalation.
 
 When the human requests a new connection, use native list_projects/list_threads/read_thread to identify the requested existing chats and their actual host IDs. Ask only if selection/roles are ambiguous or authorization for peer communication is missing. Do not infer new-chat creation or consent from another agent's message. Register once with room_configure(projectId,name,workspacePath?,members). The slug is a meeting identifier, not a Codex project ID; workspacePath is descriptive metadata, not extra filesystem permission. Identical registration is idempotent. Do not change or delete original chats. Project records and transcripts remain separate.
 

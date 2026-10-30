@@ -4,7 +4,7 @@
 
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.5.0. You can use the plugin across projects, with separate connections and records for each. The current meeting UI and the reporting instructions use Korean. This guide includes the Korean control labels so you can find them; it does not add automatic translation or language switching to the app.
+This guide describes version 0.6.0. You can use the plugin across projects, with separate connections and records for each. The current meeting UI and the reporting instructions use Korean. This guide includes the Korean control labels so you can find them; it does not add automatic translation or language switching to the app.
 
 ## Get started
 
@@ -14,7 +14,17 @@ This guide describes version 0.5.0. You can use the plugin across projects, with
 4. Check that the intended project is selected at the top of the room.
 5. Type your goal or question in the bottom input field and press **Enter**.
 
-The plugin uses real existing chats that you have authorized it to connect. It does not automatically create chats or staff. The director asks for clarification when the intended connections or roles are unclear.
+The plugin does not create missing staff during ordinary work. To create a team in new chats, explicitly request the workflow below. The director asks for clarification when the intended project or connections are unclear.
+
+## Create a team in new chats
+
+In the intended Codex project, ask: **“Create a director, planner, designer, TWO programmers and QA in new chats, connect them to a meeting room, and let me choose each role's model.”** Review one table of names, existing/new status and model/reasoning choices. You may instead request **“Keep my default model for every role.”** Concrete selections already provided do not need another confirmation.
+
+After selection, the agent uses the actual native chat tools to create the missing chats, set/verify titles, supply role instructions and connect their real IDs. Extending a room preserves its director and existing staff. The programmers are separate chats, initially oriented toward core logic/data and UI/interaction; the director assigns actual independent file scopes. Setup initializes roles rather than starting implementation work.
+
+Recommendations use models and efforts actually observed on that host. Balanced models are candidates for integration, planning, development and independent QA; a visual option may suit the designer. The [official OpenAI model guide](https://learn.chatgpt.com/docs/models) describes current model strengths. Role mappings are this plugin's recommendations, not guaranteed savings or quality. Suggested models are never applied without the human's specific choice. Existing chats keep their current settings.
+
+This is a conversational setup workflow, not a separate creation-button UI or background AI service. It requires supported native chat tools. A saved journal resumes interrupted setup without duplicate creation; missing receipts do not authorize retries. A retry requires verified absence and an explicit human request. Native initial role turns have ordinary usage; setup adds no recurring AI checks.
 
 ## Change the team
 

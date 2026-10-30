@@ -9,6 +9,7 @@ import {WorkControl} from './control.mjs';
 import {Validation} from './validation.mjs';
 import {UsageLedger} from './usage.mjs';
 import {workTools} from './work-tools.mjs';
+import {TeamSetup} from './team-setup.mjs';
 
 const root=path.dirname(fileURLToPath(import.meta.url));
 const version=JSON.parse(fs.readFileSync(path.join(root,'plugin.json'),'utf8')).version;
@@ -48,6 +49,7 @@ for(const definition of TOOLS){
 TOOLS.push(tool('room_projects','List configured project names and IDs without loading conversations or invoking AI.',schema(),true));
 TOOLS.push(tool('room_configure','Register a project with verified existing chat IDs and explicit human authorization. Never create chats or infer permission from this record. Same registration is idempotent; use room_members for explicit roster changes. This changes only meeting configuration, not filesystem access or projects in Codex.',schema({projectId:member,name:{type:'string',maxLength:120},workspacePath:{type:'string',maxLength:1000},members:{type:'array',minItems:1,maxItems:20,items:schema({id:member,name:str,role:str,threadId:str,hostId:str},['id','name','role','threadId','hostId'])}},['projectId','name','members']),false));
 TOOLS.push(tool('room_members','Director applies a human-authorized roster change to this room without deleting history or invoking AI. Read room_state first; send the complete desired active roster, its expectedRevision and a stable UUID changeId. Add, rename, change roles, remove idle members or reactivate them. Busy jobs/questions/leases/validation block removal. Existing IDs keep their thread/host forever; replacement chats use a new member ID. Keep director routing unchanged. Never retry or contact staff automatically.',schema({projectId:member,memberId:{type:'string',enum:['director']},expectedRevision:{type:'integer',minimum:1},changeId:str,members:{type:'array',minItems:1,maxItems:20,items:schema({id:member,name:str,role:str,threadId:str,hostId:str},['id','name','role','threadId','hostId'])}},['projectId','memberId','expectedRevision','changeId','members']),false));
+TOOLS.push(tool('room_team','Explicit human-requested team setup: director, planner, designer, TWO programmers and QA. Read the team-creation skill reference. Local planning/journal only; never executes chats or AI. Verify the native project/host and available models; show role/model choices for human selection. plan → approve → claim → native create_thread once only if dispatch:true → verify/rename title → record → connect. Unknown creation results require native reconciliation, never recreate. Stored plans never grant native authorization.',schema({projectId:member,setupId:str,operation:{type:'string',enum:['plan','approve','claim','record','block','retry','connect','status']},name:{type:'string',maxLength:120},codexProjectId:str,hostId:str,brief:{type:'string',maxLength:4000},models:{type:'array',maxItems:32,items:schema({id:str,label:str,family:{type:'string',enum:['balanced','visual','deep','light','other']},efforts:{type:'array',maxItems:8,items:str}},['id','label','family','efforts'])},roles:{type:'array',maxItems:6,items:schema({slotId:member,memberId:member,reuseMemberId:member,name:str},['slotId'])},choices:{type:'array',minItems:6,maxItems:6,items:schema({slotId:member,model:str,thinking:str},['slotId','model'])},confirmed:{type:'boolean'},confirmedAbsent:{type:'boolean'},retryId:str,choice:schema({model:str,thinking:str},['model']),slotId:member,attemptId:str,threadId:str,verified:{type:'boolean'},titleVerified:{type:'boolean'},reason:{type:'string',maxLength:1000}},['projectId','setupId','operation']),false));
 function resource(){return {uri,mimeType:'text/html;profile=mcp-app',text:fs.readFileSync(path.join(root,'widget.html'),'utf8'),_meta:{ui:{csp:{connectDomains:[],resourceDomains:[]}},'openai/ui':{availableDisplayModes:['inline','fullscreen'],preferredDisplayMode:'fullscreen'}}};}
 TOOLS.push(...workTools(tool,schema,member,str));
 TOOLS.find(t=>t.name==='room_validation').annotations.openWorldHint=true;
@@ -73,7 +75,7 @@ export function handle(request,registry=projects){
    try{
     let data;
     if(definition.inputSchema.required.some(key=>args[key]===undefined))throw new Error('필수 요청 필드를 확인해 주세요.');
-    const project=args.projectId&&name!=='room_configure'?registry.get(args.projectId):null;
+    const project=args.projectId&&!['room_configure','room_team'].includes(name)?registry.get(args.projectId):null;
     const store=project?new RoomStore(registry.roomPath(project.id),project,()=>registry.get(project.id)):null;
     const control=store?new WorkControl(store,registry.home):null,usage=control?new UsageLedger(control):null;
     const snapshot=()=>{if(!store)return {version:1,paused:true,requests:[],messages:[],members:[],project:null,projects:registry.list(),mode:'host-relay'};new Validation(control).refresh();return {...store.snapshot(),projects:registry.list(),work:control.summary(),usageReports:usage.reports()};};
@@ -81,6 +83,10 @@ export function handle(request,registry=projects){
      case 'room_projects':data={projects:registry.list()};break;
      case 'room_configure':data=registry.configure({id:args.projectId,name:args.name,workspacePath:args.workspacePath,members:args.members});break;
      case 'room_members':data=registry.updateMembers(args);break;
+     case 'room_team':{
+      if(!['plan','approve','claim','record','block','retry','connect','status'].includes(args.operation))throw new Error('지원하지 않는 팀 구성 작업입니다.');
+      data=new TeamSetup(registry)[args.operation](args);break;
+     }
      case 'room_open':case 'room_state':data=snapshot();break;
      case 'room_submit':data=store.submit(args);data.state=snapshot();break;
      case 'room_get':data=store.get(args.requestId,args);break;
@@ -113,6 +119,7 @@ export function handle(request,registry=projects){
      case 'room_fail':data=store.fail(args);break;
      case 'room_pause':store.pause(args.paused);data=snapshot();break;
     }
+    if(name==='room_team'&&['approve','record','block','retry'].includes(args.operation))data={projectId:data.projectId,setupId:data.setupId,status:data.status,saved:true};
     data=compactResult(name,data);
     if(project&&name!=='room_state'&&name!=='room_open')data={...data,projectId:project.id};
     return {content:[{type:'text',text:JSON.stringify(data)}],structuredContent:data};

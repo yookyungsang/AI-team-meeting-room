@@ -8,6 +8,7 @@ rooms/
 work-control.json
 usage-ledger.json
 validation/
+team-setups.json
 *.log
 *.lock
 *.next

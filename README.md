@@ -45,6 +45,10 @@ A private repository requires GitHub access. Make source changes in this indepen
 
 Selecting a project changes the displayed history and draft; it does not switch the current Codex chat. Open the room in that project's director chat when possible. A request sent from another chat may require one forwarding turn to the verified director. On explicit human request, the director uses `room_members` to add/remove/reactivate participants or change meeting names/roles in the same room. Revision and retry checks protect concurrent edits, while unfinished work, questions, ownership and validation block removal. Existing member IDs retain their chat/host; a replacement chat needs a new member ID. Replacing the director chat still needs a separate room.
 
+## New staff teams and model selection
+
+For new staff chats, explicitly ask: **“Create a director, planner, designer, TWO programmers and QA, and let me choose each role's model.”** The [team creation workflow](host-plugin/skills/team-room/references/team-creation.md) prepares role/model choices, then uses native tools for creation, titles, role instructions and connection after human selection. The local `room_team` journal prevents duplicate creation and preserves existing members/work. The server does not launch AI or a separate runtime; native initial role turns have ordinary usage.
+
 ## Progress images and final results
 
 Participants can attach saved drafts, generated images and screenshots to progress or final reports. Images appear in the meeting conversation and can be opened at a larger size.
