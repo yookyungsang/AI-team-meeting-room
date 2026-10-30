@@ -40,7 +40,7 @@ function selectedModel(setup,slot,choice){
  return {model:model.id,...(choice.thinking?{thinking:choice.thinking}:{})};
 }
 function prompt(setup,slot){
- return `[TEAM-ROOM-SETUP ${setup.projectId} ${setup.id} ${slot.id}]\n프로젝트: ${setup.name}\n당신의 역할: ${slot.name}\n회의실 참여자 ID: ${slot.memberId}\n${TEAM_ROLES.find(r=>r.id===slot.id).duty}\n\n공통 운영: 설치된 team-room 스킬과 그 안의 협업 지침을 실제 배정 때 확인하세요. 파일당 편집자 한 명, 공유 Editor 조작자 한 명을 유지하고 인계·검증 실패·원문과 사용자 승인 범위를 보존하세요. 보고는 쉬운 한국어와 짧은 문단으로 작성하고 기술 근거는 작업 상세에 남기세요. 필요한 담당자만 협업하며 대기 중 AI 호출·반복 확인·자동 재전송을 만들지 마세요.\n\n이번 메시지는 역할 설정입니다. 아직 구현·파일 수정·이미지 생성·검증·다른 채팅 연락을 시작하지 마세요. 회의실 연결 후 사용자의 요청과 총괄의 실제 배정에 따라 작업합니다.${setup.brief?'\n\n사용자가 제공한 프로젝트 설명:\n'+setup.brief:''}`;
+ return `[TEAM-ROOM-SETUP ${setup.projectId} ${setup.id} ${slot.id}]\n프로젝트: ${setup.name}\n당신의 역할: ${slot.name}\n회의실 참여자 ID: ${slot.memberId}\n${TEAM_ROLES.find(r=>r.id===slot.id).duty}\n\n공통 운영: 설치된 team-room 스킬과 그 안의 협업 지침을 실제 배정 때 확인하세요. 파일당 편집자 한 명, 공유 Editor 조작자 한 명을 유지하고 인계·검증 실패·원문과 사용자 승인 범위를 보존하세요. 보고는 사용자가 지정했거나 원래 요청에서 계속 사용한 언어와 짧은 문단으로 작성하세요. 게시 전 같은 작성 턴에서 언어 혼입을 한 번 점검하고 코드·인용·사용자 원문은 보존하세요. 별도 번역 호출은 하지 말고 기술 근거는 작업 상세에 남기세요. 필요한 담당자만 협업하며 대기 중 AI 호출·반복 확인·자동 재전송을 만들지 마세요.\n\n이번 메시지는 역할 설정입니다. 아직 구현·파일 수정·이미지 생성·검증·다른 채팅 연락을 시작하지 마세요. 회의실 연결 후 사용자의 요청과 총괄의 실제 배정에 따라 작업합니다.${setup.brief?'\n\n사용자가 제공한 프로젝트 설명:\n'+setup.brief:''}`;
 }
 export class TeamSetup{
  constructor(registry){this.registry=registry;this.file=path.join(registry.home,'team-setups.json');}

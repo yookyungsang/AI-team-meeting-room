@@ -42,7 +42,7 @@ for(const definition of TOOLS){
  }
  if(definition.name==='room_submit')definition.inputSchema.properties.recipients.maxItems=20;
  if(['room_post','room_reply'].includes(definition.name)){
-  definition.inputSchema.properties.text.description='Everyday Korean for a nontechnical reader: result or real question first, short spaced paragraphs. Explain unfinished work, risks and needed decisions here. Put technical evidence in details.';
+  definition.inputSchema.properties.text.description='Use the user-requested or established conversation language. Check for unintended language mixing once in this same reporting turn; keep exact code/quotes. Explain results, unfinished work, risks and decisions in short plain paragraphs. Technical evidence goes in details. No separate translation call.';
   definition.inputSchema.properties.details={type:'string',minLength:1,maxLength:20000,description:'Optional exact technical context, file paths, settings, logs and evidence. Stored in the same post and fully readable by participants; folded as 작업 상세 in the UI. Never hide blockers or approval needs only here.'};
   definition.inputSchema.properties.images=images;
   definition.inputSchema.properties.audio=audio;

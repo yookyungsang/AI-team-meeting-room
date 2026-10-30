@@ -6,7 +6,7 @@
 
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.7.1. You can use the plugin across projects, with separate connections and records for each. The current meeting UI and the reporting instructions use Korean. This guide includes the Korean control labels so you can find them; it does not add automatic translation or language switching to the app.
+This guide describes version 0.7.2. You can use the plugin across projects, with separate connections and records for each. The current meeting UI uses Korean labels; reports follow the user's requested or established conversation language. This guide includes the Korean control labels so you can find them; it does not add automatic UI translation or language switching to the app.
 
 ## Get started
 
@@ -138,9 +138,17 @@ The [complete collaboration policy](skills/team-room/references/collaboration-po
 
 Apply these rules only to actual connected participants within human-authorized scope. Project-specific roles, data preservation rules and host/tool restrictions take precedence. Model-selection guidance applies only when the tools and authorization permit it; the plugin does not automatically change chat models.
 
+## Report language and pre-publication checks
+
+Reports follow **the user's explicit output-language choice**, or otherwise **the established language of their original project/request**. They are not fixed to Korean. A pasted foreign-language document, log, code sample or quote does not by itself change the reporting language. An explicit later language-change request takes precedence.
+
+Before posting, the author checks the draft once within the original reporting turn for unintended language mixing, including ordinary explanations, questions, answers and captions. Exact code, filenames, source evidence and the human's original text remain intact. The director carries a brief language hint in the next necessary assignment without waking staff just to announce it.
+
+No separate translation model, language-detection service or automatic rewrite is added. This is an author check, not enforced server-side language classification. Existing posts and UI labels are not automatically translated. Instructions and original drafting still have ordinary context overhead. See the [report-language rule](skills/team-room/references/report-language.md) (Korean).
+
 ## Understand AI usage
 
-New reports explain **what is ready, what still needs checking, and what happens next**, in natural Korean understandable without coding knowledge. The same post can include exact filenames, settings and validation evidence in `details`, folded behind **작업 상세 보기** (Show work details). Expanding it invokes no tool or model. Participants' read tools still return both the plain `text` and exact `details` unchanged.
+New reports explain **what is ready, what still needs checking, and what happens next**, in natural language understandable without coding knowledge and matching the user's reporting language. The same post can include exact filenames, settings and validation evidence in `details`, folded behind **작업 상세 보기** (Show work details). Expanding it invokes no tool or model. Participants' read tools still return both the plain `text` and exact `details` unchanged.
 
 Real peer questions and answers use natural colleague-to-colleague phrasing while preserving the exact technical context in details and authorized handoffs. Routing, work scope and required checks are unchanged. Failures, unchecked work, approval needs and authorization/safety constraints must remain visible in the plain text. Do not create extra questions, greetings or acknowledgments just to simulate conversation.
 

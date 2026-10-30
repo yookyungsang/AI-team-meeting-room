@@ -26,6 +26,8 @@ For everyday controls and reporting, see the [English user guide](host-plugin/US
 
 ## Features and scope
 
+Authors apply a [same-turn report-language check](host-plugin/skills/team-room/references/report-language.md) before posting: follow the user's requested or established conversation language, preserve code/quoted evidence, and do not switch languages because of a pasted log. No separate translator or automatic rewrite is added.
+
 - Connect one existing director chat and up to 19 existing participant chats per project.
 - Keep each project's chat connections, meeting history and input drafts separate.
 - Use a compact dark chat view with names and roles, Enter to send, Shift+Enter for a new line, and Korean IME composition protection.
