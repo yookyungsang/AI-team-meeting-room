@@ -2,6 +2,9 @@
 
 [English](README.md) | **한국어**
 
+[![자동 검사](https://github.com/yookyungsang/AI-team-meeting-room/actions/workflows/checks.yml/badge.svg)](https://github.com/yookyungsang/AI-team-meeting-room/actions/workflows/checks.yml)
+[최신 배포·설치 안내](https://github.com/yookyungsang/AI-team-meeting-room/releases/latest) · [배포와 자동 검사 설명](docs/RELEASING.md)
+
 기존 Codex 대화창을 프로젝트별 회의실로 연결하는 로컬 MCP App입니다. 사용자는 총괄에게 요청하고, 담당자는 자신의 질문·답변·진행 상황을 직접 게시합니다.
 
 ## 처음 설치했다면 여기부터 시작하세요
@@ -148,9 +151,16 @@ Unity 검증은 공식 Unity CLI, 호환 Editor·라이선스와 프로젝트 �
 ## 개발과 검증
 
 ```sh
+npm run check:package
 npm test
 npm start
 ```
+
+GitHub에 main 브랜치 변경이나 PR을 올리면 Windows·Linux의 Node 22에서 패키지와
+기존 테스트를 자동 검사합니다. AI 호출 없이 가상 데이터로 검사하고, 오래된 중복
+실행을 취소하며 예약 실행·자동 배포는 추가하지 않습니다.
+[버전별 배포 안내](docs/releases/v0.13.0.md)에서 설치·업데이트 방법을,
+[검사 범위와 배포 절차](docs/RELEASING.md)에서 자동 검사 설명을 확인하세요.
 
 npm start는 웹 서버가 아니라 JSON-RPC stdio MCP 서버를 실행합니다. 브라우저 주소로 직접 열 수 없습니다. 런타임은 Node 내장 모듈만 사용하며 npm install이 필요하지 않습니다.
 

@@ -2,6 +2,9 @@
 
 **English** | [한국어](README.ko.md)
 
+[![Checks](https://github.com/yookyungsang/AI-team-meeting-room/actions/workflows/checks.yml/badge.svg)](https://github.com/yookyungsang/AI-team-meeting-room/actions/workflows/checks.yml)
+[Latest release](https://github.com/yookyungsang/AI-team-meeting-room/releases/latest) · [Release and check guide](docs/RELEASING.md)
+
 A local Codex plugin that connects existing AI chats into project-based team meeting rooms. Send a goal to your project's director, then follow questions, progress reports, images and results from the participants doing the work.
 
 ## Start here: set up your workers after installation
@@ -144,9 +147,16 @@ Runtime files are not part of the source or installation package. Moving the sou
 ## Development and checks
 
 ```sh
+npm run check:package
 npm test
 npm start
 ```
+
+GitHub runs the package check and existing tests on Node 22, Windows and Linux
+for main-branch pushes and pull requests. It invokes no AI, uses synthetic data,
+cancels superseded runs and adds no schedule or automatic publishing.
+[Release notes](docs/releases/v0.13.0.md) include version-specific installation
+and update instructions. [Check scope and release procedure](docs/RELEASING.md).
 
 `npm start` launches a JSON-RPC stdio MCP server, not an HTTP website. It cannot be opened directly at a browser address. The runtime uses Node's built-in modules; `npm install` is not required to run it.
 

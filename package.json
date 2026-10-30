@@ -10,6 +10,7 @@
   },
   "scripts": {
     "start": "node host-plugin/server.mjs",
+    "check:package": "node scripts/check-package.mjs",
     "test": "node --test test/*.test.mjs"
   }
 }
