@@ -164,6 +164,10 @@ npm start는 웹 서버가 아니라 JSON-RPC stdio MCP 서버를 실행합니�
 node scripts/check-layout.mjs
 ```
 
+## 라이선스
+
+이 프로젝트는 [MIT 라이선스](LICENSE)로 배포합니다. 저작권 표시는 `Copyright (c) 2026 yookyungsang`입니다. 저작권 표시와 라이선스 내용을 유지하면 무료·상업적 사용, 수정과 재배포가 가능합니다. 설치 플러그인에도 [라이선스 사본](host-plugin/LICENSE)을 포함합니다. Codex·Unity 등 외부 도구와 서비스에는 각자의 라이선스와 이용 조건이 적용됩니다.
+
 ## 현재 제한
 
 - 연결 설정은 사용자 승인이나 호출자 인증의 대체물이 아닙니다. 운영 스킬과 실제 사용자의 승인 범위를 지켜야 합니다.

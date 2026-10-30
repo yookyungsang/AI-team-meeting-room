@@ -160,6 +160,10 @@ For the browser harness, install Playwright and Chromium separately. You can set
 node scripts/check-layout.mjs
 ```
 
+## License
+
+This project is licensed under the [MIT License](LICENSE). Copyright (c) 2026 yookyungsang. You may use, modify and redistribute it, including commercially, while retaining the copyright and license notices. A [license copy](host-plugin/LICENSE) is included in the installed plugin. External tools and services retain their own licenses and terms.
+
 ## Current limitations
 
 - The meeting UI and full collaboration policy currently use Korean. These English documents do not add automatic UI or report translation, location detection or a separate translation model.

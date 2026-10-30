@@ -1,7 +1,8 @@
 {
   "name": "ai-team-meeting-room",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "description": "Project-scoped MCP meeting rooms for existing Codex chats",
   "engines": {
