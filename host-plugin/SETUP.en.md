@@ -2,7 +2,7 @@
 
 [한국어](SETUP.ko.md) | **English** | [Full user guide](USER_GUIDE.en.md)
 
-For version 0.7.4. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → open the room in the director chat → assign the first task**.
+For version 0.8.0. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → open the room in the director chat → assign the first task**.
 
 A new team has **one director, one planner, one designer, TWO programmers and one QA participant**. Each new participant is a separate Codex chat. Setup starts with a written request in a Codex project chat.
 
@@ -189,7 +189,7 @@ Do not create new staff chats.
 
 Select the intended chats if several candidates match. An existing team can use its actual roster; it does not have to fill the six-role new-team template.
 
-Ask the director to change membership in plain language, identifying the participant: **“Change this participant's meeting name and role”** or **“Remove this participant after handing off their work.”** Busy jobs, unanswered questions, file ownership and validation must be completed or explicitly handed off first. Meeting-label edits do not automatically rename existing native chats or change their models.
+Use **메뉴 → 팀과 회의 제어 → 구성원 편집** to select/add/exclude existing participants, edit meeting labels and **변경 저장** (Save changes). For missing existing chats, explicitly request a director lookup with the find button, then refresh choices. Selecting and saving invoke no AI or chat creation. Busy jobs, unanswered questions, ownership and validation must be completed or explicitly handed off before removal. Conversational edits remain supported; labels do not automatically change native titles or models.
 
 ## Resume or troubleshoot
 

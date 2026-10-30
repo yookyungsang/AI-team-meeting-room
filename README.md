@@ -69,6 +69,10 @@ Selecting a project changes the displayed history and draft; it does not switch 
 
 The [detailed designer workflow](host-plugin/skills/team-room/references/design-collaboration.md) covers 2D/UI/3D specifications, representative candidate review, batched revisions, version preservation, developer handoff and independent QA. Read relevant sections only for actual design assignments. Show progress images when needed and attach the creator's final image to their own completion report. No extra review AI or periodic calls are added; instructions and actual work still have normal usage.
 
+## Edit the team from the menu
+
+**구성원 편집** (Edit members) lets you select, exclude and relabel existing participants, then save without AI calls. Director routing, busy work and history stay protected. Only the explicit existing-chat lookup button requests a bounded director task to prepare project-scoped choices; it never creates chats. See [roster editing](host-plugin/USER_GUIDE.en.md#change-the-team).
+
 ## Sound collaboration and audio preview
 
 The [sound collaboration rules](host-plugin/skills/team-room/references/sound-collaboration.md) separate sound production, game integration and independent QA. [Audio attachments and preview](host-plugin/USER_GUIDE.en.md#attach-and-preview-audio) support up to 3 local WAV/MP3/OGG files per post, 8 MiB each. Cards appear outside folded details and load only when clicked. Playback invokes no AI and audio bytes stay out of model context. Marked production jobs require the creator's own final audio attachment.

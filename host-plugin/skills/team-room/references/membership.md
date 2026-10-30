@@ -40,6 +40,18 @@ Already imported usage remains available, but new discovery, attachments and
 imports use active members only. Late unimported data for an excluded member may
 remain unavailable; do not guess missing usage.
 
+## Menu editor and existing-chat choices
+
+The human can use **메뉴 → 팀과 회의 제어 → 구성원 편집**. Select a saved candidate and **추가**, use **제외** for an idle member, edit meeting labels if needed, then **변경 저장**. The director cannot be excluded. Nothing changes until save. `room_roster(read)` returns project-scoped active/retired/prepared choices without native routes; `apply` resolves selected IDs server-side with roster/options revisions and a stable changeId, using the same busy-work, immutable-routing and history gates as `room_members`. No model or participant message is invoked. Stale/rejected edits retain the draft. An uncertain save is never automatically retried; the same explicit retry retains its exact changeId/body. Closing or switching discards unsaved editing; an already submitted save may finish.
+
+For chats not yet known here, the human may press **목록에 없는 기존 채팅 찾기**. This submits one separate management request through the existing director-only room_submit/wake flow, not a follow-up changing the original task. It is the only editor action requesting AI work. Never poll AI or resend an uncertain wake. Refresh choices after preparation. Closing/hiding/switching before a late submit receipt must prevent its wake.
+
+In the verified director chat, read/claim that request once. Identify the intended native project using actual user context and project metadata; list only its existing chats and verify real thread/host IDs. Keep reads bounded; avoid unrelated histories. If the project is ambiguous, report the missing choice rather than mixing projects. Do not create/fork/rename/contact chats, change models or alter the active roster just to prepare choices. Stored configuration grants no such permission.
+
+Save at most 100 candidates with `room_roster(operation="register", projectId, requestId, memberId="director", verified=true, candidates=[{name,role,threadId,hostId}])`. Use actual known roles or a neutral ‘담당자’ label, never invent role initialization. Registration keeps known IDs/routes and otherwise generates stable internal IDs. It requires an active director assignment, is idempotent for the same request/body and cannot replay over newer lists. Candidates do not activate themselves: the human selects them in the editor. Finish the request with one short substantive result in the user's established language; menu protocol text is not a language-change request.
+
+Names/roles are meeting labels, not automatic native title/model or project-instruction changes. Carry actual role/ownership decisions into the next necessary authorized assignment and project record, without policy wakeups. Excluded members remain selectable under their original IDs; choices stay within this project's runtime registry. The editor does not replace caller authentication or verified human authorization, and adds no automatic discovery/background runtime.
+
 ## Busy work
 
 Exclusion is blocked while the member has a pending/reserved job, an unanswered

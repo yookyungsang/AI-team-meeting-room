@@ -30,6 +30,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
 #image-viewer{width:1000px;max-width:calc(100% - 28px);max-height:calc(100% - 28px);padding:0;border:1px solid #444;border-radius:12px;background:#181818;color:#eee;overflow:auto}#image-viewer::backdrop{background:#000b}#image-viewer img{display:block;width:100%;height:auto;object-fit:contain}#image-viewer .menu-header h2{overflow-wrap:anywhere;min-width:0}@media(max-width:560px){.image-preview{height:200px}}
 .message-details{max-width:66ch;margin-top:14px;border-left:2px solid #444;padding:4px 0 4px 13px;overflow-wrap:anywhere}.message-details>summary{width:fit-content;cursor:pointer;color:#bbb;font-size:13px;line-height:1.9}.message-details[open]>summary{margin-bottom:12px}.message-details .text{font-size:13px;color:#c5c5c5;line-height:1.85}.message-details .text p{margin-bottom:14px}
 .message-audio{max-width:540px;display:grid;gap:10px;margin-top:16px}.audio-attachment{margin:0;padding:12px;border:1px solid #414141;border-radius:10px;background:#191919;min-width:0}.audio-preview{white-space:normal;overflow-wrap:anywhere;text-align:left;width:100%;font-size:13px}.audio-attachment figcaption{font-size:12px;color:#bbb;margin-top:6px;overflow-wrap:anywhere}#audio-viewer{width:min(560px,calc(100% - 24px));max-height:calc(100% - 24px);padding:0;border:1px solid #444;border-radius:12px;background:#181818;color:#eee;overflow:auto}#audio-viewer::backdrop{background:#0009}#audio-title{min-width:0;overflow-wrap:anywhere}#close-audio{flex-shrink:0}.audio-content{padding:18px}#audio-full{display:block;width:100%;max-width:100%}#audio-status{font-size:12px;line-height:1.8;color:#bbb;overflow-wrap:anywhere}
+.roster-editor{border:1px solid #444;border-radius:10px;padding:12px;margin:12px 0}.roster-editor h3{margin:0 0 8px;font-size:14px}.roster-rows{list-style:none;padding:0;margin:12px 0;display:grid;gap:12px}.roster-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px;align-items:end}.roster-row label{min-width:0;font-size:11px}.roster-row input,.roster-add select{display:block;width:100%;min-width:0;font:inherit;color:#eee;background:#222;border:1px solid #555;border-radius:6px;padding:7px}.roster-row input:focus-visible,.roster-add select:focus-visible{outline:2px solid #ddd;outline-offset:2px}.roster-add{display:flex;gap:8px;margin:12px 0}.roster-add select{flex:1;width:0}.roster-actions{display:flex;flex-wrap:wrap;gap:8px}.roster-status{white-space:pre-wrap;overflow-wrap:anywhere;margin:10px 0;font-size:12px}#edit-roster{margin-bottom:10px}@media(max-width:560px){.roster-row{grid-template-columns:minmax(0,1fr) auto}.roster-row label:nth-child(2){grid-column:1}.roster-row button{grid-column:2;grid-row:1/3}.roster-actions .button{flex:1}.roster-editor{padding:10px}}
 </style></head>
 <body><div class="shell">
 <header class="top"><h1>팀 회의실</h1><label class="project-picker" for="project">프로젝트<select id="project" disabled><option value="">프로젝트 선택</option></select></label><button id="open-menu" class="button menu-trigger" type="button" aria-haspopup="dialog" aria-controls="room-menu">메뉴 ☰</button></header>
@@ -38,7 +39,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
 <section id="records" class="records" aria-label="실제 회의 발언" tabindex="0"><div id="empty" class="empty"><strong>무엇을 함께 진행할까요?</strong>총괄 디렉터에게 목표나 질문을 남겨 주세요.<br>담당자들이 직접 기록한 질문·답변·진행을 이곳에서 확인합니다.</div><ol id="messages" class="messages"></ol></section>
 <form id="form" class="composer"><label id="input-label" class="input-label sr-only" for="text">프로젝트를 선택해 주세요</label><textarea id="text" aria-describedby="send-hint" aria-keyshortcuts="Enter" maxlength="6000" rows="2" placeholder="목표, 질문 또는 수정 의견을 남겨 주세요." required></textarea><button id="send" class="button primary" type="submit" hidden tabindex="-1" disabled>총괄에게 보내기 ↑</button></form>
 </main></div></div>
-<dialog id="room-menu" aria-labelledby="menu-title"><header class="menu-header"><h2 id="menu-title">회의실 메뉴</h2><button id="close-menu" class="button" type="button" aria-label="회의실 메뉴 닫기">닫기 ×</button></header><div class="menu-content"><section class="delivery-panel" aria-labelledby="delivery-title"><h3 id="delivery-title">전송 상태와 입력 안내</h3><span id="connection" class="connection" role="status">호스트 연결 확인 중…</span><p id="send-hint">Enter 전송 · Shift+Enter 줄바꿈</p><p id="result" class="status" role="status" aria-live="polite"></p></section><details open class="team" aria-label="담당자"><summary>팀과 회의 제어</summary><ul id="members" class="members"><li class="small">담당자 기록을 기다리고 있습니다.</li></ul><div class="toolbar"><p class="team-note">기존 대화창 연결 · 대기 중 AI 호출 없음</p><button id="pause" class="button" disabled type="button">새 요청 일시정지</button></div></details>
+<dialog id="room-menu" aria-labelledby="menu-title"><header class="menu-header"><h2 id="menu-title">회의실 메뉴</h2><button id="close-menu" class="button" type="button" aria-label="회의실 메뉴 닫기">닫기 ×</button></header><div class="menu-content"><section id="delivery-panel" class="delivery-panel" aria-labelledby="delivery-title"><h3 id="delivery-title">전송 상태와 입력 안내</h3><span id="connection" class="connection" role="status">호스트 연결 확인 중…</span><p id="send-hint">Enter 전송 · Shift+Enter 줄바꿈</p><p id="result" class="status" role="status" aria-live="polite"></p></section><details open class="team" aria-label="담당자"><summary>팀과 회의 제어</summary><ul id="members" class="members"><li class="small">담당자 기록을 기다리고 있습니다.</li></ul><button id="edit-roster" class="button" type="button" disabled>구성원 편집</button><section id="roster-editor" class="roster-editor" aria-labelledby="roster-title" hidden><h3 id="roster-title">회의실 구성원</h3><p class="small">이름과 역할을 확인하고 추가·제외한 뒤 저장하세요. 총괄 연결과 과거 기록은 유지됩니다. 회의실 표시만 바뀌며 대화창 이름·모델은 그대로입니다.</p><ul id="roster-rows" class="roster-rows"></ul><div class="roster-add"><select id="roster-choice" aria-label="추가할 기존 담당자"></select><button id="roster-add" class="button" type="button">추가</button></div><p class="small">목록에는 이 프로젝트에 연결했거나 총괄이 확인한 기존 채팅만 표시됩니다.</p><div class="roster-actions"><button id="roster-save" class="button primary" type="button">변경 저장</button><button id="roster-refresh" class="button" type="button">목록 새로고침</button><button id="roster-close" class="button" type="button">편집 닫기</button></div><p id="roster-status" class="roster-status" role="status" aria-live="polite"></p><button id="roster-prepare" class="button" type="button">목록에 없는 기존 채팅 찾기</button><p class="small">찾기 버튼만 총괄에게 목록 준비를 요청합니다. 추가·제외·저장은 AI를 호출하지 않습니다. 새 채팅은 만들지 않습니다.</p></section><div class="toolbar"><p class="team-note">기존 대화창 연결 · 대기 중 AI 호출 없음</p><button id="pause" class="button" disabled type="button">새 요청 일시정지</button></div></details>
 <details class="requests"><summary id="request-count">요청 처리 기록 · 0건</summary><div id="requests"></div></details>
 <details class="requests"><summary>작업 보호와 검증</summary><div id="work-status" class="small">작업 보호 설정을 기다리고 있습니다.</div></details>
 <details class="requests"><summary>완료 작업의 담당자별 사용량</summary><div id="usage-reports" class="small">작업 완료 후 기록을 표시합니다.</div></details>
@@ -71,7 +72,8 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   $('audio-viewer').addEventListener('cancel',stopAudio);
   $('audio-full').addEventListener('error',()=>{if(!disposed&&audioKey)$('audio-status').textContent='이 호스트에서 재생할 수 없는 음원입니다. 파일 형식·코덱 또는 호스트 정책을 확인해 주세요. 청취 검증은 미완료입니다.';});
   $('open-menu').addEventListener('click',()=>{if(!disposed)$('room-menu').showModal();});
-  $('close-menu').addEventListener('click',()=>$('room-menu').close());
+  $('close-menu').addEventListener('click',()=>{closeRoster();$('room-menu').close();});
+  $('room-menu').addEventListener('close',closeRoster);
   $('room-menu').addEventListener('click',event=>{if(event.target===$('room-menu')){const rect=$('room-menu').getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)$('room-menu').close();}});
   const statuses = {reserved:'전달 예약 · 결과 확인 중',pending:'처리 대기',processing:'처리 중',completed:'완료',failed:'실패',running:'처리 중',active:'처리 중',queued:'처리 대기',passed:'통과',blocked:'차단',unverified:'미검증',superseded:'인계됨'};
   let seq = 0, initialized = false, canMessage = false, messageExtension = false, state = null;
@@ -80,6 +82,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   const deliveries=new Map();
   let projectId=null, projects=[], switching=false, selectionEpoch=0;
   const drafts=new Map();
+  let roster=null;const rosterSearches=new Map();
   let disposed=false, hostContext={}, reportedHeight=null;
   const expandedDetails=new Set();let detailsEpoch=0;
   // Inline height must not depend on the iframe's own viewport. Otherwise a
@@ -104,7 +107,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   function dispose() {
     if(disposed)return;
     disposed=true;initialized=false;canMessage=false;
-    expandedDetails.clear();detailsEpoch++;
+    closeRoster();expandedDetails.clear();detailsEpoch++;
     if($('room-menu').open)$('room-menu').close();
     resetImages();imageCache.clear();imagePending.clear();
     resetAudio();audioCache.clear();audioPending.clear();
@@ -320,6 +323,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     $('send').textContent=sending?'요청 전달 중…':'총괄에게 보내기 ↑';
     $('pause').disabled=!initialized || !loaded || pausing || sending;
     $('pause').textContent=pausing?'변경 중…':state?.paused?'새 요청 재개':'새 요청 일시정지';
+    $('edit-roster').disabled=!initialized||!loaded;if(roster&&!roster.busy)rosterControls(roster);
     $('text').readOnly=sending;
     $('project').disabled=!initialized || sending || pausing || switching;
     $('input-label').textContent=loaded?name('director')+(activeRequest()?' · 진행 중인 요청에 추가 전달':' · 총괄에게'):'프로젝트를 선택해 주세요';
@@ -345,6 +349,70 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     return data;
   }
   async function tool(name,args){return extract(await rpc('tools/call',{name,arguments:args}));}
+  function closeRoster(){roster=null;$('roster-editor').hidden=true;$('edit-roster').hidden=false;$('members').hidden=false;$('delivery-panel').hidden=false;}
+  const rosterCurrent=r=>!disposed&&!document.hidden&&roster===r&&projectId===r.projectId;
+  function rosterControls(r){
+    if(!rosterCurrent(r))return;
+    for(const input of $('roster-rows').querySelectorAll('input'))input.disabled=r.busy||!!r.pending;
+    $('roster-save').disabled=r.busy||(!r.dirty&&!r.pending);$('roster-save').textContent=r.pending?'같은 변경 다시 저장':'변경 저장';
+    $('roster-refresh').disabled=r.busy;$('roster-choice').disabled=r.busy||!!r.pending;
+    $('roster-add').disabled=r.busy||!!r.pending||r.rows.length>=20||!r.choices.some(c=>!r.rows.some(m=>m.id===c.id));
+    const previous=rosterSearches.get(r.projectId),request=state?.requests.find(q=>q.id===previous);
+    $('roster-prepare').disabled=r.busy||!!r.pending||!canMessage||state?.paused||Boolean(previous&&!['completed','failed'].includes(request?.status));
+  }
+  function renderRoster(r){
+    if(!rosterCurrent(r))return;$('roster-rows').replaceChildren();
+    for(const row of r.rows){
+      const li=make('li','roster-row');
+      for(const [field,title] of [['name','이름'],['role','역할']]){
+        const label=make('label','',title),input=make('input');input.type='text';input.maxLength=80;input.value=row[field];input.ariaLabel=row.name+' '+title;
+        input.addEventListener('input',()=>{if(!rosterCurrent(r)||r.busy||r.pending)return;row[field]=input.value;r.dirty=true;rosterControls(r);});label.append(input);li.append(label);
+      }
+      const remove=make('button','button',row.id==='director'?'총괄 고정':'제외');remove.type='button';remove.disabled=row.id==='director'||r.busy||!!r.pending;
+      remove.addEventListener('click',()=>{if(!rosterCurrent(r)||r.busy||r.pending||row.id==='director')return;r.rows=r.rows.filter(m=>m!==row);r.dirty=true;renderRoster(r);});li.append(remove);$('roster-rows').append(li);
+    }
+    $('roster-choice').replaceChildren();const blank=make('option','','추가할 담당자 선택');blank.value='';$('roster-choice').append(blank);
+    for(const c of r.choices.filter(c=>!r.rows.some(m=>m.id===c.id))){const option=make('option','',c.name+' · '+c.role);option.value=c.id;$('roster-choice').append(option);}
+    $('roster-choice').value='';rosterControls(r);
+  }
+  async function loadRoster(){
+    if(disposed||!initialized||!state?.project||switching||document.hidden)return;
+    const r={projectId,rows:[],choices:[],busy:true,dirty:false,pending:null};roster=r;$('roster-editor').hidden=false;$('edit-roster').hidden=true;$('members').hidden=true;$('delivery-panel').hidden=true;$('roster-status').textContent='구성원을 불러오고 있습니다.';renderRoster(r);
+    try{const data=await tool('room_roster',{projectId:r.projectId,operation:'read'});if(!rosterCurrent(r))return;if(data.projectId!==r.projectId||!Array.isArray(data.members)||!Array.isArray(data.choices))throw new Error('선택한 회의실의 구성원을 확인할 수 없습니다.');r.rows=data.members.map(m=>({...m}));r.choices=data.choices;r.revision=data.revision;r.optionsRevision=data.optionsRevision;$('roster-status').textContent='저장 전에는 적용되지 않습니다. 작업 중인 담당자는 완료·인계 후 제외할 수 있습니다.';}
+    catch(err){if(rosterCurrent(r))$('roster-status').textContent='불러오기 실패 · '+err.message;}
+    finally{r.busy=false;if(rosterCurrent(r))renderRoster(r);}
+  }
+  $('edit-roster').addEventListener('click',loadRoster);
+  $('roster-refresh').addEventListener('click',()=>{if(roster&&!roster.busy)return loadRoster();});
+  $('roster-close').addEventListener('click',closeRoster);
+  $('roster-add').addEventListener('click',()=>{
+    const r=roster;if(!r||!rosterCurrent(r)||r.busy||r.pending||r.rows.length>=20)return;const choice=r.choices.find(c=>c.id===$('roster-choice').value);
+    if(!choice||r.rows.some(m=>m.id===choice.id))return;r.rows.push({...choice});r.dirty=true;renderRoster(r);
+  });
+  $('roster-save').addEventListener('click',async()=>{
+    const r=roster;if(!r||!rosterCurrent(r)||r.busy||(!r.dirty&&!r.pending))return;
+    if(!r.rows.length||r.rows.some(m=>!m.name.trim()||!m.role.trim())){$('roster-status').textContent='이름과 역할을 모두 입력해 주세요.';return;}
+    r.pending??={projectId:r.projectId,operation:'apply',memberId:'director',expectedRevision:r.revision,optionsRevision:r.optionsRevision,changeId:crypto.randomUUID(),selection:r.rows.map(({id,name,role})=>({id,name,role}))};
+    r.busy=true;renderRoster(r);$('roster-status').textContent='변경을 저장하고 있습니다.';
+    try{
+      const data=await tool('room_roster',r.pending);if(!rosterCurrent(r))return;if(data.projectId!==r.projectId||!Array.isArray(data.members)||!Array.isArray(data.choices))throw new Error('저장 결과를 확인할 수 없습니다.');
+      r.pending=null;r.dirty=false;r.rows=data.members.map(m=>({...m}));r.choices=data.choices;r.revision=data.revision;r.optionsRevision=data.optionsRevision;
+      if(state?.project?.id===r.projectId){const active=new Set(data.members.map(m=>m.id)),former=[...(state.formerMembers||[]),...state.members.filter(m=>!active.has(m.id))];accept({...state,members:data.members,formerMembers:former.filter((m,i,a)=>!active.has(m.id)&&a.findIndex(n=>n.id===m.id)===i),project:{...state.project,revision:data.revision}},{expected:r.projectId});}
+      $('roster-status').textContent='구성원을 저장했습니다. 담당자에게 새 메시지를 보내지는 않았습니다.';
+    }catch(err){if(rosterCurrent(r)){if(err.rejected)r.pending=null;$('roster-status').textContent=err.message+(err.rejected?'\n내용을 수정하거나 목록을 새로고침해 주세요.':'\n자동 재시도하지 않습니다. 같은 변경 다시 저장 또는 목록 새로고침을 선택해 주세요.');}}
+    finally{r.busy=false;if(rosterCurrent(r))renderRoster(r);}
+  });
+  $('roster-prepare').addEventListener('click',async()=>{
+    const r=roster;if(!r||!rosterCurrent(r)||r.busy||r.pending||!canMessage||$('roster-prepare').disabled)return;
+    r.busy=true;rosterControls(r);const attempt={projectId:r.projectId,id:crypto.randomUUID(),recipients:['director'],text:'사용자가 메뉴의 기존 채팅 찾기를 눌렀습니다. 이 프로젝트에 연결할 기존 채팅을 native 도구로 확인하고 room_roster(operation="register", verified=true, requestId=이 요청 ID)로 선택 후보만 준비해 주세요. 다른 프로젝트의 채팅을 임의로 섞지 말고, 프로젝트가 불명확하면 확인이 필요한 점을 알려 주세요. 새 채팅 생성·작업자 연락·활성 구성원 변경은 하지 마세요. 메뉴 안내문의 언어로 보고 언어를 바꾸지 말고 기존 사용자 대화의 언어를 유지하세요. 준비 후 간단한 결과로 이 요청을 완료해 주세요.'};
+    rosterSearches.set(r.projectId,attempt.id);
+    try{
+      const data=await tool('room_submit',attempt);if(!rosterCurrent(r))return;if(data.request?.id!==attempt.id||data.request.followUpTo||typeof data.wakePrompt!=='string'||!data.wakePrompt.trim())throw new Error('목록 준비 요청의 접수를 확인할 수 없습니다.');
+      if(data.state&&!accept(data.state,{expected:r.projectId}))throw new Error('목록 준비 요청의 프로젝트가 일치하지 않습니다.');if(data.request.status==='failed')throw new Error('목록 준비 요청 접수가 실패했습니다.');deliveries.set(attempt.id,{...attempt,status:'waiting'});void deliver(attempt,data.wakePrompt);
+      $('roster-status').textContent='총괄에게 목록 준비를 요청했습니다. 준비가 끝나면 목록 새로고침을 눌러 주세요.';
+    }catch(err){if(rosterCurrent(r)){if(err.rejected)rosterSearches.delete(r.projectId);$('roster-status').textContent='목록 준비 요청을 확인하지 못했습니다. 자동 재전송하지 않습니다. '+err.message;}}
+    finally{r.busy=false;if(rosterCurrent(r))rosterControls(r);}
+  });
   function time(value){const d=new Date(value);return Number.isNaN(d.getTime())?'':new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(d);}
   function renderProjects(){
     const select=$('project');select.replaceChildren();const placeholder=make('option','','프로젝트 선택');placeholder.value='';select.append(placeholder);
@@ -376,6 +444,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     if(allowOpen && !projectId && !sending && next.project?.id){projectId=next.project.id;selectionEpoch++;expected=projectId;}
     renderProjects();
     if((next.project?.id||null)!==(expected||null) || projectId!==(expected||null))return false;
+    if(state?.project?.id===next.project?.id && (state.project.revision||1)>(next.project?.revision||1))return false;
     state=next;
     renderProjects();
     const current=JSON.stringify(next);
@@ -466,10 +535,10 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     finally{polling=false;}
   }
   function schedule(){if(timer)clearInterval(timer);timer=null;if(!disposed&&initialized&&!document.hidden)timer=setInterval(poll,4000);}
-  document.addEventListener('visibilitychange',()=>{schedule();if(document.hidden)resetAudio();else poll();});
+  document.addEventListener('visibilitychange',()=>{schedule();if(document.hidden){resetAudio();closeRoster();}else poll();});
   $('project').addEventListener('change',async()=>{
     if(sending||pausing||switching){renderProjects();return;}
-    if(projectId)drafts.set(projectId,$('text').value);
+    closeRoster();if(projectId)drafts.set(projectId,$('text').value);
     projectId=$('project').value||null;
     $('text').value=drafts.get(projectId)||'';
     const expected=projectId,epoch=++selectionEpoch;
@@ -543,7 +612,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   async function initialize(){
     if(window.parent===window){$('connection').textContent='단독 창에서는 연결할 수 없습니다.';showError('기존 채팅의 MCP App 패널에서 팀 회의실을 열어 주세요.');return;}
     try{
-      const result=await rpc('ui/initialize',{appInfo:{name:'team-room',version:'0.7.4'},appCapabilities:{availableDisplayModes:['inline','fullscreen']},protocolVersion:'2026-01-26'});
+      const result=await rpc('ui/initialize',{appInfo:{name:'team-room',version:'0.8.0'},appCapabilities:{availableDisplayModes:['inline','fullscreen']},protocolVersion:'2026-01-26'});
       if(disposed)return;
       if(result?.protocolVersion!=='2026-01-26')throw new Error('지원되는 호스트 통신 버전을 확인하지 못했습니다.');
       messageExtension=Boolean(result.hostCapabilities?.experimental?.['openai/message'] || result.hostCapabilities?.extensions?.['openai/message']);

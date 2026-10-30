@@ -33,6 +33,10 @@ async function mount(page,html,width){
      const request={...p.params.arguments,status:'pending',jobs:[]};
      window.testRoomState.requests.push(request);
      result={structuredContent:{request,state:window.testRoomState,wakePrompt:'isolated keyboard fixture '+request.id}};
+    }else if(p.params.name==='room_roster'){
+     const a=p.params.arguments,view=window.rosterFixture;
+     if(a.operation==='apply'){view.members=a.selection;view.revision++;window.testRoomState.members=view.members;window.testRoomState.project.revision=view.revision;}
+     result={structuredContent:view};
     }else if(p.params.name==='room_audio'){
      result={structuredContent:{projectId:p.params.arguments.projectId,audio:{id:p.params.arguments.audioId,mimeType:'audio/wav'}},_meta:{'team-room/audioData':window.fixtureAudioData}};
      if(window.deferAudio){(window.delayedAudio||=[]).push({id:p.id,result});return;}
@@ -266,6 +270,22 @@ try{
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='tools/call'&&p.params.name==='room_audio').length),1);
   await page.keyboard.press('Escape');await frame.waitForFunction(()=>!document.querySelector('#audio-full').getAttribute('src'));
   assert.equal(await frame.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  await page.evaluate(()=>{
+   const director={id:'director',name:'예시 총괄',role:'총괄 디렉터'},designer={id:'designer',name:'예시 디자이너',role:'디자이너'},qa={id:'qa',name:'예시 QA',role:'QA'};
+   window.rosterFixture={projectId:window.testRoomState.project.id,revision:window.testRoomState.project.revision||1,optionsRevision:1,members:[director,designer],choices:[director,designer,qa]};
+   window.testRoomState.members=window.rosterFixture.members;
+   document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:window.testRoomState}},'*');
+  });
+  await frame.locator('#open-menu').click();await frame.locator('#edit-roster').click();await frame.waitForSelector('.roster-row');
+  assert.equal(await frame.locator('.roster-row').first().locator('button').isDisabled(),true);
+  await frame.locator('#roster-choice').selectOption('qa');await frame.locator('#roster-add').click();
+  assert.equal(await frame.locator('.roster-row').count(),3);await frame.locator('#roster-save').click();
+  await frame.waitForFunction(()=>document.querySelector('#roster-status').textContent.includes('구성원을 저장했습니다'));
+  assert.equal(await frame.locator('#room-menu').evaluate(el=>el.scrollWidth>el.clientWidth),false);
+  assert.equal(await frame.locator('#roster-editor').evaluate(el=>el.scrollWidth>el.clientWidth),false);
+  await frame.locator('#roster-save').scrollIntoViewIfNeeded();await frame.locator('#room-menu').screenshot({path:path.join(output,`roster-editor-${width}.png`)});
+  assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),2,'roster selection and saving must not wake AI');
+  await frame.locator('#close-menu').click();assert.equal(await frame.locator('#roster-editor').isVisible(),false);
   await page.evaluate(()=>{
    window.deferImages=true;
    window.testRoomState.messages.push({id:'image-late',requestId:'image-request',authorId:'director',kind:'progress',text:'다음 시안',images:[{id:'b'.repeat(64),caption:'늦은 이미지 응답 예시'}]});

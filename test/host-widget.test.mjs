@@ -21,19 +21,27 @@ class Element {
  set innerHTML(value){throw new Error('unsafe HTML rendering');}
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
-async function widget(t,{capability={},messageFails=false,autoSelect=true,deferMessages=false,holdSubmit=false,holdImages=false,badImage=false,holdAudio=false,badAudio=false}={}){
+async function widget(t,{capability={},messageFails=false,autoSelect=true,deferMessages=false,holdSubmit=false,holdImages=false,badImage=false,holdAudio=false,badAudio=false,holdRoster=null,rosterError=null}={}){
  const elements=new Map(),sent=[],callbacks={},intervals=[],messagePackets=[],imagePackets=[],audioPackets=[],timeouts=new Map();let timeoutSeq=0;
  const projects=[{id:'test',name:'Test',directorName:'테스트 총괄'},{id:'second',name:'Second',directorName:'다른 총괄'}];
  const state={project:{id:'test',name:'Test'},projects,members:[{id:'director',name:'테스트 총괄',role:'총괄'}],requests:[],messages:[],paused:false};
  const second={project:{id:'second',name:'Second'},projects,members:[{id:'director',name:'다른 총괄',role:'리더'},{id:'writer',name:'작가',role:'작가'}],requests:[],messages:[],paused:false};
  const states=new Map([['test',state],['second',second]]);
  const chooser={project:null,projects,members:[],requests:[],messages:[],paused:true};
+ const rosterPackets=[],rosterBehavior={hold:holdRoster,error:rosterError},rosterChanges=new Map();
+ const catalogs=new Map([...states].map(([id,room])=>[id,{projectId:id,revision:1,optionsRevision:1,members:room.members.map(m=>({...m})),choices:[...room.members.map(m=>({...m})),{id:'designer',name:'선택 디자이너',role:'디자이너'}]}]));
  const styles=new Map();
  const document={hidden:false,body:{hidden:false},documentElement:{style:{setProperty:(key,value)=>styles.set(key,value)}},activeElement:null,getElementById:id=>{if(!elements.has(id))elements.set(id,new Element());return elements.get(id);},createElement:tag=>new Element(tag),addEventListener:(name,fn)=>callbacks[name]=fn};
  const parent={postMessage:packet=>{sent.push(packet);if(packet.id===undefined)return;let result={};
   if(packet.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostCapabilities:{message:{text:capability},experimental:{'openai/message':{}}}};
   if(packet.method==='tools/call'){
    const {name,arguments:args}=packet.params;
+   if(name==='room_roster'){
+    rosterPackets.push(packet);const data=catalogs.get(args.projectId);
+    if(args.operation==='apply'&&!rosterBehavior.error){if(!rosterChanges.has(args.changeId)){data.members=args.selection.map(m=>({...m}));data.revision++;rosterChanges.set(args.changeId,true);states.get(args.projectId).members=data.members;states.get(args.projectId).project.revision=data.revision;}}
+    result=rosterBehavior.error?{isError:true,content:[{type:'text',text:rosterBehavior.error}]}:{structuredContent:{...data,members:data.members.map(m=>({...m}))}};
+    if(rosterBehavior.hold===args.operation)return;
+   }
    if(name==='room_state')result={structuredContent:args.projectId?states.get(args.projectId):chooser};
    if(name==='room_image'){
     imagePackets.push(packet);if(holdImages)return;
@@ -57,8 +65,40 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
  const receive=data=>callbacks.message({source:parent,data:{jsonrpc:'2.0',...data}});
  const respondMessage=(index,result={})=>receive({id:messagePackets[index].id,result});
  const expire=()=>{for(const [id,fn] of [...timeouts]){timeouts.delete(id);fn();}};
- return {sent,elements,state,second,notify,callbacks,intervals,document,styles,receive,window,messagePackets,imagePackets,audioPackets,respondMessage,expire};
+ return {rosterPackets,rosterBehavior,catalogs,sent,elements,state,second,notify,callbacks,intervals,document,styles,receive,window,messagePackets,imagePackets,audioPackets,respondMessage,expire};
 }
+test('menu roster edits add, rename and remove locally before an explicit save without AI or IDs',async t=>{
+ const w=await widget(t),input=w.elements.get('text');input.value='보존할 입력';input.events.input();await w.elements.get('edit-roster').events.click();
+ assert.equal(w.elements.get('roster-rows').children[0].children[2].disabled,true);w.elements.get('roster-choice').value='designer';w.elements.get('roster-add').events.click();
+ const row=w.elements.get('roster-rows').children[1],name=row.children[0].children[0];name.value='새 디자인 담당';name.events.input();
+ assert.equal(w.state.members.length,1);await w.elements.get('roster-save').events.click();assert.equal(w.state.members.length,2);assert.equal(w.state.members[1].name,'새 디자인 담당');
+ const apply=w.rosterPackets.find(p=>p.params.arguments.operation==='apply');assert(!JSON.stringify(apply.params.arguments).includes('threadId'));assert.equal(input.value,'보존할 입력');
+ w.elements.get('roster-rows').children[1].children[2].events.click();await w.elements.get('roster-save').events.click();assert.equal(w.state.members.length,1);
+ assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+});
+test('roster rejection preserves edits and uncertain saves reuse the exact change ID without automatic retry',async t=>{
+ const w=await widget(t,{rosterError:'진행 중인 담당자는 먼저 인계하세요'});await w.elements.get('edit-roster').events.click();
+ w.rosterBehavior.error=null;await w.elements.get('roster-refresh').events.click();w.elements.get('roster-choice').value='designer';w.elements.get('roster-add').events.click();
+ w.rosterBehavior.error='진행 중인 담당자는 먼저 인계하세요';await w.elements.get('roster-save').events.click();assert.equal(w.elements.get('roster-rows').children.length,2);assert.match(w.elements.get('roster-status').textContent,/인계/);
+ w.rosterBehavior.error=null;w.rosterBehavior.hold='apply';const saving=w.elements.get('roster-save').events.click();await settle();w.expire();await saving;
+ const before=w.rosterPackets.filter(p=>p.params.arguments.operation==='apply');assert.equal(before.length,2);await w.intervals[0]();assert.equal(w.rosterPackets.filter(p=>p.params.arguments.operation==='apply').length,2);
+ w.rosterBehavior.hold=null;await w.elements.get('roster-save').events.click();const calls=w.rosterPackets.filter(p=>p.params.arguments.operation==='apply');assert.deepEqual(calls[1].params.arguments,calls[2].params.arguments);
+});
+test('late roster reads and list-preparation receipts cannot dispatch after close, switch or teardown',async t=>{
+ const w=await widget(t,{holdRoster:'read'});const loading=w.elements.get('edit-roster').events.click();await settle();const packet=w.rosterPackets[0];w.elements.get('roster-close').events.click();
+ w.receive({id:packet.id,result:{structuredContent:w.catalogs.get('test')}});await loading;assert.equal(w.elements.get('roster-editor').hidden,true);
+ const g=await widget(t,{holdSubmit:true});await g.elements.get('edit-roster').events.click();const preparing=g.elements.get('roster-prepare').events.click();await settle();
+ const submit=g.sent.find(p=>p.params?.name==='room_submit');g.elements.get('close-menu').events.click();const stored=g.state.requests.at(-1);
+ g.receive({id:submit.id,result:{structuredContent:{request:stored,state:g.state,wakePrompt:'fixture management'}}});await preparing;assert.equal(g.sent.filter(p=>p.method==='ui/message').length,0);
+ const h=await widget(t,{holdRoster:'read'});const pending=h.elements.get('edit-roster').events.click();await settle();const late=h.rosterPackets[0];h.elements.get('project').value='second';await h.elements.get('project').events.change();h.receive({id:late.id,result:{structuredContent:h.catalogs.get('test')}});await pending;assert.equal(h.elements.get('roster-editor').hidden,true);
+ const k=await widget(t,{holdRoster:'read'});const closing=k.elements.get('edit-roster').events.click();await settle();const ignored=k.rosterPackets[0];k.callbacks.pagehide();await closing;const count=k.sent.length;k.receive({id:ignored.id,result:{structuredContent:k.catalogs.get('test')}});assert.equal(k.sent.length,count);assert.equal(k.document.body.hidden,true);
+});
+test('finding unregistered existing chats is one explicit standalone director request, never a background wake',async t=>{
+ const w=await widget(t);w.state.requests.push({id:'original',status:'processing',jobs:[{memberId:'director',state:'reserved'}]});await w.elements.get('edit-roster').events.click();assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+ await w.elements.get('roster-prepare').events.click();await settle();const submit=w.sent.find(p=>p.params?.name==='room_submit');assert.equal(submit.params.arguments.followUpTo,undefined);assert.deepEqual([...submit.params.arguments.recipients],['director']);assert.match(submit.params.arguments.text,/새 채팅 생성/);
+ assert.equal(w.sent.filter(p=>p.method==='ui/message').length,1);await w.elements.get('roster-prepare').events.click();assert.equal(w.sent.filter(p=>p.method==='ui/message').length,1);
+});
+
 test('bridge initialization and repeated state reads never wake AI',async t=>{const w=await widget(t);for(let i=0;i<4;i++){await w.intervals[0]();await settle();}assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);assert.equal(w.sent.filter(p=>p.method==='tools/call'&&p.params.name==='room_submit').length,0);});
 test('explicit submit wakes current chat once and subsequent polls do not',async t=>{const w=await widget(t);w.elements.get('text').value='test';w.elements.get('text').events.input();assert.equal(w.elements.get('send').disabled,false);const first=w.elements.get('form').events.submit({preventDefault(){}});await w.elements.get('form').events.submit({preventDefault(){}});await first;await settle();await w.intervals[0]();const messages=w.sent.filter(p=>p.method==='ui/message');assert.equal(messages.length,1);assert.equal(messages[0].params._meta['openai/message'].target,'active');assert.equal(w.state.requests.length,1);});
 test('the composer preserves the original whitespace while uncertain duplicate checks stay normalized',async t=>{

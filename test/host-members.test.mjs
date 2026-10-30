@@ -26,6 +26,41 @@ function fixture(t){
 const call=(registry,name,args={})=>handle({method:'tools/call',params:{name,arguments:args}},registry);
 const ok=(registry,name,args)=>{const result=call(registry,name,args);assert.ok(!result.isError,JSON.stringify(result));return result.structuredContent;};
 
+test('project-scoped roster choices are prepared once without activating staff or exposing routes',t=>{
+ const f=fixture(t),requestId=f.task(),args={projectId:'example',operation:'register',memberId:'director',requestId,verified:true,candidates:[member('designer')]};
+ assert.equal(call(f.registry,'room_roster',{...args,memberId:'qa'}).isError,true);assert.equal(call(f.registry,'room_roster',{...args,verified:false}).isError,true);
+ const saved=ok(f.registry,'room_roster',args);assert.equal(saved.count,1);assert.deepEqual(f.registry.get('example').members,roster);
+ const view=ok(f.registry,'room_roster',{projectId:'example',operation:'read'});assert.equal(view.choices.length,4);assert(!JSON.stringify(view).includes('threadId'));assert(!JSON.stringify(view).includes('hostId'));
+ const candidate=view.choices.find(c=>c.name==='Fixture designer');assert.match(candidate.id,/^member_/);
+ assert.equal(ok(f.registry,'room_roster',args).replayed,true);assert.equal(call(f.registry,'room_roster',{...args,candidates:[member('different')]}).isError,true);
+ f.registry.configure({id:'other',name:'Other',members:roster});assert.equal(f.registry.roster('other').choices.length,3);
+ const nextRequest=f.task();ok(f.registry,'room_roster',{...args,requestId:nextRequest,candidates:[member('newer')]});const before=f.registry.roster('example');
+ ok(f.registry,'room_roster',args);assert.deepEqual(f.registry.roster('example'),before);
+});
+test('visual roster selections resolve routing server-side, preserve history and deduplicate explicit saves',t=>{
+ const f=fixture(t);f.update([roster[0],roster[1]]);const view=f.registry.roster('example');
+ const edit={projectId:'example',operation:'apply',memberId:'director',expectedRevision:view.revision,optionsRevision:view.optionsRevision,changeId:randomUUID(),selection:[...view.members,view.choices.find(c=>c.id==='qa')].map(m=>({...m,threadId:'forged-route'}))};
+ const result=ok(f.registry,'room_roster',edit);assert.equal(result.members.length,3);assert.equal(f.registry.get('example').members.find(m=>m.id==='qa').threadId,'fixture-chat-qa');
+ assert.equal(ok(f.registry,'room_roster',edit).replayed,true);assert.equal(f.registry.get('example').memberChanges.length,2);
+ for(const selection of [[view.members[1]],[...view.members,{id:'unknown',name:'Unknown',role:'QA'}],[...view.members,view.members[1]]])assert.equal(call(f.registry,'room_roster',{...edit,changeId:randomUUID(),expectedRevision:result.revision,selection}).isError,true);
+ assert.equal(f.registry.get('example').members.length,3);
+ f.update([roster[0]]);const replay=ok(f.registry,'room_roster',edit);assert.equal(replay.members.length,1);assert.equal(replay.replayed,true);
+});
+test('visual selections cannot exceed the team limit or replace the director route',t=>{
+ const f=fixture(t),requestId=f.task();ok(f.registry,'room_roster',{projectId:'example',operation:'register',memberId:'director',requestId,verified:true,candidates:Array.from({length:21},(_,i)=>member('extra'+i))});
+ const view=f.registry.roster('example'),edit={projectId:'example',operation:'apply',memberId:'director',expectedRevision:view.revision,optionsRevision:view.optionsRevision,changeId:randomUUID()};
+ assert.equal(call(f.registry,'room_roster',{...edit,selection:view.choices.slice(0,21)}).isError,true);
+ assert.equal(call(f.registry,'room_roster',{...edit,selection:view.members.filter(m=>m.id!=='director')}).isError,true);assert.equal(f.registry.get('example').revision,1);
+});
+test('visual edits preserve busy-member and revision guards, including stale candidate lists',t=>{
+ const f=fixture(t),requestId=f.task();f.store.claim({requestId,memberId:'qa'});const view=f.registry.roster('example');
+ const edit={projectId:'example',operation:'apply',memberId:'director',expectedRevision:view.revision,optionsRevision:view.optionsRevision,changeId:randomUUID(),selection:view.members.filter(m=>m.id!=='qa')};
+ assert.equal(call(f.registry,'room_roster',edit).isError,true);assert.equal(f.registry.get('example').revision,1);
+ ok(f.registry,'room_roster',{projectId:'example',operation:'register',memberId:'director',requestId,verified:true,candidates:[member('designer')]});
+ assert.equal(call(f.registry,'room_roster',{...edit,selection:view.members}).isError,true);
+ assert.equal(f.registry.get('example').revision,1);assert.equal(f.store.read().requests[0].jobs.find(j=>j.memberId==='qa').state,'reserved');
+});
+
 test('roster edits add members and change labels in place without waking or creating room/control data',t=>{
  const f=fixture(t),next=[roster[0],{...roster[1],name:'New display name',role:'developer'},roster[2],member('two')];
  const result=f.update(next);assert.equal(result.revision,2);assert.equal(result.replayed,false);assert.deepEqual(result.members,next);
