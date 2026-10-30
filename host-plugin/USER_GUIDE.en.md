@@ -6,7 +6,7 @@
 
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.9.0. You can use the plugin across projects, with separate connections and records for each. The current meeting UI uses Korean labels; reports follow the user's requested or established conversation language. This guide includes the Korean control labels so you can find them; it does not add automatic UI translation or language switching to the app.
+This guide describes version 0.9.1. You can use the plugin across projects, with separate connections and records for each. The current meeting UI uses Korean labels; reports follow the user's requested or established conversation language. This guide includes the Korean control labels so you can find them; it does not add automatic UI translation or language switching to the app.
 
 ## Get started
 
@@ -33,7 +33,7 @@ This is a conversational setup workflow, not a separate creation-button UI or ba
 Open **메뉴 → 팀과 회의 제어 → 구성원 편집** (Menu → Team controls → Edit members).
 
 1. Select an existing participant and press **추가** (Add). For a chat not listed, press **목록에 없는 기존 채팅 찾기** (Find other existing chats), then **목록 새로고침** (Refresh list) after preparation. This does not create chats.
-2. Press **제외** (Exclude) for an idle member and choose Planner, Designer, Programmer, QA, Sound or **직접 입력** (Custom). The director stays fixed. Both programmers use the same kind with distinct names.
+2. Press **제외** (Exclude) for an idle member and choose Planner, Designer, Programmer, QA, Sound or **직접 입력** (Custom). The director stays fixed. All programmers use the same kind, with distinct names for multiple participants.
 3. Review and press **변경 저장** (Save changes). Closing or switching projects discards unsaved editing; an already submitted save may finish.
 
 Reading, selecting, excluding and saving invoke no AI. Only the explicit lookup button requests a bounded director task to verify this project's existing chats. Ambiguous project selection is reported for clarification. Instructions and the actual lookup still have usage, with no periodic AI discovery. Conversational roster changes remain supported.
@@ -140,7 +140,7 @@ If an image fails to load, select **다시 보기** (Try again). A remote URL or
 
 The [complete collaboration policy](skills/team-room/references/collaboration-policy.md) is packaged with the plugin and applies to every meeting project. The full policy is in Korean; the [operating skill](skills/team-room/SKILL.md) provides an English summary. Main rules include:
 
-- Follow the 12 director sections and 9 programmer collaboration sections. Prefer independent parallel work when multiple programmers are already connected.
+- Follow the 12 director sections and all 9 programmer sections for any team size. One assigned developer implements sequentially and self-checks before QA; multiple developers split needed files/dependencies and integrate. Do not wake every registered developer for small work or invent missing staff.
 - Keep one editor per file and one operator per shared application; explicitly hand off ownership and control.
 - A programmer may retry the same error with the same method once. QA analyzes the cause before at most one retry, then stops and reports repeated errors or environment blocks to the director.
 - Hand off developer self-checks to independent QA. The director assesses completion using real results and required evidence. Disclose missing QA or unavailable validation.

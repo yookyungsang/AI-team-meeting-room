@@ -14,8 +14,8 @@ export const TEAM_ROLES=[
  {id:'director',name:'총괄 디렉터',family:'balanced',effort:'high',duty:'전체 설계·우선순위·배정·통합·최종 승인. 필요한 판단·장애·완료 시에만 개입하며 담당자의 보고를 중복 수집하지 않습니다.'},
  {id:'planner',name:'기획자',family:'balanced',effort:'medium',duty:'시스템·밸런스·레벨 및 작업 기획, 사양·완료 기준을 담당합니다. 프로젝트 종류와 사용자의 역할 지정을 우선합니다.'},
  {id:'designer',name:'디자이너',family:'visual',effort:'medium',duty:'캐릭터·UI·배경·3D 등 시각 결과의 기획·제작을 담당합니다. 중간 이미지는 필요할 때, 최종 이미지는 자신의 완료 보고에 첨부합니다.'},
- {id:'programmer1',name:'프로그래머 1',family:'balanced',effort:'high',duty:'핵심 로직·데이터 구현을 우선 담당합니다. 프로그래머 2와 독립 파일로 병렬 작업하며 실제 분담은 총괄이 정합니다. 자체 점검 후 QA에 인계합니다.'},
- {id:'programmer2',name:'프로그래머 2',family:'balanced',effort:'high',duty:'화면·상호작용 구현을 우선 담당합니다. 프로그래머 1과 독립 파일로 병렬 작업하며 실제 분담은 총괄이 정합니다. 자체 점검 후 QA에 인계합니다.'},
+ {id:'programmer1',name:'프로그래머 1',family:'balanced',effort:'high',duty:'핵심 로직·데이터 구현을 우선 담당합니다. 실제 분담은 총괄이 정하며 단독 배정이면 순차 수행, 동료가 있으면 독립 파일·의존성에 따라 협업합니다. 자체 점검 후 QA에 인계합니다.'},
+ {id:'programmer2',name:'프로그래머 2',family:'balanced',effort:'high',duty:'화면·상호작용 구현을 우선 담당합니다. 실제 분담은 총괄이 정하며 단독 배정이면 순차 수행, 동료가 있으면 독립 파일·의존성에 따라 협업합니다. 자체 점검 후 QA에 인계합니다.'},
  {id:'qa',name:'QA 담당자',family:'balanced',effort:'high',duty:'독립 테스트 설계·오류 재현·실제 동작·회귀 검증을 담당합니다. 같은 오류의 분석 후 재시도는 한 번까지이며 반복 실패는 총괄에게 보고합니다. 임의 코드 수정은 하지 않습니다.'}
 ];
 function catalog(input=[]){

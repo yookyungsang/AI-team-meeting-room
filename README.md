@@ -65,7 +65,7 @@ A private repository requires GitHub access. Make source changes in this indepen
 
 Selecting a project changes the displayed history and draft; it does not switch the current Codex chat. Open the room in that project's director chat when possible. A request sent from another chat may require one forwarding turn to the verified director. On explicit human request, the director uses `room_members` to add/remove/reactivate participants or change meeting names/roles in the same room. Revision and retry checks protect concurrent edits, while unfinished work, questions, ownership and validation block removal. Existing member IDs retain their chat/host; a replacement chat needs a new member ID. Replacing the director chat still needs a separate room.
 
-Role choices bind **common plus professional guidance**, while Custom binds **common rules plus actual assignment conditions** only. Both programmers use the same kind with distinct names. Saving invokes no AI; the next actual assignment returns short policy references. See the [role guidance map](host-plugin/skills/team-room/references/role-guidance.md).
+Role choices bind **common plus professional guidance**, while Custom binds **common rules plus actual assignment conditions** only. One or multiple programmers use the same kind, with distinct names when there are several. Saving invokes no AI; the next actual assignment returns short policy references. See the [role guidance map](host-plugin/skills/team-room/references/role-guidance.md).
 
 ## Designer collaboration
 
@@ -104,6 +104,8 @@ Apply the rules only to existing connected participants within human-authorized 
 Persist ownership in project instructions. Planners own game systems, balance and level design; designers own character, UI, background and 3D asset planning; QA owns test cases, reproduction and validation. Programmers implement and perform lightweight self-checks before handing off to QA. The director approves, assigns and integrates. Follow the actual team's roles and human overrides.
 
 The [collaboration efficiency rules](docs/collaboration-efficiency.md) give additional detail in Korean. Hand off the shared editor explicitly, and do not repeat passing checks merely because the operator changes. These instructions do not create staff or periodic AI calls.
+
+The programmer policy applies to **one or multiple assigned developers**: sequential implementation/self-checks then QA for one, needed file/dependency splits and integration for multiple. Registered headcount does not require assigning everyone. The default two-programmer setup template is not a collaboration limit. See the [team-size rules](host-plugin/skills/team-room/references/collaboration-policy.md#프로그래머-병렬-협업-전문).
 
 ## Enforced work controls (0.4.0)
 
