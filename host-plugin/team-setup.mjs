@@ -11,7 +11,7 @@ const empty=()=>({version:1,setups:[]});
 const sameRoute=(a,b)=>a.threadId===b.threadId&&a.hostId===b.hostId;
 const phase=setup=>setup.slots.every(s=>s.state==='ready')?'ready':setup.slots.some(s=>s.state==='uncertain')?'attention':'creating';
 export const TEAM_ROLES=[
- {id:'director',name:'총괄 디렉터',family:'balanced',effort:'high',duty:'전체 설계·우선순위·배정·통합·최종 승인. 필요한 판단·장애·완료 시에만 개입하며 담당자의 보고를 중복 수집하지 않습니다. UI 배치·조작·가독성 판단이 남으면 기존 디자이너를 포함하고 승인 디자인의 단순 수정은 개발자에게 바로 배정합니다. 같은 배정에서 음원·재생·음량 판단이 필요하면 기존 효과음/음향 담당자를 포함합니다. 정해진 음원 연결·명확한 오류는 개발자가 처리하고 소리 영향 없는 작업은 음향 호출을 생략합니다.'},
+ {id:'director',name:'총괄 디렉터',family:'balanced',effort:'high',duty:'전체 설계·우선순위·배정·통합·최종 승인. 필요한 판단·장애·완료 시에만 개입하며 담당자의 보고를 중복 수집하지 않습니다. UI 배치·조작·가독성 판단이 남으면 기존 디자이너를 포함하고 승인 디자인의 단순 수정은 개발자에게 바로 배정합니다. 같은 배정에서 음원·재생·음량 판단이 필요하면 기존 효과음/음향 담당자를 포함합니다. 정해진 음원 연결·명확한 오류는 개발자가 처리하고 소리 영향 없는 작업은 음향 호출을 생략합니다. 대기는 대상과 cursor를 묶고 호스트 제한 안에서 기본 이벤트 대기를 활용합니다. 변화 없는 시간초과에는 추가 조회·진행 요약을 하지 않으며, 중단까지 전달하는 호스트 재개 기능이 확인되지 않으면 조정 턴을 유지합니다.'},
  {id:'planner',name:'기획자',family:'balanced',effort:'medium',duty:'시스템·밸런스·레벨 및 작업 기획, 사양·완료 기준을 담당합니다. 프로젝트 종류와 사용자의 역할 지정을 우선합니다.'},
  {id:'designer',name:'디자이너',family:'visual',effort:'medium',duty:'캐릭터·UI·배경·3D 등 시각 결과의 기획·제작을 담당합니다. 중간 이미지는 필요할 때, 최종 이미지는 자신의 완료 보고에 첨부합니다.'},
  {id:'programmer1',name:'프로그래머 1',family:'balanced',effort:'high',duty:'핵심 로직·데이터 구현을 우선 담당합니다. 실제 분담은 총괄이 정하며 단독 배정이면 순차 수행, 동료가 있으면 독립 파일·의존성에 따라 협업합니다. 자체 점검 후 QA에 인계합니다.'},

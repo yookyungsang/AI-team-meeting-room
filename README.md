@@ -101,6 +101,8 @@ The UI loads and enlarges images without extra AI calls. Source paths and image 
 
 ## Roles and validation
 
+[Completion/problem-focused waiting](host-plugin/skills/team-room/references/event-waiting.md) batches active targets, retains cursors and uses supported default event waits within actual host limits. Unchanged timeouts need no extra chat/roster/state reads or progress summaries; ordinary progress does not duplicate native notifications. Review only completion, failure, blocking decisions or human changes. This local integration retains active orchestration because it does not add automatic restart for every unexpected interruption. Zero usage or a savings percentage is not promised.
+
 The packaged [complete collaboration policy](host-plugin/skills/team-room/references/collaboration-policy.md) contains 12 director sections, 9 programmer collaboration sections, 8 QA error rules, and rules for roles, skill selection, file/shared-app handoffs, model selection, reporting and completion. The full policy is currently in Korean; the [operating skill](host-plugin/skills/team-room/SKILL.md) also summarizes the main rules in English. Neither requires another project's source directory or roster.
 
 Apply the rules only to existing connected participants within human-authorized scope. Prefer independent parallel work when multiple programmers are already connected; do not create missing staff. Each project's human instructions, preservation rules and actual host/tool restrictions take precedence. Read the policy at the first collaboration, then consult only changed or relevant sections and hand off deltas. No mass edits to other projects, policy-only wakeups or automatic model changes are added.

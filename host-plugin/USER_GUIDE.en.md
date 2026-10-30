@@ -6,7 +6,7 @@
 
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.9.3. You can use the plugin across projects, with separate connections and records for each. The current meeting UI uses Korean labels; reports follow the user's requested or established conversation language. This guide includes the Korean control labels so you can find them; it does not add automatic UI translation or language switching to the app.
+This guide describes version 0.9.4. You can use the plugin across projects, with separate connections and records for each. The current meeting UI uses Korean labels; reports follow the user's requested or established conversation language. This guide includes the Korean control labels so you can find them; it does not add automatic UI translation or language switching to the app.
 
 ## Get started
 
@@ -147,6 +147,12 @@ The [complete collaboration policy](skills/team-room/references/collaboration-po
 - Reduce duplicate assignments, repeated analysis and unnecessary status requests or reports. This does not reduce authorized work or required validation.
 
 Apply these rules only to actual connected participants within human-authorized scope. Project-specific roles, data preservation rules and host/tool restrictions take precedence. Model-selection guidance applies only when the tools and authorization permit it; the plugin does not automatically change chat models.
+
+## Reduce repeated waits and reads
+
+The director reviews content for **completion, failure, blocking questions or new human instructions**. Batch active participants into one event wait with current cursors and remove completed targets. Use the supported host default within current responsiveness/execution limits instead of imposing short fixed intervals. Unchanged timeouts require no extra chat, roster or room-state reads, progress summaries or progress questions. Participants keep ordinary progress in the room and do not duplicate a native completion event with another notification.
+
+**This local integration does not add automatic restart of a finished director for every completion or unexpected interruption.** Without verified host coverage for both, ending orchestration can lose a crashed participant, so retain active event waiting. Normal wait/instruction usage remains; zero usage or a savings percentage is not promised. File protection, independent QA, required final attachments and human additions still apply. See [completion/problem-focused waiting](skills/team-room/references/event-waiting.md).
 
 ## When UI work includes a designer
 
