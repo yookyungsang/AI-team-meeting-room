@@ -127,7 +127,7 @@ export class RoomStore {
   });
  }
  post(args){
-  const {requestId,memberId,text,details,sourceTurnId,sourceMessageId,kind,toMemberId,replyTo,messageKey}=args;
+  const {requestId,memberId,text,details,sourceTurnId,sourceMessageId,kind,toMemberId,replyTo,messageKey,notifyDirector}=args;
   const member=source(this.members,args);
   validateDetails(details);
   const imageInput=this.images.input(args.images);
@@ -137,14 +137,16 @@ export class RoomStore {
   assert(kinds.has(kind),'발언 종류가 올바르지 않습니다.');
   assert(toMemberId===undefined||this.members.some(m=>m.id===toMemberId),'대상은 이 프로젝트에 연결한 담당자여야 합니다.');
   assert(kind!=='question'||(toMemberId&&toMemberId!==memberId),'질문에는 다른 담당자를 지정해 주세요.');
-  return this.change(state=>{
+  assert(notifyDirector===undefined||typeof notifyDirector==='boolean','총괄 알림 여부는 참 또는 거짓이어야 합니다.');
+  assert(!notifyDirector||memberId!=='director'&&['question','blocker'].includes(kind),'총괄 알림은 담당자의 실제 진행 장애 질문·문제에만 지정해 주세요.');
+  const result=this.change(state=>{
    const request=state.requests.find(r=>r.id===requestId);assert(request,'회의 요청을 찾을 수 없습니다.');
    const parent=replyTo===undefined?null:state.messages.find(m=>m.id===replyTo&&m.requestId===requestId);
    assert(replyTo===undefined||parent,'같은 요청의 실제 발언에만 답변할 수 있습니다.');
    if(kind==='answer')assert(parent&&parent.kind==='question'&&parent.toMemberId===memberId&&toMemberId===parent.authorId,'질문 대상이 원래 질문자에게 답해야 합니다.');
    assert(request.jobs.some(j=>j.memberId===memberId)||parent?.toMemberId===memberId,'배정받거나 질문받은 담당자만 기록할 수 있습니다.');
    const old=state.messages.find(m=>m.requestId===requestId&&m.authorId===memberId&&(sourceMessageId===undefined?m.messageKey===messageKey:m.sourceMessageId===sourceMessageId&&m.sourceTurnId===sourceTurnId));
-   if(old){assert(old.text===text&&old.details===details&&old.kind===kind&&old.toMemberId===toMemberId&&old.replyTo===replyTo&&old.imageInputKey===imageInput.key&&old.audioInputKey===audioInput.key,'원본 발언은 덮어쓰지 않습니다.');return {created:false,message:old};}
+   if(old){assert(old.text===text&&old.details===details&&old.kind===kind&&old.toMemberId===toMemberId&&old.replyTo===replyTo&&old.imageInputKey===imageInput.key&&old.audioInputKey===audioInput.key&&!!old.notifyDirector===!!notifyDirector,'원본 발언은 덮어쓰지 않습니다.');return {created:false,message:old};}
    assert(!['completed','failed'].includes(request.status),'끝난 회의 요청에 발언을 추가하지 않습니다.');
    assert(this.project.members.some(m=>m.id===memberId),'제외된 담당자는 새 발언을 기록하지 않습니다.');
    if(toMemberId)assert(this.project.members.some(m=>m.id===toMemberId),'제외된 담당자에게 새 발언을 전달하지 않습니다.');
@@ -153,8 +155,18 @@ export class RoomStore {
    const stagedAudio=this.audio.stage(audioInput.items);
    if(imageInput.items.length){message.images=this.images.capture(imageInput.items);message.imageInputKey=imageInput.key;}
    if(stagedAudio.length){message.audio=this.audio.save(stagedAudio);message.audioInputKey=audioInput.key;}
+   if(notifyDirector)message.notifyDirector=true;
    state.messages.push(message);this.update(request,state);return {created:true,message};
   });
+  if(!notifyDirector)return result;
+  const directorNotice={dispatch:result.created,messageId:result.message.id};
+  if(result.created){
+   const director=this.project.members.find(m=>m.id==='director');
+   directorNotice.member={id:director.id,threadId:director.threadId,hostId:director.hostId};
+   const excerpt=Array.from(text.replace(/\s+/g,' ').trim());
+   directorNotice.prompt=`[TEAM-ROOM-ALERT ${this.project.id} ${requestId} ${result.message.id}]\n${member.name}: ${excerpt.slice(0,160).join('')}${excerpt.length>160?'…':''}\n진행을 막는 질문·문제입니다. room_get(readerId=director, refreshReason=decision)으로 이 요청의 원문·대상을 확인해 필요한 판단만 처리하세요. 원래 작업을 재시작하거나 중복 배정하지 마세요.`;
+  }
+  return {...result,directorNotice};
  }
  reply({requestId,memberId,text,details,sourceThreadId,sourceTurnId,sourceMessageId,images,audio}){
   source(this.members,{memberId,text,sourceThreadId,sourceTurnId,sourceMessageId});

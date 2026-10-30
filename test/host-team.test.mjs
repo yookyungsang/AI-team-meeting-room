@@ -41,7 +41,7 @@ test('explicit model choices are checked and passed exactly; defaults never set 
  const selected=choices().map(c=>c.slotId==='programmer1'?{...c,model:'fixture-balanced',thinking:'high'}:c);approve(f,selected);
  const dev=f.team.claim({...f.scope,slotId:'programmer1'});assert.equal(dev.action.model,'fixture-balanced');assert.equal(dev.action.thinking,'high');
  assert.deepEqual(dev.action.target,{type:'project',projectId:'fixture-native-project',environment:{type:'local'}});
- assert.ok(dev.action.prompt.endsWith(f.plan.brief));assert.match(dev.action.prompt,/프로그래머 2/);assert.match(dev.action.prompt,/아직 구현/);
+ assert.ok(dev.action.prompt.endsWith(f.plan.brief));assert.match(dev.action.prompt,/당신의 역할: 프로그래머 1/);assert.match(dev.action.prompt,/단독 배정이면 순차 수행/);assert.match(dev.action.prompt,/동료가 있으면 독립 파일·의존성에 따라 협업/);assert.match(dev.action.prompt,/아직 구현/);
  const director=f.team.claim({...f.scope,slotId:'director'});assert.equal(Object.hasOwn(director.action,'model'),false);assert.equal(Object.hasOwn(director.action,'thinking'),false);
  assert.throws(()=>approve(f,choices('fixture-balanced')),/승인 후/);assert.equal(approve(f,selected).status,'creating');
 });

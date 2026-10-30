@@ -11,10 +11,12 @@ import {UsageLedger} from './usage.mjs';
 import {workTools} from './work-tools.mjs';
 import {TeamSetup} from './team-setup.mjs';
 import {ROLE_TYPES,roleGuidance} from './roles.mjs';
+import {ReadGate} from './read-gate.mjs';
 
 const root=path.dirname(fileURLToPath(import.meta.url));
 const version=JSON.parse(fs.readFileSync(path.join(root,'plugin.json'),'utf8')).version;
 const projects=new Projects(process.env.TEAM_ROOM_HOME||path.join(os.homedir(),'.codex','team-room'));
+const readGates=new WeakMap();
 const uri='ui://team-room/meeting.html';
 const str={type:'string'},member={type:'string',pattern:'^[a-z][a-z0-9_-]{0,63}$'};
 const schema=(properties={},required=[])=>({type:'object',properties,required,additionalProperties:false});
@@ -59,13 +61,20 @@ TOOLS.push(tool('room_roster','Menu roster editor; no AI/native execution. read 
 TOOLS.push(tool('room_team','Explicit human-requested team setup: director, planner, designer, TWO programmers and QA. Read the team-creation skill reference. Local planning/journal only; never executes chats or AI. Verify the native project/host and available models; show role/model choices for human selection. plan → approve → claim → native create_thread once only if dispatch:true → verify/rename title → record → connect. Unknown creation results require native reconciliation, never recreate. Stored plans never grant native authorization.',schema({projectId:member,setupId:str,operation:{type:'string',enum:['plan','approve','claim','record','block','retry','connect','status']},name:{type:'string',maxLength:120},codexProjectId:str,hostId:str,brief:{type:'string',maxLength:4000},models:{type:'array',maxItems:32,items:schema({id:str,label:str,family:{type:'string',enum:['balanced','visual','deep','light','other']},efforts:{type:'array',maxItems:8,items:str}},['id','label','family','efforts'])},roles:{type:'array',maxItems:6,items:schema({slotId:member,memberId:member,reuseMemberId:member,name:str},['slotId'])},choices:{type:'array',minItems:6,maxItems:6,items:schema({slotId:member,model:str,thinking:str},['slotId','model'])},confirmed:{type:'boolean'},confirmedAbsent:{type:'boolean'},retryId:str,choice:schema({model:str,thinking:str},['model']),slotId:member,attemptId:str,threadId:str,verified:{type:'boolean'},titleVerified:{type:'boolean'},reason:{type:'string',maxLength:1000}},['projectId','setupId','operation']),false));
 function resource(){return {uri,mimeType:'text/html;profile=mcp-app',text:fs.readFileSync(path.join(root,'widget.html'),'utf8'),_meta:{ui:{csp:{connectDomains:[],resourceDomains:[]}},'openai/ui':{availableDisplayModes:['inline','fullscreen'],preferredDisplayMode:'fullscreen'}}};}
 TOOLS.push(...workTools(tool,schema,member,str));
+Object.assign(TOOLS.find(t=>t.name==='room_get').inputSchema.properties,{
+ readerId:{...member,description:'Your configured member ID, a read-cache scope hint only, not authentication. Include it to compact unchanged rapid repeat reads without affecting another participant.'},
+ refreshReason:{type:'string',enum:['decision','recovery','evidence','user_request'],description:'Explicit necessary full reread: a decision, recovery, exact evidence or human request. Bypasses unchanged-response compaction; do not set for routine polling.'}
+});
+TOOLS.find(t=>t.name==='room_get').description+=' Include readerId. An unchanged repeat within 30 seconds returns a compact unchanged:true receipt, not an error. Reuse your prior content; do not retry it in a loop. Changed data and explicit refreshReason always return current content. Legacy calls without identity remain compatible; UI and native chat tools are unaffected.';
+TOOLS.find(t=>t.name==='room_post').inputSchema.properties.notifyDirector={type:'boolean',description:'Only for a participant question/blocker that actually blocks progress. Preserve the original room post and target; return one compact directorNotice on first save. Native delivery still requires verified human authorization.'};
+TOOLS.find(t=>t.name==='room_post').description+=' For a blocking question/blocker use notifyDirector:true. Only directorNotice.dispatch:true permits one authorized native send of its prompt to its configured director. If the question targets that director, this replaces its usual peer send; never send both. Storage retries do not reissue the notice; no automatic send/retry occurs.';
 TOOLS.find(t=>t.name==='room_post').description+=' Retest directives use room_validation(operation="retest") instead: it records resume approvals and the assignment together.';
 TOOLS.find(t=>t.name==='room_validation').annotations.openWorldHint=true;
 TOOLS.find(t=>t.name==='room_claim').description+=' Director: include the existing designer before UI implementation when layout/interaction/readability choices remain; approved-design fixes go straight to developers. Include the existing sound-effects/sound specialist for unresolved audio/playback choices; agreed-asset wiring and clear bugs go straight to developers. Reuse audio/specifications; skip sound-unaffected work. Decide within the original assignment turn, no classifier AI. A new dispatch includes compact guidance refs for the saved roleType under the team-room skill. Read common rules once and only relevant role sections during actual work; custom gets common rules plus assignment conditions. No policy-only wake.';
 TOOLS.find(t=>t.name==='room_claim').description+=' Batch active native waits with current cursors; use supported host defaults within current limits. Unchanged timeouts need no extra status/history reads or progress messages. Keep active orchestration unless verified host events also cover unexpected interruption. See event-waiting.md under the team-room skill references.';
 export function compactResult(name,data){
  if(name==='room_claim')return {dispatch:data.dispatch,request:{id:data.request.id,status:data.request.status},member:data.member,job:data.job,...(data.dispatch&&data.job.roleType?{guidance:roleGuidance(data.job.roleType)}:{})};
- if(name==='room_post')return {created:data.created,message:{id:data.message.id,requestId:data.message.requestId,authorId:data.message.authorId,kind:data.message.kind,...(data.message.images?{images:data.message.images}:{}),...(data.message.audio?{audio:data.message.audio}:{}),...(data.message.toMemberId?{toMemberId:data.message.toMemberId}:{}),...(data.message.replyTo?{replyTo:data.message.replyTo}:{})}};
+ if(name==='room_post')return {created:data.created,message:{id:data.message.id,requestId:data.message.requestId,authorId:data.message.authorId,kind:data.message.kind,...(data.message.images?{images:data.message.images}:{}),...(data.message.audio?{audio:data.message.audio}:{}),...(data.message.toMemberId?{toMemberId:data.message.toMemberId}:{}),...(data.message.replyTo?{replyTo:data.message.replyTo}:{})},...(data.directorNotice?{directorNotice:data.directorNotice}:{})};
  if(name==='room_reply')return {saved:true,messageId:data.id,requestId:data.requestId,memberId:data.authorId,...(data.images?{images:data.images}:{}),...(data.audio?{audio:data.audio}:{})};
  if(name==='room_fail')return {requestId:data.id,status:data.status,jobs:data.jobs.map(({memberId,state,error})=>({memberId,state,...(error?{error}:{})}))};
  return data;
@@ -105,7 +114,11 @@ export function handle(request,registry=projects){
      }
      case 'room_open':case 'room_state':data=snapshot();break;
      case 'room_submit':data=store.submit(args);data.state=snapshot();break;
-     case 'room_get':data=store.get(args.requestId,args);break;
+     case 'room_get':{
+      data=store.get(args.requestId,args);
+      if(!readGates.has(registry))readGates.set(registry,new ReadGate());
+      data=readGates.get(registry).read(data,args,store.members);break;
+     }
      case 'room_claim':data=store.claim(args);break;
      case 'room_post':data=store.post(args);break;
      case 'room_reply':control.assertCompletable(args);data=store.reply(args);break;
