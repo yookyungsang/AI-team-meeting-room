@@ -27,10 +27,6 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-    env:
-      TEAM_ROOM_HOME: ${{ runner.temp }}/team-room-runtime
-      TEMP: ${{ runner.temp }}
-      TMP: ${{ runner.temp }}
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -44,4 +40,8 @@ jobs:
       - name: Check manifests, release version and document links
         run: npm run check:package
       - name: Run isolated regression tests
+        env:
+          TEAM_ROOM_HOME: ${{ runner.temp }}/team-room-runtime
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
         run: npm test
