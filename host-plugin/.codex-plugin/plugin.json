@@ -1,6 +1,6 @@
 {
   "name": "jyfood-room",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "description": "Project-scoped meeting UI for existing chats. Explicit send only; no idle model invocation.",
   "author": {
     "name": "yookyungsang"

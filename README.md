@@ -79,6 +79,8 @@ The [detailed designer workflow](host-plugin/skills/team-room/references/design-
 
 ## Sound collaboration and audio preview
 
+Within the original assignment turn, the director applies the [sound-decision criteria](host-plugin/skills/team-room/references/collaboration-policy.md#음향-판단과-단순-연결오류-수정의-배정-기준). Include the existing sound specialist, including the sound-effects role, for unresolved asset or playback/volume choices. Developers handle agreed-asset wiring and clear bugs directly; changes with no sound impact need no sound assignment. Reuse existing assets/specifications. No classifier AI, periodic calls or mandatory new production is added.
+
 The [sound collaboration rules](host-plugin/skills/team-room/references/sound-collaboration.md) separate sound production, game integration and independent QA. [Audio attachments and preview](host-plugin/USER_GUIDE.en.md#attach-and-preview-audio) support up to 3 local WAV/MP3/OGG files per post, 8 MiB each. Cards appear outside folded details and load only when clicked. Playback invokes no AI and audio bytes stay out of model context. Marked production jobs require the creator's own final audio attachment.
 
 ## New staff teams and model selection

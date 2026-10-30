@@ -6,7 +6,7 @@
 
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.9.2. You can use the plugin across projects, with separate connections and records for each. The current meeting UI uses Korean labels; reports follow the user's requested or established conversation language. This guide includes the Korean control labels so you can find them; it does not add automatic UI translation or language switching to the app.
+This guide describes version 0.9.3. You can use the plugin across projects, with separate connections and records for each. The current meeting UI uses Korean labels; reports follow the user's requested or established conversation language. This guide includes the Korean control labels so you can find them; it does not add automatic UI translation or language switching to the app.
 
 ## Get started
 
@@ -155,6 +155,18 @@ In the initial assignment turn, the director checks whether layout, interaction,
 Independent logic can proceed alongside design review; recurring meetings or new mockup images are not mandatory. Missing design staff/access is disclosed instead of creating a chat or pretending review occurred. An omission during ongoing work is handled as a scoped delta without restarting the original job. Developer self-checks and independent QA still validate actual screens/behavior.
 
 These are director assignment instructions, not server-side text classification or automatic dispatch. No separate classifier AI or periodic checks are added; necessary designer work and instruction reading still have normal usage. See the [assignment criteria](skills/team-room/references/collaboration-policy.md#ui-디자인-판단과-단순-수정의-배정-기준) (Korean).
+
+## When work includes a sound specialist
+
+The director considers sound feedback and unresolved sound choices in the original assignment turn. **The existing sound-effects role counts as a sound specialist.** You need not list every participant in each request.
+
+- **Include the specialist:** asset selection/production or decisions about playback timing, looping, stopping, volume or overlap remain.
+- **Assign developers directly:** wire agreed assets/specifications or fix bugs with clear causes and expected behavior.
+- **Skip the sound assignment:** text, calculation or screen changes have no sound impact. New features do not automatically require sound.
+
+Reuse existing audio/specifications and batch only needed decisions. Independent development continues; specification-only reviews need no new audio. Disclose missing staff/access. If an omission emerges during work, hand off only remaining decisions without restarting or duplicating the original work. Production, integration, actual listening/independent QA and the creator's final-audio requirement remain distinct.
+
+The [sound assignment criteria](skills/team-room/references/collaboration-policy.md#음향-판단과-단순-연결오류-수정의-배정-기준) are director instructions, not a server classifier or automatic dispatch. No extra classification AI or periodic calls are added. Necessary review/production and instructions have normal usage; generation tools remain subject to existing authorization.
 
 ## Request QA revalidation
 
