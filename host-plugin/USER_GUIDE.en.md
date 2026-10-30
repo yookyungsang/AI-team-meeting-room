@@ -6,7 +6,7 @@
 
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.12.1. You can use the plugin across projects, with separate connections and records for each. The current meeting UI uses Korean labels; reports follow the user's requested or established conversation language. This guide includes the Korean control labels so you can find them; it does not add automatic UI translation or language switching to the app.
+This guide describes version 0.13.0. You can use the plugin across projects, with separate connections and records for each. The current meeting UI uses Korean labels; reports follow the user's requested or established conversation language. This guide includes the Korean control labels so you can find them; it does not add automatic UI translation or language switching to the app.
 
 ## Get started
 
@@ -113,9 +113,20 @@ The main view contains the meeting conversation and input field. Open **메뉴**
 | 요청 처리 기록 | User requests, recipients, processing state and work status |
 | 작업 보호와 검증 | File/Editor ownership, handoff records and validation verdicts |
 | 완료 작업의 담당자별 사용량 | Completed-task usage by participant, measured subtotal and coverage limits |
+| 회의실 삭제 / 삭제된 회의실 | Confirm deletion, remove from active list with retained records, restore original room |
 | 사용 방법과 사용량 안내 | Routing, additions, images and AI usage information |
 
 If a delivery needs attention, the menu button shows **전송 확인 필요** (Delivery needs checking). Close the menu with its close button or Escape.
+
+## Delete and restore a room
+
+1. Select the intended project, then choose **메뉴 → 회의실 삭제** (Delete room).
+2. Review the project name and retained-record counts. Choose **삭제하고 보관** (Delete and retain) or **취소** (Cancel).
+3. The room leaves the active picker. Choose **메뉴 → 삭제된 회의실 → 복구** (Deleted rooms → Restore) to bring it back.
+
+This is recoverable deletion, not permanent erasure or disk cleanup. Native Codex chats and project files stay; transcripts, images, audio and original membership are retained. Unfinished requests, unanswered questions, ownership, validation and team setup block deletion. Unregistered native/external work cannot be detected or stopped by the plugin.
+
+Delete/restore invokes no AI and never restarts work or wakes staff. Uncertain responses are not retried automatically: explicitly check the identical operation or refresh the deleted-room list. See [scope, receipts and compatibility](skills/team-room/references/room-lifecycle.md).
 
 ## Understand delivery status
 

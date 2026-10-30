@@ -110,7 +110,7 @@ test('MCP retest needs explicit project and director identity, and missing run k
  const f=fixture(t),id=checked(f,'case'),call=args=>handle({method:'tools/call',params:{name:'room_validation',arguments:args}},f.registry);
  assert.equal(call(order(f,[id])).isError,true);assert.equal(call({...order(f,[id]),projectId:'example',memberId:'qa'}).isError,true);
  const result=call({...order(f,[id]),projectId:'example'});assert.equal(result.structuredContent.dispatch,true);assert.equal(result.structuredContent.cases[0].caseId,id);
- assert.equal(TOOLS.length,20);assert(TOOLS.find(t=>t.name==='room_validation').inputSchema.properties.operation.enum.includes('retest'));
+ assert.equal(TOOLS.length,21);assert(TOOLS.find(t=>t.name==='room_validation').inputSchema.properties.operation.enum.includes('retest'));
  for(const key of [undefined,'','bad key','한글','a'.repeat(121)])assert.throws(()=>f.v.begin({...f.actor('qa'),caseId:id,key}),/새 검증 실행에는 새 key/);
  assert.equal(f.control.state().cases[id].attempts.length,1);
 });

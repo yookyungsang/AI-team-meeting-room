@@ -52,7 +52,7 @@ export class WorkControl{
  get project(){return this.store.project;}
  read(){return fs.existsSync(this.file)?JSON.parse(fs.readFileSync(this.file,'utf8')):empty();}
  state(document=this.read()){return document.projects[this.project.id]||projectState();}
- change(action){return transaction(this.file,empty,document=>{document.projects[this.project.id]??=projectState();return action(this.state(document),document);});}
+ change(action){return transaction(this.file,empty,document=>{check(!this.project.archivedAt,'삭제된 회의실은 복구한 뒤 작업 제어를 변경해 주세요.');document.projects[this.project.id]??=projectState();return action(this.state(document),document);});}
  actor(args,{director=false,active=true}={}){
   const member=this.store.members.find(m=>m.id===args.memberId);check(member,'이 프로젝트의 기존 담당자가 필요합니다.');
   if(director)check(member.id==='director','총괄만 이 작업을 승인할 수 있습니다.');

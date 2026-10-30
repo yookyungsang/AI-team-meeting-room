@@ -45,6 +45,7 @@ export class RoomStore {
  constructor(file,project,resolveProject=()=>project){this.file=path.resolve(file);this.lock=this.file+'.lock';this.resolveProject=resolveProject;this.images=new RoomImages(this.file+'.images');this.audio=new RoomAudio(this.file+'.audio');}
  get project(){return this.resolveProject();}
  get members(){return knownMembers(this.project);}
+ active(){assert(!this.project.archivedAt,'삭제된 회의실은 복구한 뒤 새 작업을 진행해 주세요.');}
  read(){return fs.existsSync(this.file)?JSON.parse(fs.readFileSync(this.file,'utf8')):empty();}
  snapshot(){const state=this.read(),project=this.project;return {...state,messages:state.messages.map(m=>publicMessage(m,project.legacyMembers)),members:project.members,...(project.retiredMembers?.length?{formerMembers:project.retiredMembers.map(({id,name,role})=>({id,name,role}))}:{}),project:{id:project.id,name:project.name,workspacePath:project.workspacePath,revision:project.revision||1},mode:'host-relay'};}
  change(action){
@@ -64,6 +65,7 @@ export class RoomStore {
   const request=this.change(state=>{
    const old=state.requests.find(r=>r.id===id);
    if(old){const sameText=old.text===text||(!old.textVerbatim&&old.text===text.trim());assert(sameText&&old.followUpTo===followUpTo&&JSON.stringify(old.recipients)===JSON.stringify(selected),'같은 ID로 다른 요청을 보낼 수 없습니다.');return old;}
+   this.active();
    assert(selected.length===1&&selected[0]==='director','사용자 요청은 총괄 디렉터에게 전달합니다.');
    assert(!state.paused,'새 요청 접수가 일시정지되어 있습니다.');
    const parent=followUpTo===undefined?null:state.requests.find(r=>r.id===followUpTo);
@@ -106,6 +108,7 @@ export class RoomStore {
    const existing=state.requests.find(r=>r.id===requestId);
    assert(existing&&this.members.some(m=>m.id===memberId),'기존 회의 요청과 담당자가 필요합니다.');
    if(!existing.jobs.some(j=>j.memberId===memberId)){
+    this.active();
     assert(this.project.members.some(m=>m.id===memberId),'현재 회의실에 연결된 담당자에게만 새 작업을 배정합니다.');
     assert(!['completed','failed'].includes(existing.status),'끝난 요청에 새 작업을 배정하지 않습니다.');
     assert(!state.paused,'새 전달이 일시정지되어 있습니다.');
@@ -120,6 +123,7 @@ export class RoomStore {
    assert(!(job.requireFinalAudio&&requireFinalAudio===false),'이미 지정한 완료 음원 조건을 해제하지 않습니다.');
    if(requireFinalAudio&&!job.requireFinalAudio){assert(['pending','reserved'].includes(job.state),'끝난 작업의 완료 조건은 바꾸지 않습니다.');job.requireFinalAudio=true;}
    if(job.state!=='pending')return {dispatch:false,request,member,job};
+   this.active();
    assert(this.project.members.some(m=>m.id===memberId),'제외된 담당자에게 새 작업을 전달하지 않습니다.');
    assert(!state.paused,'새 전달이 일시정지되어 있습니다.');
    job.state='reserved';job.roleType=roleTypeOf(member);job.claimedAt=stamp();job.marker=`TEAM-ROOM ${this.project.id}/${requestId}/${memberId}`;request.status='processing';
@@ -147,6 +151,7 @@ export class RoomStore {
    assert(request.jobs.some(j=>j.memberId===memberId)||parent?.toMemberId===memberId,'배정받거나 질문받은 담당자만 기록할 수 있습니다.');
    const old=state.messages.find(m=>m.requestId===requestId&&m.authorId===memberId&&(sourceMessageId===undefined?m.messageKey===messageKey:m.sourceMessageId===sourceMessageId&&m.sourceTurnId===sourceTurnId));
    if(old){assert(old.text===text&&old.details===details&&old.kind===kind&&old.toMemberId===toMemberId&&old.replyTo===replyTo&&old.imageInputKey===imageInput.key&&old.audioInputKey===audioInput.key&&!!old.notifyDirector===!!notifyDirector,'원본 발언은 덮어쓰지 않습니다.');return {created:false,message:old};}
+   this.active();
    assert(!['completed','failed'].includes(request.status),'끝난 회의 요청에 발언을 추가하지 않습니다.');
    assert(this.project.members.some(m=>m.id===memberId),'제외된 담당자는 새 발언을 기록하지 않습니다.');
    if(toMemberId)assert(this.project.members.some(m=>m.id===toMemberId),'제외된 담당자에게 새 발언을 전달하지 않습니다.');
@@ -177,6 +182,7 @@ export class RoomStore {
    const {request,member,job}=this.find(state,requestId,memberId);
    const old=state.messages.find(m=>m.requestId===requestId&&m.authorId===memberId&&(!m.kind||m.kind==='final'));
    if(old){assert(old.text===text&&old.details===details&&old.sourceTurnId===sourceTurnId&&old.sourceMessageId===sourceMessageId&&old.imageInputKey===imageInput.key&&old.audioInputKey===audioInput.key,'이미 기록한 답변은 덮어쓰지 않습니다.');return old;}
+   this.active();
    assert(job.state==='reserved','먼저 요청을 확인하고 전달을 예약해야 합니다.');
    assert(!job.requireFinalImage||imageInput.items.length>0,'이미지 작업 담당자가 자신의 완료 보고에 실제 최종 이미지를 첨부해야 합니다. 중간 이미지만으로 완료 처리하지 않습니다.');
    assert(!job.requireFinalAudio||audioInput.items.length>0,'음원 제작 담당자가 자신의 완료 보고에 실제 최종 음원을 첨부해야 합니다.');
@@ -194,7 +200,7 @@ export class RoomStore {
  }
  fail({requestId,memberId,reason}){
   assert(typeof reason==='string'&&reason.trim()&&reason.length<=1000,'실패 이유가 필요합니다.');
-  return this.change(state=>{const {request,job}=this.find(state,requestId,memberId);assert(!['completed','superseded'].includes(job.state),'완료하거나 인계한 답변은 변경하지 않습니다.');if(job.state==='failed'){assert(job.error===reason,'기존 실패 기록은 덮어쓰지 않습니다.');return request;}job.state='failed';job.failedAt=stamp();job.error=reason;this.update(request,state);return request;});
+  return this.change(state=>{const {request,job}=this.find(state,requestId,memberId);assert(!['completed','superseded'].includes(job.state),'완료하거나 인계한 답변은 변경하지 않습니다.');if(job.state==='failed'){assert(job.error===reason,'기존 실패 기록은 덮어쓰지 않습니다.');return request;}this.active();job.state='failed';job.failedAt=stamp();job.error=reason;this.update(request,state);return request;});
  }
  update(request,state){
   const openQuestions=state.messages.filter(m=>m.requestId===request.id&&m.kind==='question'&&!state.messages.some(a=>a.requestId===request.id&&a.kind==='answer'&&a.replyTo===m.id));
@@ -204,5 +210,5 @@ export class RoomStore {
   request.status=openQuestions.length||request.openFollowUpCount?'processing':request.jobs.every(j=>['completed','superseded'].includes(j.state))&&followUps.every(r=>r.status==='completed')?'completed':request.jobs.every(j=>['completed','failed','superseded'].includes(j.state))?'failed':'processing';
   if(request.followUpTo){const parent=state.requests.find(r=>r.id===request.followUpTo);if(parent)this.update(parent,state);}
  }
- pause(paused){assert(typeof paused==='boolean','일시정지 값이 올바르지 않습니다.');this.change(state=>{state.paused=paused;});return this.snapshot();}
+ pause(paused){assert(typeof paused==='boolean','일시정지 값이 올바르지 않습니다.');this.change(state=>{this.active();state.paused=paused;});return this.snapshot();}
 }

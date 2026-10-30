@@ -21,7 +21,8 @@ export class MenuTeam{
   return context;
  }
  unconnected(threadId){
-  check(this.registry.opening(threadId).status==='unregistered','이미 연결된 회의실이 있거나 소속을 확인할 수 없습니다. 기존 회의실의 구성원 편집을 이용해 주세요.');
+  const opening=this.registry.opening(threadId);check(opening.status!=='deleted','삭제된 회의실이 있습니다. 메뉴의 삭제된 회의실에서 복구해 주세요.');
+  check(opening.status==='unregistered','이미 연결된 회의실이 있거나 소속을 확인할 수 없습니다. 기존 회의실의 구성원 편집을 이용해 주세요.');
  }
  otherSetup(context,setupId){return this.team.read().setups.find(s=>s.id!==setupId&&context.nativeProjectIds.includes(s.codexProjectId)&&s.hostId==='local');}
  view(row){return {previewId:row.id,projectId:row.projectId,setupId:row.setupId,projectName:row.context.name,status:row.status,roles:roleModels(row.choices||defaultChoices()),modelMode:row.choices?'role-preset':'default'};}

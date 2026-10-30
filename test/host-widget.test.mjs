@@ -23,7 +23,7 @@ class Element {
  set innerHTML(value){throw new Error('unsafe HTML rendering');}
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
-async function widget(t,{capability={},messageFails=false,autoSelect=true,deferMessages=false,holdSubmit=false,holdImages=false,badImage=false,holdAudio=false,badAudio=false,holdRoster=null,rosterError=null,currentProject=null,openingStatus='unavailable',holdOpening=false,initialInput,holdTeam=null,teamStatus='preview'}={}){
+async function widget(t,{capability={},messageFails=false,autoSelect=true,deferMessages=false,holdSubmit=false,holdImages=false,badImage=false,holdAudio=false,badAudio=false,holdRoster=null,rosterError=null,currentProject=null,openingStatus='unavailable',holdOpening=false,initialInput,holdTeam=null,teamStatus='preview',holdManage=null,busyRoom=false}={}){
  const elements=new Map(),sent=[],callbacks={},intervals=[],messagePackets=[],imagePackets=[],audioPackets=[],openingPackets=[],teamPackets=[],timeouts=new Map();let timeoutSeq=0;
  const teamData={previewId:randomUUID(),setupId:randomUUID(),projectId:'created',projectName:'가상 새 프로젝트',status:teamStatus,roles:TEAM_ROLES.map(r=>({id:r.id,name:r.name})),modelMode:'default'};
  const projects=[{id:'test',name:'Test',directorName:'테스트 총괄'},{id:'second',name:'Second',directorName:'다른 총괄'}];
@@ -31,6 +31,7 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
  const second={project:{id:'second',name:'Second'},projects,members:[{id:'director',name:'다른 총괄',role:'리더'},{id:'writer',name:'작가',role:'작가'}],requests:[],messages:[],paused:false};
  const states=new Map([['test',state],['second',second]]);
  const chooser={project:null,projects,members:[],requests:[],messages:[],paused:true};
+ const managePackets=[],archived=new Set(),manageBehavior={hold:holdManage};
  const rosterPackets=[],rosterBehavior={hold:holdRoster,error:rosterError},rosterChanges=new Map();
  const catalogs=new Map([...states].map(([id,room])=>[id,{projectId:id,revision:1,optionsRevision:1,members:room.members.map(m=>({...m})),choices:[...room.members.map(m=>({...m})),{id:'designer',name:'선택 디자이너',role:'디자이너'}]}]));
  for(const data of catalogs.values()){data.roles=roleCatalog();data.members=data.members.map(m=>({...m,roleType:roleTypeOf(m)}));data.choices=data.choices.map(m=>({...m,roleType:roleTypeOf(m)}));}
@@ -40,6 +41,13 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
   if(packet.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostCapabilities:{message:{text:capability},experimental:{'openai/message':{}}}};
   if(packet.method==='tools/call'){
    const {name,arguments:args}=packet.params;
+   if(name==='room_manage'){
+    managePackets.push(packet);const room=states.get(args.projectId);
+    if(args.operation==='preview_delete')result={structuredContent:{projectId:args.projectId,name:room.project.name,revision:1,canDelete:!busyRoom,reasons:busyRoom?['진행 중인 요청 1건']:[],counts:{members:room.members.length,requests:room.requests.length,messages:room.messages.length,images:0,audio:0}}};
+    else if(args.operation==='list_deleted')result={structuredContent:{rooms:[...archived].map(id=>({id,name:states.get(id).project.name,revision:2,archivedAt:'2026-01-01T00:00:00Z'}))}};
+    else{if(args.operation==='delete')archived.add(args.projectId);else archived.delete(args.projectId);chooser.projects=projects.filter(p=>!archived.has(p.id));for(const data of states.values())data.projects=chooser.projects;result={structuredContent:{projectId:args.projectId,archived:archived.has(args.projectId)}};}
+    if(manageBehavior.hold===args.operation)return;
+   }
    if(name==='room_team_setup'){
     teamPackets.push(packet);if(args.operation==='apply')teamData.status='requested';
     result={structuredContent:{...teamData,...(args.operation==='apply'?{dispatch:true,prompt:'Synthetic human-confirmed team creation request'}:{})}};
@@ -52,7 +60,7 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
     if(rosterBehavior.hold===args.operation)return;
    }
    if(name==='room_state'){
-    result={structuredContent:args.projectId?states.get(args.projectId):args.resolveCurrent&&currentProject?states.get(currentProject):{...chooser,...(args.resolveCurrent?{opening:{status:openingStatus}}:{})}};
+    result={structuredContent:args.projectId?(archived.has(args.projectId)?{...chooser,deletedProjectId:args.projectId,opening:{status:'deleted'}}:states.get(args.projectId)):args.resolveCurrent&&currentProject?states.get(currentProject):{...chooser,...(args.resolveCurrent?{opening:{status:openingStatus}}:{})}};
     if(args.resolveCurrent){openingPackets.push(packet);if(holdOpening)return;}
    }
    if(name==='room_image'){
@@ -78,8 +86,34 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
  const receive=data=>callbacks.message({source:parent,data:{jsonrpc:'2.0',...data}});
  const respondMessage=(index,result={})=>receive({id:messagePackets[index].id,result});
  const expire=()=>{for(const [id,fn] of [...timeouts]){timeouts.delete(id);fn();}};
- return {rosterPackets,rosterBehavior,catalogs,sent,elements,state,second,states,chooser,notify,callbacks,intervals,document,styles,receive,window,messagePackets,imagePackets,audioPackets,openingPackets,teamPackets,teamData,respondMessage,expire};
+ return {rosterPackets,rosterBehavior,catalogs,sent,elements,state,second,states,chooser,notify,callbacks,intervals,document,styles,receive,window,messagePackets,imagePackets,audioPackets,openingPackets,teamPackets,teamData,respondMessage,expire,managePackets,manageBehavior,archived};
 }
+
+async function previewDelete(w){w.elements.get('open-menu').events.click();await w.elements.get('delete-room').events.click();}
+test('room deletion previews scope, cancels without mutation and blocks busy rooms without AI',async t=>{
+ for(const busyRoom of [false,true]){const w=await widget(t,{busyRoom});await previewDelete(w);assert.match(w.elements.get('room-delete-summary').textContent,/Test/);assert.equal(w.elements.get('room-delete-apply').disabled,busyRoom);if(busyRoom){assert.match(w.elements.get('room-delete-blockers').textContent,/진행 중인 요청/);await w.elements.get('room-delete-apply').events.click();}w.elements.get('room-delete-cancel').events.click();assert.equal(w.elements.get('room-delete').hidden,true);assert.deepEqual(w.managePackets.map(p=>p.params.arguments.operation),['preview_delete']);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);}
+});
+test('explicit delete hides the room and restore reselects its original history without AI',async t=>{
+ const w=await widget(t);w.state.messages.push({id:'history',authorId:'director',text:'기존 기록'});await previewDelete(w);await w.elements.get('room-delete-apply').events.click();assert.equal(w.elements.get('project').value,'');assert.equal(w.archived.has('test'),true);const row=w.elements.get('deleted-rooms-list').children[0];await row.children[1].events.click();assert.equal(w.elements.get('project').value,'test');assert.equal(w.archived.size,0);assert.equal(w.state.messages[0].text,'기존 기록');assert.equal(w.managePackets.filter(p=>p.params.arguments.operation==='delete').length,1);assert.equal(w.managePackets.filter(p=>p.params.arguments.operation==='restore').length,1);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+});
+test('late deletion results after closing, switching, hiding or teardown cannot select or dispatch',async t=>{
+ for(const action of ['close','switch','hide','teardown']){const w=await widget(t,{holdManage:'delete'});await previewDelete(w);const pending=w.elements.get('room-delete-apply').events.click();await settle();const packet=w.managePackets.at(-1);
+ if(action==='close')w.elements.get('close-menu').events.click();if(action==='switch'){w.elements.get('project').value='second';await w.elements.get('project').events.change();}if(action==='hide'){w.document.hidden=true;w.callbacks.visibilitychange();}if(action==='teardown')w.callbacks.pagehide();
+ const before=w.sent.length;w.receive({id:packet.id,result:{structuredContent:{projectId:'test',archived:true}}});await pending;assert.equal(w.sent.length,before,action);assert.equal(w.elements.get('deleted-rooms').open,false);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);}
+});
+test('uncertain deletion retries the exact confirmed operation only on another explicit click',async t=>{
+ const w=await widget(t,{holdManage:'delete'});await previewDelete(w);const first=w.elements.get('room-delete-apply').events.click();await settle();w.expire();await first;const packet=w.managePackets.at(-1);assert.match(w.elements.get('room-delete-status').textContent,/자동 재시도/);assert.equal(w.managePackets.filter(p=>p.params.arguments.operation==='delete').length,1);w.manageBehavior.hold=null;await w.elements.get('room-delete-apply').events.click();const retries=w.managePackets.filter(p=>p.params.arguments.operation==='delete');assert.deepEqual(retries[0].params.arguments,retries[1].params.arguments);assert.equal(retries[0],packet);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+});
+test('restoration preserves another selected room and ignores late results after panel invalidation',async t=>{
+ for(const action of ['keep','close','switch','hide','teardown']){
+  const w=await widget(t,{holdManage:action==='keep'?null:'restore'});w.archived.add('second');w.elements.get('open-menu').events.click();w.elements.get('deleted-rooms').open=true;await w.elements.get('deleted-rooms').events.toggle();await settle();const button=w.elements.get('deleted-rooms-list').children[0].children[1],pending=button.events.click();await settle();
+  if(action==='keep'){await pending;assert.equal(w.elements.get('project').value,'test');continue;}
+  const packet=w.managePackets.at(-1);if(action==='close')w.elements.get('close-menu').events.click();if(action==='switch'){w.elements.get('project').value='';await w.elements.get('project').events.change();}if(action==='hide'){w.document.hidden=true;w.callbacks.visibilitychange();}if(action==='teardown')w.callbacks.pagehide();const before=w.sent.length;w.receive({id:packet.id,result:{structuredContent:{projectId:'second',archived:false}}});await pending;assert.equal(w.sent.length,before,action);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+ }
+});
+test('an archived state clears selection and cannot be undone by a late historical snapshot',async t=>{
+ const w=await widget(t);w.notify({...w.chooser,deletedProjectId:'test',opening:{status:'deleted'}});assert.equal(w.elements.get('project').value,'');assert.equal(w.elements.get('send').disabled,true);w.notify(w.state);assert.equal(w.elements.get('project').value,'');assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+});
 
 async function explainTeam(w){w.elements.get('open-menu').events.click();await w.elements.get('create-team').events.click();}
 test('new-project menu explains six roles and defaults before an explicit apply, while cancel invokes no AI',async t=>{

@@ -56,6 +56,8 @@ The display name in Codex is **팀 회의실** (Team Meeting Room), and the MCP 
 
 A private repository requires GitHub access. Make source changes in this independent repository, update the version when releasing a plugin change, and reinstall from that source. Do not edit installed cache files directly.
 
+Remove an unused room through **메뉴 → 회의실 삭제**, review the scope and confirm. Records are retained; **삭제된 회의실 → 복구** restores the original room. Native chats stay, unfinished work blocks deletion, and delete/restore invokes no AI. [Usage](host-plugin/USER_GUIDE.en.md#delete-and-restore-a-room).
+
 ## Connect a project and use the room
 
 1. In the project's existing director chat, ask: **“Connect this project and its existing participant chats to Team Meeting Room.”** Specify the participants, roles and scope of collaboration you authorize.

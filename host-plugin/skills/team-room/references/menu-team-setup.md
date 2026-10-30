@@ -34,3 +34,7 @@ UI 전용 room_team_setup(preview/apply)는 호스트 메타데이터의 여는 
 닫기·숨김·프로젝트 전환·teardown 후 늦은 결과는 메시지를 보내거나 화면을 다시 열지 않습니다. 적용했으나 전달 여부가 모호하면 처음 요청한 채팅에서 원래 setupId로 상태를 확인하고 명시적으로 이어갑니다. 버튼을 다시 눌러 대체 팀을 만들지 않습니다. team-menu.json과 team-setups.json은 실제 ID를 담는 외부 runtime 기록이므로 소스에 넣지 않습니다.
 
 연결 완료 후 기존 로컬 갱신에서 승인한 projectId가 등록되면 회의실을 표시합니다. 수동 선택이나 입력을 시작했으면 자동 전환하지 않습니다. 호스트 채팅 자체는 새 총괄로 이동하지 않으며 이후 지시는 기존 총괄 확인·한 번 전달 규칙을 따릅니다. 실제 Codex의 native 생성·화면 전환은 별도 검증 항목이고 합성 테스트만으로 실사용 검증 완료를 주장하지 않습니다.
+
+## Archived rooms
+
+Deleted rooms retain their original connection and history. Use the human menu to restore them before new work or setup; never create a replacement team automatically. See [deletion and restoration](room-lifecycle.md).

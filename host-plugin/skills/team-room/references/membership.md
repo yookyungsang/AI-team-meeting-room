@@ -63,3 +63,7 @@ and checkpoint handoff to another active member. Keep validation attempts,
 blockers, required final images and usage intact. Do not silently cancel jobs,
 mark them complete, release locks, waive checks or stop native chats to force a
 roster edit. A roster edit alone never contacts participants.
+
+## Archived rooms
+
+Deleted rooms retain their original connection and history. Use the human menu to restore them before new work or setup; never create a replacement team automatically. See [deletion and restoration](room-lifecycle.md).

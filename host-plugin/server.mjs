@@ -14,6 +14,7 @@ import {ROLE_TYPES,roleGuidance} from './roles.mjs';
 import {ReadGate} from './read-gate.mjs';
 import {openingThread} from './native-chats.mjs';
 import {MenuTeam} from './menu-team.mjs';
+import {RoomLifecycle} from './room-lifecycle.mjs';
 
 const root=path.dirname(fileURLToPath(import.meta.url));
 const version=JSON.parse(fs.readFileSync(path.join(root,'plugin.json'),'utf8')).version;
@@ -64,6 +65,7 @@ TOOLS.push(tool('room_team','Explicit human-requested team setup: director, plan
 function resource(){return {uri,mimeType:'text/html;profile=mcp-app',text:fs.readFileSync(path.join(root,'widget.html'),'utf8'),_meta:{ui:{csp:{connectDomains:[],resourceDomains:[]}},'openai/ui':{availableDisplayModes:['inline','fullscreen'],preferredDisplayMode:'fullscreen'}}};}
 TOOLS.push(tool('room_team_setup','Human menu onboarding only. preview shows six roles and exact requested model/effort settings for the verified opening local project; it creates no chats or model work. apply requires confirmed:true and the original preview/request IDs, revalidates scope, journals a guarded requested-choice plan and returns dispatch:true once for one user-initiated ui/message. Never create native chats in the server, guess a project, retry delivery or replace an existing room/setup.',schema({operation:{type:'string',enum:['preview','apply']},previewId:str,requestId:str,confirmed:{type:'boolean'}},['operation']),false,['app']));
 TOOLS.push(...workTools(tool,schema,member,str));
+TOOLS.push(tool('room_manage','Explicit human menu room management only, without AI or native chat changes. preview_delete shows scoped counts/blockers. delete requires name/revision/confirmed/changeId, rejects active work/questions/ownership/runs/setup, and hides the room while retaining all history for restore. list_deleted returns labels only. restore reuses original routes and records. Exact operation retries never undo later changes; never hard-delete files, stop chats or dispatch work.',schema({operation:{type:'string',enum:['preview_delete','delete','list_deleted','restore']},projectId:member,expectedRevision:{type:'integer',minimum:1},changeId:str,confirmName:str,confirmed:{type:'boolean'}},['operation']),false,['app']));
 TOOLS.find(t=>t.name==='room_team').inputSchema.properties.operation.enum.push('catalog');
 TOOLS.find(t=>t.name==='room_team').inputSchema.properties.requestedChoices={...TOOLS.find(t=>t.name==='room_team').inputSchema.properties.choices,description:'Optional exact human-confirmed menu choices. These are requested settings, not observed availability. Before approval, catalog binds the actual native host model/effort list once; never substitute another choice.'};
 TOOLS.find(t=>t.name==='room_team').description+=' A menu role preset is saved as requestedChoices. Verify native create_thread capabilities, call catalog(models) once before approval, then approve those exact choices. Unsupported combinations block without fallback; defaults omit model/thinking. No extra human confirmation is needed for the already confirmed menu choices.';
@@ -108,8 +110,15 @@ export function handle(request,registry=projects){
     const project=selectedId&&!['room_configure','room_team'].includes(name)?registry.get(selectedId):null;
     const store=project?new RoomStore(registry.roomPath(project.id),project,()=>registry.get(project.id)):null;
     const control=store?new WorkControl(store,registry.home):null,usage=control?new UsageLedger(control):null;
-    const snapshot=()=>{if(!store)return {version:1,paused:true,requests:[],messages:[],members:[],project:null,projects:registry.list(),mode:'host-relay'};new Validation(control).refresh();return {...store.snapshot(),projects:registry.list(),work:control.summary(),usageReports:usage.reports()};};
+    const snapshot=()=>{if(!store||store.project.archivedAt)return {version:1,paused:true,requests:[],messages:[],members:[],project:null,projects:registry.list(),mode:'host-relay',...(store?{deletedProjectId:project.id,opening:{status:'deleted'}}:{})};new Validation(control).refresh();return {...store.snapshot(),projects:registry.list(),work:control.summary(),usageReports:usage.reports()};};
+    if(project?.archivedAt&&(name==='room_validation'||name==='room_work'&&!['status','read'].includes(args.operation)||name==='room_usage'&&!['summary','report'].includes(args.operation)))throw new Error('삭제된 회의실은 복구한 뒤 작업을 변경해 주세요.');
     switch(name){
+     case 'room_manage':{
+      const lifecycle=new RoomLifecycle(registry);
+      if(args.operation==='list_deleted')data=lifecycle.deleted();
+      else if(args.operation==='preview_delete')data=lifecycle.preview(args);
+      else data=lifecycle.change(args);break;
+     }
      case 'room_team_setup':{
       const menu=new MenuTeam(registry),input={...args,threadId:openingThread(request.params?._meta)};
       if(args.operation==='preview')data=menu.preview(input);
@@ -127,6 +136,7 @@ export function handle(request,registry=projects){
       else throw new Error('지원하지 않는 구성원 편집 작업입니다.');break;
      }
      case 'room_team':{
+      if(args.operation!=='status'&&registry.read().projects.find(p=>p.id===args.projectId)?.archivedAt)throw new Error('삭제된 회의실은 복구한 뒤 팀 설정을 변경해 주세요.');
       if(!['plan','catalog','approve','claim','record','block','retry','connect','status'].includes(args.operation))throw new Error('지원하지 않는 팀 구성 작업입니다.');
       data=new TeamSetup(registry)[args.operation](args);break;
      }
@@ -139,9 +149,9 @@ export function handle(request,registry=projects){
      }
      case 'room_claim':data=store.claim(args);break;
      case 'room_post':data=store.post(args);break;
-     case 'room_reply':control.assertCompletable(args);data=store.reply(args);break;
+     case 'room_reply':if(!store.project.archivedAt)control.assertCompletable(args);data=store.reply(args);break;
      case 'room_work':{
-      if(args.operation==='status'){new Validation(control).refresh();data=control.summary();}
+      if(args.operation==='status'){if(!store.project.archivedAt)new Validation(control).refresh();data=control.summary();}
       else if(args.operation==='read')data=control.readFile(args);
       else{if(!['configure','acquire','write','release','checkpoint','recover'].includes(args.operation))throw new Error('지원하지 않는 작업 제어입니다.');data=control[args.operation](args);}break;
      }

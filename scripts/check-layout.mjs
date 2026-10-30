@@ -37,6 +37,11 @@ async function mount(page,html,width,openingRoom=null){
      const fixture=window.menuTeamFixture,a=p.params.arguments;
      if(a.operation==='apply')fixture.status='requested';
      result={structuredContent:{...fixture,...(a.operation==='apply'?{dispatch:true,prompt:'Synthetic approved setup request'}:{})}};
+    }else if(p.params.name==='room_manage'){
+     const a=p.params.arguments,f=window.lifecycleFixture,room=f.room;
+     if(a.operation==='preview_delete')result={structuredContent:{projectId:room.project.id,name:room.project.name,revision:1,canDelete:true,reasons:[],counts:{members:room.members.length,requests:room.requests.length,messages:room.messages.length,images:0,audio:0}}};
+     else if(a.operation==='list_deleted')result={structuredContent:{rooms:f.archived?[{id:room.project.id,name:room.project.name,revision:2,archivedAt:'2026-01-01T00:00:00Z'}]:[]}};
+     else{f.archived=a.operation==='delete';window.testRoomState=f.archived?{...empty,deletedProjectId:room.project.id,opening:{status:'deleted'}}:room;result={structuredContent:{projectId:room.project.id,archived:f.archived}};}
     }else if(p.params.name==='room_submit'){
      const request={...p.params.arguments,status:'pending',jobs:[]};
      window.testRoomState.requests.push(request);
@@ -370,6 +375,17 @@ try{
   await page.evaluate(()=>{const project={id:'created',name:'처음 시작하는 예시 프로젝트'};window.testRoomState={project,projects:[project],members:[{id:'director',name:'예시 총괄',role:'총괄 디렉터'}],messages:[],requests:[],paused:false};});
   await frame.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await frame.waitForFunction(()=>document.querySelector('#project').value==='created');
   assert.equal(await frame.locator('#team-setup-entry').isVisible(),false);report.cases.push({width,menuTeamSetup:{explanationBeforeApply:true,roles:6,cancelWithoutAI:true,explicitApply:true,singleSimulatedHostRequest:true,connectedRoomSelected:true},modelCalls:0});await page.close();
+ }
+ for(const width of [1280,420]){
+  const project={id:'delete-fixture',name:'삭제와 복구를 확인하는 예시 프로젝트'},room={project,projects:[project],members:[{id:'director',name:'예시 총괄',role:'총괄 디렉터'}],requests:[],messages:[],paused:false};
+  const page=await browser.newPage(),frame=await mount(page,fs.readFileSync(path.join(root,'host-plugin/widget.html'),'utf8'),width,room);
+  await page.evaluate(room=>{window.lifecycleFixture={room,archived:false};},room);
+  await frame.waitForFunction(()=>document.querySelector('#project').value==='delete-fixture');await frame.locator('#open-menu').click();await frame.locator('#delete-room').click();await frame.waitForFunction(()=>!document.querySelector('#room-delete-apply').disabled);
+  assert.match(await frame.locator('#room-delete-summary').textContent(),/삭제와 복구/);await frame.locator('#room-delete-cancel').click();assert.equal(await page.evaluate(()=>window.lifecycleFixture.archived),false);
+  await frame.locator('#delete-room').click();await frame.waitForFunction(()=>!document.querySelector('#room-delete-apply').disabled);await frame.locator('#room-delete-apply').scrollIntoViewIfNeeded();assert.equal(await frame.locator('#room-menu').evaluate(el=>el.scrollWidth>el.clientWidth),false);await frame.locator('#room-menu').screenshot({path:path.join(output,`room-delete-${width}.png`)});
+  await frame.locator('#room-delete-apply').click();await frame.waitForFunction(()=>document.querySelector('#deleted-rooms-list button')?.textContent==='복구');assert.equal(await frame.locator('#project').inputValue(),'');await frame.locator('#deleted-rooms-list button').click();await frame.waitForFunction(()=>document.querySelector('#project').value==='delete-fixture');assert.equal(await page.evaluate(()=>window.lifecycleFixture.archived),false);assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),0);assert.equal(await frame.locator('#room-menu').evaluate(el=>el.scrollWidth>el.clientWidth),false);
+  assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.params?.name==='room_manage'&&p.params.arguments.operation==='delete').length),1);assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.params?.name==='room_manage'&&p.params.arguments.operation==='restore').length),1);
+  report.cases.push({width,roomLifecycle:{preview:true,cancel:true,delete:true,restore:true,explicitConfirmation:true,noHorizontalOverflow:true,hostMessages:0},modelCalls:0});await page.close();
  }
  const projects=[{id:'alpha',name:'예시 프로젝트 A',directorName:'A 총괄'},{id:'beta',name:'예시 프로젝트 B',directorName:'B 총괄'}];
  for(const project of projects){

@@ -33,10 +33,10 @@ export function validateProject(input){
 export class Projects {
  constructor(home,{catalogReader=readNativeProjectChats,openingReader=findNativeMeetingProject,setupContextReader=readNativeOpeningProject}={}){this.home=path.resolve(home);this.file=path.join(this.home,'projects.json');this.catalogReader=catalogReader;this.openingReader=openingReader;this.setupContextReader=setupContextReader;}
  read(){return fs.existsSync(this.file)?JSON.parse(fs.readFileSync(this.file,'utf8')):{version:1,projects:[]};}
- list(){return this.read().projects.map(p=>({id:p.id,name:p.name,directorName:p.members.find(m=>m.id==='director').name}));}
+ list(){return this.read().projects.filter(p=>!p.archivedAt).map(p=>({id:p.id,name:p.name,directorName:p.members.find(m=>m.id==='director').name}));}
  opening(threadId){
   if(!threadId)return {status:'unavailable'};
-  try{return this.openingReader(this.read().projects,threadId);}catch{return {status:'unavailable'};}
+  try{const projects=this.read().projects,result=this.openingReader(projects.filter(p=>!p.archivedAt),threadId);if(result.status==='unregistered'&&projects.some(p=>p.archivedAt)){const deleted=this.openingReader(projects.filter(p=>p.archivedAt),threadId);if(['selected','ambiguous'].includes(deleted.status))return {status:'deleted'};}return result;}catch{return {status:'unavailable'};}
  }
  get(id){check(validId(id),'명시적인 프로젝트 ID가 필요합니다.');const p=this.read().projects.find(p=>p.id===id);check(p,'연결되지 않은 프로젝트입니다.');return p;}
  roomPath(id){check(validId(id),'잘못된 프로젝트 ID입니다.');return path.join(this.home,'rooms',id+'.json');}
@@ -45,7 +45,7 @@ export class Projects {
   return transaction(this.file,()=>({version:1,projects:[]}),state=>{
    const old=state.projects.find(p=>p.id===project.id);
    // A room's routing never changes under an in-flight or historical request.
-   if(old){check(JSON.stringify(validateProject(old))===JSON.stringify(project),'기존 등록은 덮어쓰지 않습니다. 구성원 변경은 room_members로 요청해 주세요.');return {created:false,project,revision:revision(old)};}
+   if(old){check(!old.archivedAt,'삭제된 회의실은 메뉴에서 복구해 주세요. 같은 ID로 연결을 덮어쓰지 않습니다.');check(JSON.stringify(validateProject(old))===JSON.stringify(project),'기존 등록은 덮어쓰지 않습니다. 구성원 변경은 room_members로 요청해 주세요.');return {created:false,project,revision:revision(old)};}
    state.projects.push({...project,revision:1});
    return {created:true,project,revision:1};
   });
@@ -58,7 +58,7 @@ export class Projects {
   return {projectId,revision:revision(p),optionsRevision:p.optionsRevision||1,roles:roleCatalog(),members:p.members.map(view),choices:choices.map(m=>view({...m,...(titles.has(m.id)?{chatTitle:titles.get(m.id)}:{})}))};
  }
  discover(projectId){
-  const project=this.get(projectId);let catalog;
+  const project=this.get(projectId);check(!project.archivedAt,'삭제된 회의실은 복구한 뒤 편집해 주세요.');let catalog;
   try{catalog=this.catalogReader(project);}catch{
    const view=this.roster(projectId);return {...view,choices:view.choices.filter(m=>view.members.some(a=>a.id===m.id)),catalog:{available:false,message:'프로젝트 대화 목록을 읽을 수 없습니다. 기존 구성은 편집할 수 있으며 추가 목록은 새로고침 후 확인해 주세요.'}};
   }
@@ -81,6 +81,7 @@ export class Projects {
   return transaction(this.file,()=>({version:1,projects:[]}),state=>{
    const p=state.projects.find(p=>p.id===projectId);check(p,'연결되지 않은 프로젝트입니다.');const input=hash(JSON.stringify(normalized)),prior=p.optionChanges?.find(c=>c.requestId===requestId);
    if(prior){check(prior.input===input,'같은 목록 준비 요청의 후보를 바꾸지 않습니다. 새 명시적 요청을 사용하세요.');return {projectId,saved:true,replayed:true,optionsRevision:p.optionsRevision||1,count:p.memberOptions?.length||0};}
+   check(!p.archivedAt,'삭제된 회의실은 복구한 뒤 편집해 주세요.');
    const known=selectableMembers(p),options=normalized.map(m=>({...m,id:known.find(k=>sameRoute(k,m))?.id||'member_'+hash(JSON.stringify([m.hostId,m.threadId])).slice(0,24)}));
    options.forEach(validateRoleType);check(new Set(options.map(m=>m.id)).size===options.length&&!options.some(m=>known.some(k=>k.id===m.id&&!sameRoute(k,m))),'후보 식별자가 기존 채팅과 충돌합니다.');
    if(JSON.stringify(p.memberOptions||[])!==JSON.stringify(options)){p.memberOptions=options;p.optionsRevision=(p.optionsRevision||1)+1;}
@@ -107,6 +108,7 @@ export class Projects {
      const previous=old.memberChanges?.find(c=>c.id===changeId);
      const receipt=(change,replayed)=>({updated:change.changed,replayed,appliedRevision:change.revision,revision:revision(old),members:old.members,retiredCount:old.retiredMembers?.length||0});
      if(previous){check(previous.input===input,'같은 changeId로 변경 내용을 바꿀 수 없습니다.');return receipt(previous,true);}
+     check(!old.archivedAt,'삭제된 회의실은 복구한 뒤 구성원을 변경해 주세요.');
      if(selection!==undefined)check(optionsRevision===(old.optionsRevision||1),'선택 후보가 변경되었습니다. 목록을 새로고침한 뒤 다시 선택해 주세요.');
      check(revision(old)===expectedRevision,'구성이 변경되었습니다. room_state로 최신 revision과 구성원을 확인해 주세요.');
      const desired=validateProject({...old,members:submitted.map(m=>{const prior=selectableMembers(old).find(p=>p.id===m.id);return m.roleType===undefined&&prior?.roleType!==undefined?{...m,roleType:prior.roleType}:m;})}).members;

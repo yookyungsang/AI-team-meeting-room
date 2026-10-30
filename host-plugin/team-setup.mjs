@@ -64,6 +64,7 @@ export class TeamSetup{
    const old=state.setups.find(s=>s.id===setupId);if(old){check(old.projectId===projectId&&old.input===input,'같은 setupId로 구성 계획을 바꿀 수 없습니다.');return this.view(old,{includeCatalog:true});}
    check(!state.setups.some(s=>s.projectId===projectId&&s.status!=='connected'),'이 회의실의 진행 중인 구성 계획을 먼저 확인해 주세요. 새 계획으로 중복 생성하지 않습니다.');
    const existing=this.registry.read().projects.find(p=>p.id===projectId),base=existing?.members||[];
+   check(!existing?.archivedAt,'삭제된 회의실은 복구한 뒤 팀 설정을 진행해 주세요.');
    const slots=TEAM_ROLES.map(role=>{
     const override=roles.find(r=>r.slotId===role.id)||{},memberId=override.memberId||role.id;
     check(validId(memberId)&&memberId!=='user'&&(role.id==='director'?memberId==='director':memberId!=='director'),'역할의 담당자 ID를 확인해 주세요.');

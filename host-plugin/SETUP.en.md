@@ -2,7 +2,7 @@
 
 [한국어](SETUP.ko.md) | **English** | [Full user guide](USER_GUIDE.en.md)
 
-For version 0.12.1. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → open the room in the director chat → assign the first task**.
+For version 0.13.0. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → open the room in the director chat → assign the first task**.
 
 A new team has **one director, one planner, one designer, TWO programmers and one QA participant**. Each new participant is a separate Codex chat. Setup starts with a written request in a Codex project chat.
 
@@ -243,3 +243,5 @@ Connections and setup journals normally live under the user's `~/.codex/team-roo
 - [Agent team-creation workflow](skills/team-room/references/team-creation.md): tool protocol and recovery details
 
 For everyday setup, use the copyable requests above. The last reference is technical material for plugin developers and agents.
+
+To remove a room from the active list, use **메뉴 → 회의실 삭제** and confirm. Restore it under **삭제된 회의실 → 복구**. Native chats stay; unfinished work blocks deletion. [Delete/restore guide](USER_GUIDE.en.md#delete-and-restore-a-room).

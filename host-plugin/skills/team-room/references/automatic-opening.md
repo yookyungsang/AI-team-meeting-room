@@ -17,3 +17,7 @@ room_open에서 projectId를 직접 지정하면 그 값이 우선합니다. ID 
 미등록 프로젝트는 최초 연결 안내를, 같은 프로젝트의 여러 회의실은 선택 안내를 표시합니다. 지원하지 않는 Node/앱·메타데이터, 읽기 실패나 불분명한 소속도 선택창으로 돌아갑니다. 저장된 전체 목록의 첫 항목이나 마지막 사용 회의실을 대신 고르지 않습니다. 자동 선택은 저장된 명단·옵션·라우팅·작업·사용량 기록을 바꾸지 않습니다.
 
 설치된 Codex의 threadId 전달 코드를 확인하고 격리된 합성 메타데이터·SQLite·UI 하네스로 검사합니다. 모든 Codex/원격 버전의 호환이나 실제 앱 화면 전환을 검증했다고 표시하지 않습니다. 일반 작업과 지침 문맥에는 기존 사용량이 있으며 자동 선택 자체는 모델을 호출하지 않습니다.
+
+## Archived rooms
+
+Deleted rooms retain their original connection and history. Use the human menu to restore them before new work or setup; never create a replacement team automatically. See [deletion and restoration](room-lifecycle.md).

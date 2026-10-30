@@ -9,6 +9,8 @@ For user-facing setup, daily use and troubleshooting, consult the packaged [Engl
 
 For a first installation or questions about creating/configuring staff, use the step-by-step [Korean setup walkthrough](../../SETUP.ko.md) or [English setup walkthrough](../../SETUP.en.md). They include copyable human requests, model-choice replies, connection checkpoints and interrupted setup recovery.
 
+For human-requested room deletion/recovery, use **메뉴 → 회의실 삭제** or **메뉴 → 삭제된 회의실 → 복구** and read [room lifecycle](references/room-lifecycle.md). This retains original records and routes, blocks registered unfinished work, invokes no AI and never deletes/stops native chats. Do not create replacement teams for archived rooms.
+
 ## Enforced local work controls
 
 For actual file editing, QA execution, interruption recovery or usage measurement, read the relevant section of [local work controls](references/work-controls.md) once. These tools do not invoke AI. Configure an explicitly authorized workspace as director, acquire file ownership in a batch before editing, and use the guarded `room_work` writer with its lease and current hash for supported text files. Save a concise checkpoint at a necessary handoff and release ownership before completion. Native Editor/binary edits require one explicit operator; disclose that external tools can bypass plugin gates. Never claim an OS-wide lock.
