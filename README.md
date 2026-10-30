@@ -75,7 +75,7 @@ The [detailed designer workflow](host-plugin/skills/team-room/references/design-
 
 ## Edit the team from the menu
 
-**구성원 편집** (Edit members) lets you select, exclude and relabel existing participants, then save without AI calls. Director routing, busy work and history stay protected. Only the explicit existing-chat lookup button requests a bounded director task to prepare project-scoped choices; it never creates chats. See [roster editing](host-plugin/USER_GUIDE.en.md#change-the-team).
+**구성원 편집** (Edit members) loads the current local project's existing chats directly, without AI. Excluded members return to the picker; select/add a chat, choose its role and save. There is no separate lookup button. A read-only local metadata adapter filters project membership and rechecks additions at save; unsupported/remote indexes fail closed. Director routing, busy work and history stay protected. See [roster editing](host-plugin/USER_GUIDE.en.md#change-the-team) and [catalog compatibility](host-plugin/skills/team-room/references/project-chat-catalog.md).
 
 ## Sound collaboration and audio preview
 

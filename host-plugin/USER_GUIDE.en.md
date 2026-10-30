@@ -6,7 +6,7 @@
 
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.9.6. You can use the plugin across projects, with separate connections and records for each. The current meeting UI uses Korean labels; reports follow the user's requested or established conversation language. This guide includes the Korean control labels so you can find them; it does not add automatic UI translation or language switching to the app.
+This guide describes version 0.10.0. You can use the plugin across projects, with separate connections and records for each. The current meeting UI uses Korean labels; reports follow the user's requested or established conversation language. This guide includes the Korean control labels so you can find them; it does not add automatic UI translation or language switching to the app.
 
 ## Get started
 
@@ -32,11 +32,11 @@ This is a conversational setup workflow, not a separate creation-button UI or ba
 
 Open **메뉴 → 팀과 회의 제어 → 구성원 편집** (Menu → Team controls → Edit members).
 
-1. Select an existing participant and press **추가** (Add). For a chat not listed, press **목록에 없는 기존 채팅 찾기** (Find other existing chats), then **목록 새로고침** (Refresh list) after preparation. This does not create chats.
-2. Press **제외** (Exclude) for an idle member and choose Planner, Designer, Programmer, QA, Sound or **직접 입력** (Custom). The director stays fixed. All programmers use the same kind, with distinct names for multiple participants.
+1. Opening the editor loads **existing chats in the current project**. Choose **추가할 대화창 선택 → 추가** (Select chat → Add), then choose its role. Use **목록 새로고침** (Refresh list) after creating another chat. The picker does not create chats.
+2. Press **제외** (Exclude) to remove a row and return it to the same-project picker. Readding preserves its edited meeting name/role. Choose Planner, Designer, Programmer, QA, Sound or **직접 입력** (Custom). The director stays fixed. All programmers use the same kind, with distinct names for multiple participants.
 3. Review and press **변경 저장** (Save changes). Closing or switching projects discards unsaved editing; an already submitted save may finish.
 
-Reading, selecting, excluding and saving invoke no AI. Only the explicit lookup button requests a bounded director task to verify this project's existing chats. Ambiguous project selection is reported for clarification. Instructions and the actual lookup still have usage, with no periodic AI discovery. Conversational roster changes remain supported.
+Reading, selecting, excluding and saving invoke no AI or participant messages. The old lookup button is removed. A read-only compatibility adapter checks local Codex title/project-membership metadata without changing chat content, models or app settings. New choices exclude other projects, archived chats and internal agents; membership is rechecked at save. New roles are not inferred from titles. Unsupported indexes or remote projects show an unavailable notice while preserving existing edits. See [project chat catalog](skills/team-room/references/project-chat-catalog.md). Instructions and ordinary work still have usage; conversational edits remain supported.
 
 Standard roles bind **common plus professional guidance**; Custom reveals a name field and binds **common rules plus actual assignment conditions** only. New assignments return short references: read common rules once and relevant professional sections as needed. Saving never wakes staff to announce a role. See the [guidance map](skills/team-room/references/role-guidance.md).
 

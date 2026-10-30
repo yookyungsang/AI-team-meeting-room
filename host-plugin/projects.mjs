@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {transaction,hash,now} from './control.mjs';
 import {roleTypeOf,validateRoleType,roleCatalog} from './roles.mjs';
+import {readNativeProjectChats} from './native-chats.mjs';
 
 const check=(ok,message)=>{if(!ok)throw new Error(message);};
 export const validId=value=>typeof value==='string'&&/^[a-z][a-z0-9_-]{0,63}$/.test(value)&&!['__proto__','constructor','prototype'].includes(value)&&!/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(value);
@@ -30,7 +31,7 @@ export function validateProject(input){
  return {id:input.id,name:input.name.trim(),...(input.workspacePath?{workspacePath:input.workspacePath}:{}),members};
 }
 export class Projects {
- constructor(home){this.home=path.resolve(home);this.file=path.join(this.home,'projects.json');}
+ constructor(home,{catalogReader=readNativeProjectChats}={}){this.home=path.resolve(home);this.file=path.join(this.home,'projects.json');this.catalogReader=catalogReader;}
  read(){return fs.existsSync(this.file)?JSON.parse(fs.readFileSync(this.file,'utf8')):{version:1,projects:[]};}
  list(){return this.read().projects.map(p=>({id:p.id,name:p.name,directorName:p.members.find(m=>m.id==='director').name}));}
  get(id){check(validId(id),'명시적인 프로젝트 ID가 필요합니다.');const p=this.read().projects.find(p=>p.id===id);check(p,'연결되지 않은 프로젝트입니다.');return p;}
@@ -46,7 +47,26 @@ export class Projects {
   });
  }
  roster(projectId){
-  const p=this.get(projectId),view=m=>({id:m.id,name:m.name,role:m.role,roleType:roleTypeOf(m)});return {projectId,revision:revision(p),optionsRevision:p.optionsRevision||1,roles:roleCatalog(),members:p.members.map(view),choices:selectableMembers(p).map(view)};
+  const p=this.get(projectId),view=m=>({id:m.id,name:m.name,role:m.role,roleType:roleTypeOf(m),...(m.chatTitle?{chatTitle:m.chatTitle}:{})});
+  const eligible=new Set((p.memberOptions||[]).map(m=>m.hostId+'\0'+m.threadId));
+  const choices=selectableMembers(p).filter(m=>!p.localCatalog||p.members.some(a=>a.id===m.id)||eligible.has(m.hostId+'\0'+m.threadId));
+  const titles=new Map((p.memberOptions||[]).filter(m=>m.chatTitle).map(m=>[m.id,m.chatTitle]));
+  return {projectId,revision:revision(p),optionsRevision:p.optionsRevision||1,roles:roleCatalog(),members:p.members.map(view),choices:choices.map(m=>view({...m,...(titles.has(m.id)?{chatTitle:titles.get(m.id)}:{})}))};
+ }
+ discover(projectId){
+  const project=this.get(projectId);let catalog;
+  try{catalog=this.catalogReader(project);}catch{
+   const view=this.roster(projectId);return {...view,choices:view.choices.filter(m=>view.members.some(a=>a.id===m.id)),catalog:{available:false,message:'프로젝트 대화 목록을 읽을 수 없습니다. 기존 구성은 편집할 수 있으며 추가 목록은 새로고침 후 확인해 주세요.'}};
+  }
+  transaction(this.file,()=>({version:1,projects:[]}),state=>{
+   const p=state.projects.find(p=>p.id===projectId);check(p&&JSON.stringify(validateProject(p))===JSON.stringify(validateProject(project)),'구성이 변경되었습니다. 목록을 새로고침해 주세요.');
+   const known=selectableMembers(p),options=catalog.candidates.map(c=>{
+    const old=known.find(m=>sameRoute(m,c));return {id:old?.id||'member_'+hash(JSON.stringify([c.hostId,c.threadId])).slice(0,24),name:old?.name||Array.from(c.chatTitle).slice(0,80).join(''),role:old?.role||'담당자',roleType:old?roleTypeOf(old):'custom',threadId:c.threadId,hostId:c.hostId,chatTitle:c.chatTitle};
+   });
+   check(new Set(options.map(m=>m.id)).size===options.length,'프로젝트 대화 목록에 중복된 연결이 있습니다.');
+   if(JSON.stringify(p.memberOptions||[])!==JSON.stringify(options)||p.localCatalog?.scopeId!==catalog.scopeId){p.memberOptions=options;p.localCatalog={scopeId:catalog.scopeId};p.optionsRevision=(p.optionsRevision||1)+1;}
+  });
+  return {...this.roster(projectId),catalog:{available:true,label:catalog.label,count:catalog.candidates.length,truncated:catalog.truncated}};
  }
  registerOptions({projectId,memberId,requestId,verified,candidates}){
   check(memberId==='director'&&verified===true,'총괄이 native 도구로 확인한 기존 채팅만 선택 후보로 저장합니다.');
@@ -87,6 +107,12 @@ export class Projects {
      check(revision(old)===expectedRevision,'구성이 변경되었습니다. room_state로 최신 revision과 구성원을 확인해 주세요.');
      const desired=validateProject({...old,members:submitted.map(m=>{const prior=selectableMembers(old).find(p=>p.id===m.id);return m.roleType===undefined&&prior?.roleType!==undefined?{...m,roleType:prior.roleType}:m;})}).members;
      const known=knownMembers(old);
+     if(selection!==undefined&&old.localCatalog){
+      const added=desired.filter(m=>!old.members.some(a=>a.id===m.id));
+      if(added.length){let catalog;try{catalog=this.catalogReader(old);}catch{throw new Error('현재 프로젝트 대화 목록을 다시 확인할 수 없습니다. 목록 새로고침 후 추가해 주세요.');}
+       check(catalog.scopeId===old.localCatalog.scopeId&&added.every(m=>catalog.candidates.some(c=>sameRoute(c,m))),'선택한 대화가 현재 프로젝트에서 이동·보관되었거나 목록이 바뀌었습니다. 새로고침 후 선택해 주세요.');
+      }
+     }
      for(const member of desired){
       const prior=known.find(m=>m.id===member.id);
       check(!prior||sameRoute(prior,member),'기존 담당자 ID의 대화·호스트는 바꾸지 않습니다. 교체할 담당자는 새 ID로 연결해 주세요.');

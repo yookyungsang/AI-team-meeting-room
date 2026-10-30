@@ -2,7 +2,7 @@
 
 [한국어](SETUP.ko.md) | **English** | [Full user guide](USER_GUIDE.en.md)
 
-For version 0.9.6. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → open the room in the director chat → assign the first task**.
+For version 0.10.0. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → open the room in the director chat → assign the first task**.
 
 A new team has **one director, one planner, one designer, TWO programmers and one QA participant**. Each new participant is a separate Codex chat. Setup starts with a written request in a Codex project chat.
 
@@ -189,7 +189,7 @@ Do not create new staff chats.
 
 Select the intended chats if several candidates match. An existing team can use its actual roster; it does not have to fill the six-role new-team template.
 
-Use **메뉴 → 팀과 회의 제어 → 구성원 편집** to select/add/exclude existing participants, edit meeting labels and **변경 저장** (Save changes). For missing existing chats, explicitly request a director lookup with the find button, then refresh choices. Selecting and saving invoke no AI or chat creation. Busy jobs, unanswered questions, ownership and validation must be completed or explicitly handed off before removal. Conversational edits remain supported; labels do not automatically change native titles or models.
+Use **메뉴 → 팀과 회의 제어 → 구성원 편집** to select/add/exclude existing participants, edit meeting labels and **변경 저장** (Save changes). The editor directly loads the current local project’s existing chats; excluded members return to its picker. Refresh after creating a chat. This read-only metadata compatibility adapter reports unsupported environments rather than listing other projects. Selecting and saving invoke no AI or chat creation. Busy jobs, unanswered questions, ownership and validation must be completed or explicitly handed off before removal. Conversational edits remain supported; labels do not automatically change native titles or models.
 
 Choose a standard role for common plus professional guidance, or **직접 입력** (Custom) for common rules plus task conditions. All programmers use the same kind, with distinct names when there are several. Saving never wakes participants; read relevant guidance at the next actual assignment. Finish/hand off busy work before changing kind. See the [role guide](skills/team-room/references/role-guidance.md).
 

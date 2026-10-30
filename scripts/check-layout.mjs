@@ -273,12 +273,15 @@ try{
   await page.keyboard.press('Escape');await frame.waitForFunction(()=>!document.querySelector('#audio-full').getAttribute('src'));
   assert.equal(await frame.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   await page.evaluate(()=>{
-   const director={id:'director',name:'예시 총괄',role:'총괄 디렉터',roleType:'director'},designer={id:'designer',name:'예시 디자이너',role:'디자이너',roleType:'designer'},qa={id:'qa',name:'예시 QA',role:'QA',roleType:'qa'};
-   window.rosterFixture={roles:window.fixtureRoles,projectId:window.testRoomState.project.id,revision:window.testRoomState.project.revision||1,optionsRevision:1,members:[director,designer],choices:[director,designer,qa]};
+   const director={id:'director',name:'예시 총괄',role:'총괄 디렉터',roleType:'director'},designer={id:'designer',name:'예시 디자이너',role:'디자이너',roleType:'designer'},qa={id:'qa',name:'예시 QA',chatTitle:'예시 QA 대화창',role:'QA',roleType:'qa'};
+   window.rosterFixture={roles:window.fixtureRoles,projectId:window.testRoomState.project.id,revision:window.testRoomState.project.revision||1,optionsRevision:1,members:[director,designer],choices:[director,designer,qa],catalog:{available:true,label:'가상 프로젝트',count:3}};
    window.testRoomState.members=window.rosterFixture.members;
    document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:window.testRoomState}},'*');
   });
   await frame.locator('#open-menu').click();await frame.locator('#edit-roster').click();await frame.waitForSelector('.roster-row');
+  assert.equal(await frame.locator('#roster-prepare').count(),0,'legacy AI lookup button must be absent');
+  assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.params?.name==='room_roster').at(-1).params.arguments.operation),'discover');
+  assert.equal(await frame.locator('#roster-choice option[value="qa"]').textContent(),'예시 QA 대화창 · QA');
   assert.equal(await frame.locator('.roster-row').first().locator('button').isDisabled(),true);
   await frame.locator('#roster-choice').selectOption('qa');await frame.locator('#roster-add').click();
   assert.equal(await frame.locator('.roster-row').count(),3);await frame.locator('#roster-save').click();
@@ -292,6 +295,14 @@ try{
   assert.match(await frame.locator('.roster-role-note').nth(2).innerText(),/공통 기본 지침/);
   await frame.locator('#roster-save').click();
   await frame.waitForFunction(()=>document.querySelector('#roster-status').textContent.includes('구성원을 저장했습니다'));
+  await frame.locator('.roster-row').nth(2).locator('button').click();assert.equal(await frame.locator('.roster-row').count(),2);
+  assert.equal(await frame.locator('#roster-choice option[value="qa"]').textContent(),'예시 QA 대화창');
+    await frame.locator('#roster-choice').selectOption('qa');
+    await frame.locator('#roster-choice').scrollIntoViewIfNeeded();await frame.locator('#room-menu').screenshot({path:path.join(output,`roster-chat-choice-${width}.png`)});
+    await frame.locator('#roster-add').click();
+  assert.equal(await frame.locator('.roster-row').nth(2).locator('input').first().inputValue(),'예시 검수자');
+  assert.equal(await frame.locator('.roster-row').nth(2).locator('input').nth(1).inputValue(),'번역 검수');
+  await frame.locator('#roster-save').click();
   assert.equal(await frame.locator('#room-menu').evaluate(el=>el.scrollWidth>el.clientWidth),false);
   assert.equal(await frame.locator('#roster-editor').evaluate(el=>el.scrollWidth>el.clientWidth),false);
   const rosterAlignment=await frame.locator('.roster-row').evaluateAll(rows=>rows.map(row=>{

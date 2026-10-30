@@ -103,19 +103,25 @@ test('roster rejection preserves edits and uncertain saves reuse the exact chang
  const before=w.rosterPackets.filter(p=>p.params.arguments.operation==='apply');assert.equal(before.length,2);await w.intervals[0]();assert.equal(w.rosterPackets.filter(p=>p.params.arguments.operation==='apply').length,2);
  w.rosterBehavior.hold=null;await w.elements.get('roster-save').events.click();const calls=w.rosterPackets.filter(p=>p.params.arguments.operation==='apply');assert.deepEqual(calls[1].params.arguments,calls[2].params.arguments);
 });
-test('late roster reads and list-preparation receipts cannot dispatch after close, switch or teardown',async t=>{
- const w=await widget(t,{holdRoster:'read'});const loading=w.elements.get('edit-roster').events.click();await settle();const packet=w.rosterPackets[0];w.elements.get('roster-close').events.click();
+test('late project-chat discovery cannot update or dispatch after close, switch or teardown',async t=>{
+ const w=await widget(t,{holdRoster:'discover'});const loading=w.elements.get('edit-roster').events.click();await settle();const packet=w.rosterPackets[0];w.elements.get('roster-close').events.click();
  w.receive({id:packet.id,result:{structuredContent:w.catalogs.get('test')}});await loading;assert.equal(w.elements.get('roster-editor').hidden,true);
- const g=await widget(t,{holdSubmit:true});await g.elements.get('edit-roster').events.click();const preparing=g.elements.get('roster-prepare').events.click();await settle();
- const submit=g.sent.find(p=>p.params?.name==='room_submit');g.elements.get('close-menu').events.click();const stored=g.state.requests.at(-1);
- g.receive({id:submit.id,result:{structuredContent:{request:stored,state:g.state,wakePrompt:'fixture management'}}});await preparing;assert.equal(g.sent.filter(p=>p.method==='ui/message').length,0);
- const h=await widget(t,{holdRoster:'read'});const pending=h.elements.get('edit-roster').events.click();await settle();const late=h.rosterPackets[0];h.elements.get('project').value='second';await h.elements.get('project').events.change();h.receive({id:late.id,result:{structuredContent:h.catalogs.get('test')}});await pending;assert.equal(h.elements.get('roster-editor').hidden,true);
- const k=await widget(t,{holdRoster:'read'});const closing=k.elements.get('edit-roster').events.click();await settle();const ignored=k.rosterPackets[0];k.callbacks.pagehide();await closing;const count=k.sent.length;k.receive({id:ignored.id,result:{structuredContent:k.catalogs.get('test')}});assert.equal(k.sent.length,count);assert.equal(k.document.body.hidden,true);
+ const h=await widget(t,{holdRoster:'discover'});const pending=h.elements.get('edit-roster').events.click();await settle();const late=h.rosterPackets[0];h.elements.get('project').value='second';await h.elements.get('project').events.change();h.receive({id:late.id,result:{structuredContent:h.catalogs.get('test')}});await pending;assert.equal(h.elements.get('roster-editor').hidden,true);
+ const k=await widget(t,{holdRoster:'discover'});const closing=k.elements.get('edit-roster').events.click();await settle();const ignored=k.rosterPackets[0];k.callbacks.pagehide();await closing;const count=k.sent.length;k.receive({id:ignored.id,result:{structuredContent:k.catalogs.get('test')}});assert.equal(k.sent.length,count);assert.equal(k.document.body.hidden,true);
 });
-test('finding unregistered existing chats is one explicit standalone director request, never a background wake',async t=>{
- const w=await widget(t);w.state.requests.push({id:'original',status:'processing',jobs:[{memberId:'director',state:'reserved'}]});await w.elements.get('edit-roster').events.click();assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
- await w.elements.get('roster-prepare').events.click();await settle();const submit=w.sent.find(p=>p.params?.name==='room_submit');assert.equal(submit.params.arguments.followUpTo,undefined);assert.deepEqual([...submit.params.arguments.recipients],['director']);assert.match(submit.params.arguments.text,/새 채팅 생성/);
- assert.equal(w.sent.filter(p=>p.method==='ui/message').length,1);await w.elements.get('roster-prepare').events.click();assert.equal(w.sent.filter(p=>p.method==='ui/message').length,1);
+test('opening and refreshing the project-chat picker performs local discovery without AI',async t=>{
+ const w=await widget(t);await w.elements.get('edit-roster').events.click();await w.elements.get('roster-refresh').events.click();
+ assert.deepEqual(w.rosterPackets.map(p=>p.params.arguments.operation),['discover','discover']);
+ assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);assert.equal(w.sent.filter(p=>p.params?.name==='room_submit').length,0);
+ assert.doesNotMatch(fs.readFileSync(new URL('../host-plugin/widget.html',import.meta.url),'utf8'),/id="roster-prepare"/);
+});
+
+test('excluding an edited member returns it to the picker and readding preserves its draft',async t=>{
+ const w=await widget(t);await w.elements.get('edit-roster').events.click();w.elements.get('roster-choice').value='designer';w.elements.get('roster-add').events.click();
+ const row=w.elements.get('roster-rows').children[1],name=row.children[0].children[0];name.value='수정한 표시 이름';name.events.input();row.children[2].events.click();
+ assert.equal(w.elements.get('roster-rows').children.length,1);assert(w.elements.get('roster-choice').children.some(o=>o.value==='designer'));
+ w.elements.get('roster-choice').value='designer';w.elements.get('roster-add').events.click();assert.equal(w.elements.get('roster-rows').children[1].children[0].children[0].value,'수정한 표시 이름');
+ assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
 });
 
 test('bridge initialization and repeated state reads never wake AI',async t=>{const w=await widget(t);for(let i=0;i<4;i++){await w.intervals[0]();await settle();}assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);assert.equal(w.sent.filter(p=>p.method==='tools/call'&&p.params.name==='room_submit').length,0);});
