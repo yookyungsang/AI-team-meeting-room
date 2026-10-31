@@ -108,3 +108,33 @@ test('staging and media junctions cannot redirect recovered files outside runtim
   assert.deepEqual(fs.readdirSync(outside),[]);assert(!fs.existsSync(f.target.file));
  }
 });
+test('a partially written upload chunk resumes its matching tail only on an explicit retry',t=>{
+ const f=fixture(t),bytes=fs.readFileSync(f.exported.path),args={...f.args,name:'fixture.zip',size:bytes.length};f.importer.start(args);
+ const original=fs.appendFileSync;let failed=false;
+ fs.appendFileSync=(file,data,...options)=>{if(!failed&&file.endsWith('source.zip')){failed=true;original(file,data.subarray(0,17),...options);throw Object.assign(new Error('Fixture disk full'),{code:'ENOSPC'});}return original(file,data,...options);};
+ const chunk={...f.args,offset:0,data:bytes.toString('base64')};try{assert.throws(()=>f.importer.chunk(chunk),/disk full/);}finally{fs.appendFileSync=original;}
+ assert.equal(f.importer.start(args).offset,0);assert.equal(fs.statSync(path.join(f.importer.location(f.args.importId),'source.zip')).size,17);assert(!fs.existsSync(f.target.file));
+ assert.throws(()=>f.importer.chunk({...chunk,data:Buffer.alloc(bytes.length,7).toString('base64')}),/does not match/);assert.equal(fs.statSync(path.join(f.importer.location(f.args.importId),'source.zip')).size,17);
+ assert.equal(f.importer.chunk(chunk).offset,bytes.length);assert.equal(f.importer.preview(f.args).canRestore,true);
+});
+test('local-path staging leaves no partial published ZIP when storage fails, and reconciles a matching legacy prefix',t=>{
+ const f=fixture(t),original=fs.writeFileSync;let failed=false;
+ fs.writeFileSync=(file,data,...options)=>{if(!failed&&String(file).includes('source.zip.')&&String(file).endsWith('.next')){failed=true;original(file,Buffer.from(data).subarray(0,13),...options);throw Object.assign(new Error('Fixture disk full'),{code:'ENOSPC'});}return original(file,data,...options);};
+ try{assert.throws(()=>f.importer.fromPath({...f.args,path:f.exported.path}),/disk full/);}finally{fs.writeFileSync=original;}
+ const dir=f.importer.location(f.args.importId);assert(!fs.existsSync(path.join(dir,'source.zip')));assert(!fs.existsSync(f.target.file));assert(!fs.readdirSync(dir).some(n=>n.endsWith('.next')));
+ const bytes=fs.readFileSync(f.exported.path);fs.writeFileSync(path.join(dir,'source.zip'),bytes.subarray(0,19));f.importer.fromPath({...f.args,path:f.exported.path});assert.equal(f.importer.preview(f.args).canRestore,true);assert(fs.readFileSync(path.join(dir,'source.zip')).equals(bytes));
+ const different=fixture(t),otherDir=different.importer.location(different.args.importId);fs.writeFileSync(path.join(otherDir,'source.zip'),'different');assert.throws(()=>different.importer.fromPath({...different.args,path:different.exported.path}),/unavailable/);assert.equal(fs.readFileSync(path.join(otherDir,'source.zip'),'utf8'),'different');
+});
+test('failed attachment storage leaves no corrupt immutable blob and the original recovery can continue',t=>{
+ const f=fixture(t),preview=prepare(f),image=JSON.parse(fs.readFileSync(f.store.file,'utf8')).messages.find(m=>m.images?.length).images[0],imageFile=path.join(f.target.roomPath('alpha')+'.images',image.id),original=fs.writeFileSync;let failed=false;
+ fs.writeFileSync=(file,data,...options)=>{if(!failed&&String(file).includes('.json.images')&&String(file).endsWith('.next')){failed=true;original(file,Buffer.from(data).subarray(0,8),...options);throw Object.assign(new Error('Fixture attachment disk full'),{code:'ENOSPC'});}return original(file,data,...options);};
+ try{assert.throws(()=>f.importer.apply(approved(f,preview)),/disk full/);}finally{fs.writeFileSync=original;}
+ assert(!fs.existsSync(imageFile));assert(!fs.existsSync(f.target.file));assert(!fs.existsSync(f.target.roomPath('alpha')));assert.equal(f.importer.list(f.args).imports[0].status,'applying');assert.equal(f.importer.apply(approved(f,preview)).restored,true);assert.equal(hash(fs.readFileSync(imageFile)),image.id);
+});
+test('changed valid archives cannot replace the preview of an interrupted recovery',t=>{
+ const f=fixture(t),preview=prepare(f),original=fs.renameSync;let failed=false;
+ fs.renameSync=(from,to)=>{if(!failed&&to===f.target.file){failed=true;throw new Error('Fixture interrupted registry commit');}return original(from,to);};
+ try{assert.throws(()=>f.importer.apply(approved(f,preview)),/interrupted/);}finally{fs.renameSync=original;}
+ const changed=rewrite(f,entries=>{const entry=entries.find(e=>e.name==='room.json'),room=JSON.parse(entry.bytes);room.messages[0].text='Changed after preview';entry.bytes=Buffer.from(JSON.stringify(room));});fs.writeFileSync(path.join(f.importer.location(f.args.importId),'source.zip'),changed);
+ assert.throws(()=>f.importer.preview(f.args),/staged backup changed/);assert.throws(()=>f.importer.apply(approved(f,preview)),/restorable backup/);assert(!fs.existsSync(f.target.file));
+});

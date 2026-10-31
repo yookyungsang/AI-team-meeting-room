@@ -113,9 +113,17 @@ export class RoomImport{
   check(!session.preview&&!session.applying&&Number.isSafeInteger(args.offset)&&args.offset>=0&&typeof args.data==='string'&&args.data.length<=Math.ceil(IMPORT_CHUNK_BYTES/3)*4&&/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(args.data),'Invalid backup upload chunk.');
   const bytes=Buffer.from(args.data,'base64'),file=path.join(dir,'source.zip');check(bytes.length>0&&bytes.length<=IMPORT_CHUNK_BYTES&&bytes.toString('base64')===args.data&&args.offset+bytes.length<=session.size,'Invalid backup upload range.');
   const stat=fs.lstatSync(file);check(stat.isFile()&&stat.size>=session.offset&&stat.size<=session.size,'Backup upload is inconsistent.');
-  const matches=()=>{const fd=fs.openSync(file,'r'),stored=Buffer.alloc(bytes.length);try{return fs.readSync(fd,stored,0,stored.length,args.offset)===stored.length&&stored.equals(bytes);}finally{fs.closeSync(fd);}};
+  const matches=(length=bytes.length)=>{const fd=fs.openSync(file,'r'),stored=Buffer.alloc(length);try{return fs.readSync(fd,stored,0,stored.length,args.offset)===stored.length&&stored.equals(bytes.subarray(0,length));}finally{fs.closeSync(fd);}};
   if(args.offset<session.offset){check(args.offset+bytes.length<=session.offset&&matches(),'A retried chunk must keep its original bytes.');}
-  else{check(args.offset===session.offset,'Upload the next original chunk in order.');if(stat.size>session.offset)check(stat.size===session.offset+bytes.length&&matches(),'The uncertain upload chunk does not match.');else fs.appendFileSync(file,bytes);session.offset+=bytes.length;}
+  else{
+   check(args.offset===session.offset,'Upload the next original chunk in order.');const written=stat.size-session.offset;
+   check(written<=bytes.length&&(!written||matches(written)),'The uncertain upload chunk does not match.');
+   // A failed append may leave a matching prefix beyond the committed offset.
+   // On this explicit retry, append only its missing tail; never truncate or
+   // replace bytes that do not match the original chunk.
+   if(written<bytes.length)fs.appendFileSync(file,bytes.subarray(written));
+   check(fs.statSync(file).size===session.offset+bytes.length,'Backup upload changed while writing.');session.offset+=bytes.length;
+  }
   return {importId:args.importId,offset:session.offset,size:session.size};
  });}
  fromPath(args){
@@ -123,7 +131,14 @@ export class RoomImport{
   const bytes=fileBytes(args.path),sha256=hash(bytes),dir=this.location(args.importId),file=path.join(dir,'session.json');noLink(file);
   return transaction(file,()=>({}),session=>{
    if(session.threadId)check(session.threadId===args.threadId&&session.pathSource===sha256,'The original backup selection cannot change under the same import ID.');
-   else{Object.assign(session,{threadId:args.threadId,scopeId:context.scopeId,name:path.basename(args.path),size:bytes.length,offset:bytes.length,pathSource:sha256,createdAt:now()});const source=path.join(dir,'source.zip');noLink(source);if(fs.existsSync(source))check(hash(fileBytes(source))===sha256,'The original backup stage is unavailable.');else fs.writeFileSync(source,bytes,{flag:'wx'});}
+   else{
+    Object.assign(session,{threadId:args.threadId,scopeId:context.scopeId,name:path.basename(args.path),size:bytes.length,offset:bytes.length,pathSource:sha256,createdAt:now()});const source=path.join(dir,'source.zip');noLink(source);
+    if(fs.existsSync(source)){
+     const stat=fs.lstatSync(source);check(stat.isFile()&&stat.size<=bytes.length,'The original backup stage is unavailable.');const previous=fs.readFileSync(source);
+     check(bytes.subarray(0,previous.length).equals(previous),'The original backup stage is unavailable.');
+     if(previous.length<bytes.length)atomic(source,bytes);
+    }else atomic(source,bytes);
+   }
    return {importId:args.importId,offset:session.offset,size:session.size};
   });
  }
@@ -144,14 +159,13 @@ export class RoomImport{
  }
  preview(args){return this.session(args,(session,dir)=>{
   if(session.receipt)return {importId:args.importId,...session.preview,canRestore:false,restored:true,reasons:['restored']};
-  check(session.offset===session.size,'Finish choosing the backup file before preview.');const backup=inspectBackup(fileBytes(path.join(dir,'source.zip')));this.scope(backup,args,session);const target=this.target(backup.project.id);
+  check(session.offset===session.size,'Finish choosing the backup file before preview.');const backup=inspectBackup(fileBytes(path.join(dir,'source.zip')));if(session.preview)check(session.preview.sha256===backup.sha256,'The staged backup changed. Select it again.');this.scope(backup,args,session);const target=this.target(backup.project.id);
   if(session.applying||session.receipt)return {importId:args.importId,...session.preview,...(session.receipt?{canRestore:false,restored:true,reasons:['restored']}:{resuming:true})};
   const reasons=[];if(backup.unfinished)reasons.push('unfinished');
   if(target.project||target.roomHash!=='missing')reasons.push('exists');
   if(target.busy)reasons.push('busy');
   if(!this.destinationScope(backup.project.id,args))reasons.push('scope');
   const preview={projectId:backup.project.id,name:backup.project.name,sha256:backup.sha256,counts:backup.counts,members:backup.project.members.length,canRestore:!reasons.length,reasons,sourceVersion:1};
-  if(session.preview)check(session.preview.sha256===preview.sha256,'The staged backup changed. Select it again.');
   session.preview=preview;session.targetFingerprint=target.fingerprint;return {importId:args.importId,...preview};
  });}
  apply(args){return this.session(args,(session,dir)=>{
@@ -168,7 +182,7 @@ export class RoomImport{
    if(!session.applying){session.applying=true;session.applyingAt=project.backupRecovery.at;atomic(path.join(dir,'session.json'),encode(session));}
    for(const item of backup.media.values()){
     const folder=directory(this.registry.home,'rooms',backup.project.id+'.json.'+item.kind),file=path.join(folder,item.id);noLink(file);
-    if(fs.existsSync(file))check(hash(fileBytes(file,8*1024*1024))===item.id,'Existing attachment conflicts with the backup.');else fs.writeFileSync(file,item.bytes,{flag:'wx'});
+    if(fs.existsSync(file))check(hash(fileBytes(file,8*1024*1024))===item.id,'Existing attachment conflicts with the backup.');else atomic(file,item.bytes);
    }
    if(!ownRoom)atomic(roomFile,roomBytes);
    if(!target.project)registry.projects.push(project);

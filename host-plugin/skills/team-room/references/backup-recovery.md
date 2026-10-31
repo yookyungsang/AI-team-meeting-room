@@ -34,6 +34,13 @@ journal. An uncertain apply is reconciled only on another explicit confirmation.
 Newer records are never overwritten. `list` reads only this opening chat's staged
 imports; it does not enumerate chats or automatically resume uploads.
 
+If a failed write leaves only part of an upload chunk, an explicit retry checks
+that prefix against the original bytes and appends only the missing tail. A
+different prefix is rejected, never truncated. Local-path ZIP copies and restored
+media are published only after their complete temporary files are saved; failed
+writes do not publish corrupt blobs. A resumed preview rechecks its original ZIP
+checksum before offering recovery. These checks add no AI or automatic retries.
+
 Closing, hiding, changing the selected room or tearing down the view invalidates
 late callbacks. No later upload chunk, preview, host message or selection is
 dispatched. A server write already accepted may finish; reopen the original
