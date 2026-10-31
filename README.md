@@ -9,11 +9,11 @@
 
 A local Codex plugin that connects existing AI chats into project-based team meeting rooms. Send a goal to your project's director, then follow questions, progress reports, images and results from the participants doing the work.
 
-[![Recorded product walkthrough](docs/media/demo-preview.png)](https://github.com/yookyungsang/AI-team-meeting-room/releases/download/v0.14.0/team-room-demo.webm)
+[![English one-minute walkthrough](docs/media/team-room-walkthrough.en.png)](https://github.com/yookyungsang/AI-team-meeting-room/releases/download/v0.16.2/team-room-walkthrough.en.mp4)
 
-[Watch/download the 1-minute video](docs/media/team-room-demo.webm) · [What the recording shows](docs/DEMO.md)
+[Watch English (1 min)](https://github.com/yookyungsang/AI-team-meeting-room/releases/download/v0.16.2/team-room-walkthrough.en.mp4) · [한국어 영상 (1분)](https://github.com/yookyungsang/AI-team-meeting-room/releases/download/v0.16.2/team-room-walkthrough.ko.mp4) · [Annotated screenshot](docs/media/team-room-guide.ko.png) · [Captions and recording notes](docs/DEMO.md)
 
-Korean, English, Japanese, Simplified Chinese and Traditional Chinese menus, read-only connection checks and local ZIP exports are available from **Menu**. Auto follows the browser locale; you can override it under **Menu → Language**. The recording uses the actual plugin UI with example records in an isolated browser host; it does not show native Codex chat creation or live agents.
+Korean, English, Japanese, Simplified Chinese and Traditional Chinese menus, read-only connection checks and local ZIP exports are available from **Menu**. Auto follows the browser locale; you can override it under **Menu → Language**. These walkthroughs edit captures of the real open Codex meeting app, with English/Korean menus and instructions, personal names hidden, and the project owner's permission to show the original conversation and attachment. They do not demonstrate live chat creation or agent execution. Background music: **ElevenMusic**; see the [media notice](docs/media/NOTICE.md).
 
 ## Start here: set up your workers after installation
 
@@ -184,7 +184,7 @@ node scripts/check-import-layout.mjs
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE). Copyright (c) 2026 yookyungsang. You may use, modify and redistribute it, including commercially, while retaining the copyright and license notices. A [license copy](host-plugin/LICENSE) is included in the installed plugin. External tools and services retain their own licenses and terms.
+The plugin source is licensed under the [MIT License](LICENSE). Copyright (c) 2026 yookyungsang. You may use, modify and redistribute it, including commercially, while retaining the copyright and license notices. A [license copy](host-plugin/LICENSE) is included in the installed plugin. External tools and services retain their own licenses and terms. Depicted project content and generated music in the walkthroughs are separate from the plugin source; see the [media notice](docs/media/NOTICE.md).
 
 ## Current limitations
 

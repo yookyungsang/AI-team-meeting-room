@@ -9,11 +9,11 @@
 
 기존 Codex 대화창을 프로젝트별 회의실로 연결하는 로컬 MCP App입니다. 사용자는 총괄에게 요청하고, 담당자는 자신의 질문·답변·진행 상황을 직접 게시합니다.
 
-[![실제 플러그인 화면의 사용 영상](docs/media/demo-preview.png)](https://github.com/yookyungsang/AI-team-meeting-room/releases/download/v0.14.0/team-room-demo.webm)
+[![실제 회의실의 1분 사용 영상](docs/media/team-room-walkthrough.ko.png)](https://github.com/yookyungsang/AI-team-meeting-room/releases/download/v0.16.2/team-room-walkthrough.ko.mp4)
 
-[1분 영상 보기·다운로드](docs/media/team-room-demo.webm) · [영상의 범위와 한국어 자막](docs/DEMO.md)
+[한국어 영상 (1분)](https://github.com/yookyungsang/AI-team-meeting-room/releases/download/v0.16.2/team-room-walkthrough.ko.mp4) · [English video (1 min)](https://github.com/yookyungsang/AI-team-meeting-room/releases/download/v0.16.2/team-room-walkthrough.en.mp4) · [설명을 넣은 스크린샷](docs/media/team-room-guide.ko.png) · [자막과 촬영 범위](docs/DEMO.md)
 
-메뉴에서 **연결 점검·ZIP 백업·한국어/English/日本語/简体中文/繁體中文 전환**을 사용할 수 있습니다. 자동은 브라우저 언어를 따르며 **메뉴 → 화면 언어 / Language**에서 직접 바꿀 수 있습니다. 영상은 실제 플러그인 UI를 예시 기록과 격리된 브라우저 호스트로 실행한 화면이며, 실제 Codex 채팅 생성이나 실시간 에이전트 작업 영상은 아닙니다.
+메뉴에서 **연결 점검·ZIP 백업·한국어/English/日本語/简体中文/繁體中文 전환**을 사용할 수 있습니다. 자동은 브라우저 언어를 따르며 **메뉴 → 화면 언어 / Language**에서 직접 바꿀 수 있습니다. 새 영상은 실제 열린 Codex 회의실 화면을 촬영·편집했습니다. 사람 이름은 가렸고, 프로젝트 소유자가 공개를 승인한 대화와 첨부 이미지는 원문으로 보여 줍니다. 메뉴와 사용 설명은 각 언어로 제공하며 실제 팀 생성·작업 지시 전송은 실행하지 않았습니다. 배경음악은 **ElevenMusic**으로 제작했습니다. [미디어 출처와 이용 범위](docs/media/NOTICE.md).
 
 설치부터 팀 구성·일상 사용·중단 복구까지 [日本語](host-plugin/USER_GUIDE.ja.md)·[简体中文](host-plugin/USER_GUIDE.zh-Hans.md)·[繁體中文](host-plugin/USER_GUIDE.zh-Hant.md) 설명서도 제공합니다. **메뉴 → 백업 불러오기**는 원래 프로젝트에서 없어진 회의실만 미리보기 후 복구하고 기존 기록은 덮어쓰지 않습니다. [백업 복구 범위](host-plugin/skills/team-room/references/backup-recovery.md) · [실제 앱·중복 탭 검증 상태](docs/host-validation.md).
 
@@ -189,7 +189,7 @@ node scripts/check-layout.mjs
 
 ## 라이선스
 
-이 프로젝트는 [MIT 라이선스](LICENSE)로 배포합니다. 저작권 표시는 `Copyright (c) 2026 yookyungsang`입니다. 저작권 표시와 라이선스 내용을 유지하면 무료·상업적 사용, 수정과 재배포가 가능합니다. 설치 플러그인에도 [라이선스 사본](host-plugin/LICENSE)을 포함합니다. Codex·Unity 등 외부 도구와 서비스에는 각자의 라이선스와 이용 조건이 적용됩니다.
+플러그인 소스는 [MIT 라이선스](LICENSE)로 배포합니다. 저작권 표시는 `Copyright (c) 2026 yookyungsang`입니다. 저작권 표시와 라이선스 내용을 유지하면 무료·상업적 사용, 수정과 재배포가 가능합니다. 설치 플러그인에도 [라이선스 사본](host-plugin/LICENSE)을 포함합니다. Codex·Unity 등 외부 도구와 서비스에는 각자의 라이선스와 이용 조건이 적용됩니다. 사용 영상에 보이는 프로젝트 콘텐츠와 생성 음악은 플러그인 소스와 별개이며 [미디어 출처와 이용 범위](docs/media/NOTICE.md)를 따릅니다.
 
 ## 현재 제한
 
