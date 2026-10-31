@@ -22,7 +22,7 @@ for(const file of ['host-plugin/.mcp.json','host-plugin/mcp.json']){
  assert.match(servers['team-room'].args[0],/\$\{(?:CODEX_)?PLUGIN_ROOT\}\/server\.mjs$/);
 }
 assert(read('host-plugin/widget.html').includes("appInfo:{name:'team-room',version:'"+pkg.version+"'}"),'UI version differs.');
-for(const file of ['SETUP.ko.md','SETUP.en.md','USER_GUIDE.ko.md','USER_GUIDE.en.md'])assert(read('host-plugin/'+file).includes(pkg.version),file+' needs the current version.');
+for(const file of ['SETUP.ko.md','SETUP.en.md',...['ko','en','ja','zh-Hans','zh-Hant'].map(language=>'USER_GUIDE.'+language+'.md')])assert(read('host-plugin/'+file).includes(pkg.version),file+' needs the current version.');
 assert(fs.existsSync(path.join(root,'docs/releases/v'+pkg.version+'.md')),'Add release notes for the current version.');
 
 const files=[];
@@ -36,7 +36,7 @@ walk('host-plugin');
 const runtimeNames=new Set(['projects.json','work-control.json','usage-ledger.json','team-setups.json','team-menu.json','.codex-global-state.json','state_5.sqlite']);
 for(const file of files){
  assert(!runtimeNames.has(path.posix.basename(file)),'Runtime data must stay outside the package: '+file);
- assert(!/(?:^|\/)(?:rooms|validation|exports|node_modules|\.local|\.git)(?:\/|$)|(?:\.lock|\.next|\.log)$|(?:^|\/)\.env(?:\.|$)/.test(file),'Unexpected package data: '+file);
+ assert(!/(?:^|\/)(?:rooms|validation|exports|imports|node_modules|\.local|\.git)(?:\/|$)|(?:\.lock|\.next|\.log)$|(?:^|\/)\.env(?:\.|$)/.test(file),'Unexpected package data: '+file);
 }
 walk('docs');files.push('README.md','README.ko.md');
 let links=0;

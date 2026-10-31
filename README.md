@@ -1,6 +1,6 @@
 # AI Team Meeting Room
 
-**English** | [한국어](README.ko.md)
+**English** | [한국어](README.ko.md) | [日本語](host-plugin/USER_GUIDE.ja.md) | [简体中文](host-plugin/USER_GUIDE.zh-Hans.md) | [繁體中文](host-plugin/USER_GUIDE.zh-Hant.md)
 
 [![Checks](https://github.com/yookyungsang/AI-team-meeting-room/actions/workflows/checks.yml/badge.svg)](https://github.com/yookyungsang/AI-team-meeting-room/actions/workflows/checks.yml)
 [Latest release](https://github.com/yookyungsang/AI-team-meeting-room/releases/latest) · [Release and check guide](docs/RELEASING.md)
@@ -32,7 +32,7 @@ Preserve any already connected staff. Only set up the team for now.
 
 This is a chat-based setup workflow. The walkthrough includes copyable requests, model-selection replies, checkpoints, first-task examples, existing-team setup, recovery and updates. No manual chat-ID entry is needed.
 
-For everyday controls and reporting, see the [English user guide](host-plugin/USER_GUIDE.en.md) or [한국어 사용 설명서](host-plugin/USER_GUIDE.ko.md).
+For installation and everyday use, see the [English user guide](host-plugin/USER_GUIDE.en.md), [한국어 사용 설명서](host-plugin/USER_GUIDE.ko.md), [日本語](host-plugin/USER_GUIDE.ja.md), [简体中文](host-plugin/USER_GUIDE.zh-Hans.md) or [繁體中文](host-plugin/USER_GUIDE.zh-Hant.md). **Menu → Import backup** previews and explicitly restores a missing, finished room in its original local project; existing history is never overwritten. See [backup recovery limits](host-plugin/skills/team-room/references/backup-recovery.md).
 
 ## Features and scope
 
@@ -162,7 +162,7 @@ npm start
 GitHub runs the package check and existing tests on Node 22, Windows and Linux
 for main-branch pushes and pull requests. It invokes no AI, uses synthetic data,
 cancels superseded runs and adds no schedule or automatic publishing.
-[Release notes](docs/releases/v0.15.0.md) include version-specific installation
+[Release notes](docs/releases/v0.16.0.md) include version-specific installation
 and update instructions. [Check scope and release procedure](docs/RELEASING.md).
 
 `npm start` launches a JSON-RPC stdio MCP server, not an HTTP website. It cannot be opened directly at a browser address. The runtime uses Node's built-in modules; `npm install` is not required to run it.
@@ -177,6 +177,7 @@ For the browser harness, install Playwright and Chromium separately. You can set
 
 ```sh
 node scripts/check-layout.mjs
+node scripts/check-import-layout.mjs
 ```
 
 ## License
@@ -185,10 +186,11 @@ This project is licensed under the [MIT License](LICENSE). Copyright (c) 2026 yo
 
 ## Current limitations
 
-- The meeting UI has five packaged languages. Full manuals are available in Korean and English, and the full collaboration policy is in Korean. UI language selection never translates existing posts or changes the report language, staff models or saved setup plans. No translation model or location lookup is added.
+- The meeting UI and installation/user manuals have five languages. The full collaboration policy is in Korean, with an English operating summary. UI language selection never translates existing posts or changes the report language, staff models or saved setup plans. No translation model or location lookup is added.
 - Stored configuration is not a substitute for human authorization or caller authentication. Follow the operating skill and verified human scope.
 - Failed or uncertain delivery is not resent automatically. Check the exact project/request status first.
 - The host decides whether additions steer an active turn or wait for a later turn. The director also checks saved additions at meaningful checkpoints and before completion. This does not add an idle AI call or model runtime.
 - Pausing blocks new requests and assignments; it does not cancel active Codex turns.
 - Full native-history mirroring, remote web/mobile access and an independent model runtime are not provided.
 - Version 0.3.1 introduced teardown and inline height fixes. The standalone browser harness does not verify actual Codex display transitions or control the position of Codex's native floating composer.
+- Restart-related duplicate tabs remain unreproduced in the actual host. Read-only source inspection confirmed distinct local MCP tab instances; no host files were patched. See [native-host validation and remaining limits](docs/host-validation.md).

@@ -100,7 +100,7 @@ export class Validation{
  }
  start(args){
   this.control.actor(args);check(['compile','editmode','playmode','build'].includes(args.mode),'지원하는 Unity 검증 모드를 지정해 주세요.');
-  const state=this.control.state(),config=state.config,lease=this.control.owned(args);check(config?.unityCli,'승인된 Unity CLI를 먼저 설정해 주세요.');check(lease.targets.some(t=>t.type==='editor'),'이 작업의 @editor 조작권이 필요합니다.');
+  const state=this.control.state(),config=state.config,lease=this.control.owned(args);check(this.control.configured(state)&&config?.unityCli,'승인된 Unity CLI를 먼저 설정해 주세요.');check(lease.targets.some(t=>t.type==='editor'),'이 작업의 @editor 조작권이 필요합니다.');
   check(fs.existsSync(path.join(config.workspaceRoot,'ProjectSettings','ProjectVersion.txt')),'유효한 Unity 프로젝트를 지정해 주세요.');
   check(args.filter===undefined||typeof args.filter==='string'&&args.filter.length<=2000,'테스트 필터를 확인해 주세요.');
   const target=args.target||'StandaloneWindows64';check(['StandaloneWindows64','StandaloneLinux64','StandaloneOSX','WebGL'].includes(target),'지원하는 빌드 대상을 지정해 주세요.');

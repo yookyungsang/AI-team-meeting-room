@@ -5,6 +5,7 @@ import {createHash} from 'node:crypto';
 export const MAX_AUDIO_BYTES=8*1024*1024;
 const check=(ok,message)=>{if(!ok)throw new Error(message);};
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
+export {mime as audioMime};
 function mime(bytes){
  if(bytes.length>=44&&bytes.toString('ascii',0,4)==='RIFF'&&bytes.toString('ascii',8,12)==='WAVE'){
   let fmt=false,data=false;

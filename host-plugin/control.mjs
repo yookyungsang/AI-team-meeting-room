@@ -68,11 +68,12 @@ export class WorkControl{
   return this.change((state,document)=>{
    check(!document.leases.some(l=>l.projectId===this.project.id&&!l.releasedAt),'진행 중인 파일·Editor 소유권을 반환한 뒤 설정을 바꿔 주세요.');
    check(!Object.values(state.cases).some(c=>c.attempts.some(a=>a.status==='running')),'실행 중인 검증을 먼저 마쳐 주세요.');
-   state.config={workspaceRoot,...(unityCli?{unityCli}:{}),configuredAt:now()};return {configured:true,workspaceRoot,unityReady:!!unityCli};
+   state.config={workspaceRoot,...(unityCli?{unityCli}:{}),...(this.project.backupRecovery?{backupRecoveryId:this.project.backupRecovery.importId}:{}),configuredAt:now()};return {configured:true,workspaceRoot,unityReady:!!unityCli};
   });
  }
+ configured(state=this.state()){return !!state.config&&(!this.project.backupRecovery||state.config.backupRecoveryId===this.project.backupRecovery.importId);}
  resolve(relative,state=this.state()){
-  check(state.config,'총괄이 승인된 작업 폴더를 먼저 설정해야 합니다.');
+  check(this.configured(state),'총괄이 승인된 작업 폴더를 먼저 설정해야 합니다. 백업 복구 후에는 다시 확인해야 합니다.');
   check(bounded(relative,2000)&&!path.isAbsolute(relative)&&!relative.includes('\\')&&!relative.includes(':')&&!relative.split('/').some(p=>p==='..'||p==='.'||!p||/^(\.git|\.codex|\.agents)$/i.test(p)),'작업 폴더 안의 안전한 상대 파일 경로를 지정해 주세요.');
   const root=state.config.workspaceRoot,target=path.resolve(root,relative);check(inside(canonical(root),canonical(target)),'작업 폴더 밖에는 접근할 수 없습니다.');
   let existing=target;while(!fs.existsSync(existing))existing=path.dirname(existing);
@@ -84,7 +85,7 @@ export class WorkControl{
   this.actor(args);check(cleanKey(args.key),'재시도에도 같은 소유권 요청 키가 필요합니다.');
   check(Array.isArray(args.paths)&&args.paths.length>0&&args.paths.length<=100,'한 번에 1~100개 파일 또는 @editor를 지정해 주세요.');
   return this.change((state,document)=>{
-   check(state.config,'승인된 작업 폴더를 먼저 설정해 주세요.');
+   check(this.configured(state),'승인된 작업 폴더를 먼저 설정해 주세요. 백업 복구 후에는 다시 확인해야 합니다.');
    const targets=[...new Set(args.paths)].map(p=>p==='@editor'?{key:canonical(state.config.workspaceRoot),relative:p,type:'editor'}:{...this.resolve(p,state),type:'file'}).sort((a,b)=>a.key.localeCompare(b.key));
    const old=document.leases.find(l=>l.projectId===this.project.id&&l.requestId===args.requestId&&l.memberId===args.memberId&&l.key===args.key);
    if(old){check(JSON.stringify(old.targets.map(t=>[t.key,t.type]))===JSON.stringify(targets.map(t=>[t.key,t.type])),'같은 키로 소유권 범위를 바꿀 수 없습니다.');check(!old.releasedAt,'반환한 소유권은 새 키로 요청해 주세요.');return this.leaseReceipt(old);}
@@ -160,5 +161,5 @@ export class WorkControl{
   check(!document.leases.some(l=>l.projectId===this.project.id&&l.requestId===args.requestId&&l.memberId===args.memberId&&!l.releasedAt),'파일·Editor 소유권을 반환하고 완료해 주세요.');
   for(const c of Object.values(state.cases)){const last=c.attempts.at(-1);if(last?.requestId!==args.requestId&&c.retest?.requestId!==args.requestId)continue;check(last?.status!=='running','진행 중인 검증을 완료한 뒤 답변해 주세요.');if(args.memberId==='director'&&c.required!==false)check(last?.status==='passed'&&last.generation===c.generation||c.waived,'실패·차단·미검증 또는 아직 실행하지 않은 재검증이 남아 있습니다. 수정·재검증하거나 한계를 명시하여 총괄이 예외를 기록해 주세요.');}
  }
- summary(){const document=this.read(),state=this.state(document);return {configured:!!state.config,unityReady:!!state.config?.unityCli,locks:document.leases.filter(l=>l.projectId===this.project.id&&!l.releasedAt).map(l=>({memberId:l.memberId,requestId:l.requestId,paths:l.targets.map(t=>t.relative)})),checkpoints:Object.keys(state.checkpoints).length,validations:Object.values(state.cases).map(c=>({id:c.id,label:c.label,status:c.attempts.at(-1)?.status||'pending',attempts:c.attempts.length,blocked:c.blocked,waived:!!c.waived})),recoveryCount:Object.keys(state.recoveries).length};}
+ summary(){const document=this.read(),state=this.state(document);return {configured:this.configured(state),unityReady:this.configured(state)&&!!state.config?.unityCli,locks:document.leases.filter(l=>l.projectId===this.project.id&&!l.releasedAt).map(l=>({memberId:l.memberId,requestId:l.requestId,paths:l.targets.map(t=>t.relative)})),checkpoints:Object.keys(state.checkpoints).length,validations:Object.values(state.cases).map(c=>({id:c.id,label:c.label,status:c.attempts.at(-1)?.status||'pending',attempts:c.attempts.length,blocked:c.blocked,waived:!!c.waived})),recoveryCount:Object.keys(state.recoveries).length};}
 }

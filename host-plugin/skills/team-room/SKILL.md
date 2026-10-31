@@ -13,6 +13,10 @@ For human-requested room deletion/recovery, use **메뉴 → 회의실 삭제** 
 
 For a human-requested connection check, local meeting export or UI-language question, consult [checks, export and language](references/check-export-language.md). These explicit UI actions invoke no AI and do not change authored text, routing or model choices. Native permissions remain unverified until actual authorized use.
 
+For a human-requested ZIP import, use the app's preview and explicit confirmation under [backup recovery](references/backup-recovery.md). It restores only a missing finished room in its verified original local project, paused, without overwriting records, importing workspace authority, changing control/usage ledgers or restarting jobs. Preserve the staged import ID when reconciling an interruption. Japanese, Simplified Chinese and Traditional Chinese users can read the packaged [日本語](../../USER_GUIDE.ja.md), [简体中文](../../USER_GUIDE.zh-Hans.md) and [繁體中文](../../USER_GUIDE.zh-Hant.md) installation/user guides; read only the relevant section.
+
+Distinguish [native-host verification and duplicate-tab limits](references/host-validation.md) from isolated tests. Do not call a browser fixture real Codex team creation or restart reproduction, or patch host caches/files to claim tab deduplication.
+
 ## Enforced local work controls
 
 For actual file editing, QA execution, interruption recovery or usage measurement, read the relevant section of [local work controls](references/work-controls.md) once. These tools do not invoke AI. Configure an explicitly authorized workspace as director, acquire file ownership in a batch before editing, and use the guarded `room_work` writer with its lease and current hash for supported text files. Save a concise checkpoint at a necessary handoff and release ownership before completion. Native Editor/binary edits require one explicit operator; disclose that external tools can bypass plugin gates. Never claim an OS-wide lock.

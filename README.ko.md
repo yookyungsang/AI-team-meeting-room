@@ -1,6 +1,6 @@
 # 팀 회의실 · AI Team Meeting Room
 
-[English](README.md) | **한국어**
+[English](README.md) | **한국어** | [日本語](host-plugin/USER_GUIDE.ja.md) | [简体中文](host-plugin/USER_GUIDE.zh-Hans.md) | [繁體中文](host-plugin/USER_GUIDE.zh-Hant.md)
 
 [![자동 검사](https://github.com/yookyungsang/AI-team-meeting-room/actions/workflows/checks.yml/badge.svg)](https://github.com/yookyungsang/AI-team-meeting-room/actions/workflows/checks.yml)
 [최신 배포·설치 안내](https://github.com/yookyungsang/AI-team-meeting-room/releases/latest) · [배포와 자동 검사 설명](docs/RELEASING.md)
@@ -12,6 +12,8 @@
 [1분 영상 보기·다운로드](docs/media/team-room-demo.webm) · [영상의 범위와 한국어 자막](docs/DEMO.md)
 
 메뉴에서 **연결 점검·ZIP 백업·한국어/English/日本語/简体中文/繁體中文 전환**을 사용할 수 있습니다. 자동은 브라우저 언어를 따르며 **메뉴 → 화면 언어 / Language**에서 직접 바꿀 수 있습니다. 영상은 실제 플러그인 UI를 예시 기록과 격리된 브라우저 호스트로 실행한 화면이며, 실제 Codex 채팅 생성이나 실시간 에이전트 작업 영상은 아닙니다.
+
+설치부터 팀 구성·일상 사용·중단 복구까지 [日本語](host-plugin/USER_GUIDE.ja.md)·[简体中文](host-plugin/USER_GUIDE.zh-Hans.md)·[繁體中文](host-plugin/USER_GUIDE.zh-Hant.md) 설명서도 제공합니다. **메뉴 → 백업 불러오기**는 원래 프로젝트에서 없어진 회의실만 미리보기 후 복구하고 기존 기록은 덮어쓰지 않습니다. [백업 복구 범위](host-plugin/skills/team-room/references/backup-recovery.md) · [실제 앱·중복 탭 검증 상태](docs/host-validation.md).
 
 ## 처음 설치했다면 여기부터 시작하세요
 
@@ -166,7 +168,7 @@ npm start
 GitHub에 main 브랜치 변경이나 PR을 올리면 Windows·Linux의 Node 22에서 패키지와
 기존 테스트를 자동 검사합니다. AI 호출 없이 가상 데이터로 검사하고, 오래된 중복
 실행을 취소하며 예약 실행·자동 배포는 추가하지 않습니다.
-[버전별 배포 안내](docs/releases/v0.15.0.md)에서 설치·업데이트 방법을,
+[버전별 배포 안내](docs/releases/v0.16.0.md)에서 설치·업데이트 방법을,
 [검사 범위와 배포 절차](docs/RELEASING.md)에서 자동 검사 설명을 확인하세요.
 
 npm start는 웹 서버가 아니라 JSON-RPC stdio MCP 서버를 실행합니다. 브라우저 주소로 직접 열 수 없습니다. 런타임은 Node 내장 모듈만 사용하며 npm install이 필요하지 않습니다.

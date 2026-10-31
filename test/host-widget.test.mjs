@@ -24,9 +24,10 @@ class Element {
  set innerHTML(value){throw new Error('unsafe HTML rendering');}
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
-async function widget(t,{capability={},messageFails=false,autoSelect=true,deferMessages=false,holdSubmit=false,holdImages=false,badImage=false,holdAudio=false,badAudio=false,holdRoster=null,rosterError=null,currentProject=null,openingStatus='unavailable',holdOpening=false,initialInput,holdTeam=null,teamStatus='preview',holdManage=null,busyRoom=false,draftSupport=true,openingProjectName,language='ko-KR',storedLanguage,fileSupport=false,downloadSupport=false,holdUtility=null}={}){
+async function widget(t,{capability={},messageFails=false,autoSelect=true,deferMessages=false,holdSubmit=false,holdImages=false,badImage=false,holdAudio=false,badAudio=false,holdRoster=null,rosterError=null,currentProject=null,openingStatus='unavailable',holdOpening=false,initialInput,holdTeam=null,teamStatus='preview',holdManage=null,busyRoom=false,draftSupport=true,openingProjectName,language='ko-KR',storedLanguage,fileSupport=false,downloadSupport=false,holdUtility=null,holdImport=null,importCanRestore=true}={}){
  const elements=new Map(),sent=[],callbacks={},intervals=[],messagePackets=[],imagePackets=[],audioPackets=[],openingPackets=[],teamPackets=[],copied=[],timeouts=new Map();let timeoutSeq=0;
  const utilityPackets=[],utilityBehavior={hold:holdUtility};
+ const importPackets=[],importBehavior={hold:holdImport,canRestore:importCanRestore};
  const teamData={previewId:randomUUID(),setupId:randomUUID(),projectId:'created',projectName:'가상 새 프로젝트',status:teamStatus,roles:TEAM_ROLES.map(r=>({id:r.id,name:r.name})),modelMode:'default',continuationPrompt:'Synthetic original team request',setupStatus:'planned',readyCount:0};
  const projects=[{id:'test',name:'Test',directorName:'테스트 총괄'},{id:'second',name:'Second',directorName:'다른 총괄'}];
  const state={project:{id:'test',name:'Test'},projects,members:[{id:'director',name:'테스트 총괄',role:'총괄'}],requests:[],messages:[],paused:false};
@@ -43,6 +44,10 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
   if(packet.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostCapabilities:{message:{text:capability},downloadFile:downloadSupport?{}:undefined,experimental:{...(draftSupport?{'openai/message':{}}:{}),...(fileSupport?{'openai/files':{}}:{})}}};
   if(packet.method==='tools/call'){
    const {name,arguments:args}=packet.params;
+   if(name==='room_import'){
+    importPackets.push(packet);const row={importId:args.importId,projectId:'recovered',name:'Backup fixture',sha256:'a'.repeat(64),counts:{requests:1,messages:2,images:0,audio:0},members:1,canRestore:importBehavior.canRestore,reasons:importBehavior.canRestore?[]:['exists']};
+    result={structuredContent:args.operation==='list'?{imports:[]}:args.operation==='preview'?row:args.operation==='start'?{importId:args.importId,offset:0,size:args.size}:args.operation==='chunk'?{importId:args.importId,offset:args.offset+Buffer.from(args.data,'base64').length}:args.operation==='apply'?{importId:args.importId,projectId:'recovered',restored:true,paused:true}: {importId:args.importId,offset:100,size:100}};if(importBehavior.hold===args.operation)return;
+   }
    if(name==='room_check'){utilityPackets.push(packet);result={structuredContent:{rows:[{id:'native-tools',status:'unverified',detail:'Native tools require actual setup.',detailKo:'실제 설정 때 도구 권한을 확인합니다.',action:'Do not create test chats.'}]}};if(utilityBehavior.hold===name)return;}
    if(name==='room_export'){utilityPackets.push(packet);result={structuredContent:{projectId:args.projectId,exportId:args.exportId,name:'synthetic.zip',downloadable:true,counts:{messages:2,images:1,audio:1}},_meta:{'team-room/exportPath':'/synthetic/export.zip',...(args.operation==='download'?{'team-room/exportBytes':'UEsFBg=='}:{})}};if(utilityBehavior.hold===args.operation)return;}
    if(name==='room_manage'){
@@ -83,7 +88,7 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
  }};
  const window={parent,addEventListener:(name,fn)=>callbacks[name]=fn};
  const storage=new Map(storedLanguage?[['team-room-ui-language',storedLanguage]]:[]);
- vm.runInNewContext(script,{window,document,navigator:{language,clipboard:{writeText:async value=>{copied.push(value);}}},localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value)},crypto:{randomUUID},console,Intl,Date,Map,Set,Object,Array,JSON,setTimeout:fn=>{const id=++timeoutSeq;timeouts.set(id,fn);return id;},clearTimeout:id=>timeouts.delete(id),setInterval:fn=>{intervals.push(fn);return intervals.length;},clearInterval(){}});
+ vm.runInNewContext(script,{window,document,navigator:{language,clipboard:{writeText:async value=>{copied.push(value);}}},localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value)},btoa:value=>Buffer.from(value,'binary').toString('base64'),crypto:{randomUUID},console,Intl,Date,Map,Set,Object,Array,JSON,setTimeout:fn=>{const id=++timeoutSeq;timeouts.set(id,fn);return id;},clearTimeout:id=>timeouts.delete(id),setInterval:fn=>{intervals.push(fn);return intervals.length;},clearInterval(){}});
  t.after(async()=>{callbacks.pagehide();await settle();});
  await settle();
  const notify=data=>callbacks.message({source:parent,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:data}}});
@@ -91,7 +96,7 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
  const receive=data=>callbacks.message({source:parent,data:{jsonrpc:'2.0',...data}});
  const respondMessage=(index,result={})=>receive({id:messagePackets[index].id,result});
  const expire=()=>{for(const [id,fn] of [...timeouts]){timeouts.delete(id);fn();}};
- return {utilityPackets,utilityBehavior,rosterPackets,rosterBehavior,catalogs,sent,elements,state,second,states,chooser,notify,callbacks,intervals,document,styles,receive,window,messagePackets,imagePackets,audioPackets,openingPackets,teamPackets,teamData,respondMessage,expire,managePackets,manageBehavior,archived,copied,storage};
+ return {importPackets,importBehavior,utilityPackets,utilityBehavior,rosterPackets,rosterBehavior,catalogs,sent,elements,state,second,states,chooser,notify,callbacks,intervals,document,styles,receive,window,messagePackets,imagePackets,audioPackets,openingPackets,teamPackets,teamData,respondMessage,expire,managePackets,manageBehavior,archived,copied,storage};
 }
 
 async function previewDelete(w){w.elements.get('open-menu').events.click();await w.elements.get('delete-room').events.click();}
@@ -114,6 +119,25 @@ test('switching through all five languages preserves authored posts, details, me
   w.elements.get('ui-language').value=code;w.elements.get('ui-language').events.change();assert.equal(w.elements.get('pause').textContent,label);assert.equal(w.elements.get('text').value,'원문 그대로。保持原文。');assert.equal(JSON.stringify(w.state),before);assert.equal(w.storage.get('team-room-ui-language'),code);
  }
  assert.equal(w.sent.length,calls);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+});
+test('backup preview precedes explicit recovery and cannot send AI messages or replace the selected room/draft',async t=>{
+ const w=await widget(t);w.elements.get('open-menu').events.click();w.elements.get('text').value='Keep my draft';w.elements.get('import-path').value='/synthetic/meeting.zip';await w.elements.get('import-path-load').events.click();assert.deepEqual(w.importPackets.map(p=>p.params.arguments.operation),['from_path','preview']);assert.equal(w.elements.get('import-apply').disabled,false);
+ await w.elements.get('import-apply').events.click();assert.equal(w.importPackets.at(-1).params.arguments.confirmName,'Backup fixture');assert.equal(w.elements.get('import-apply').disabled,true);assert.equal(w.elements.get('project').value,'test');assert.equal(w.elements.get('text').value,'Keep my draft');assert.equal(w.sent.filter(p=>p.method==='ui/message'||p.method==='openai/message').length,0);
+ const blocked=await widget(t,{importCanRestore:false});blocked.elements.get('open-menu').events.click();blocked.elements.get('import-path').value='/synthetic/meeting.zip';await blocked.elements.get('import-path-load').events.click();assert.equal(blocked.elements.get('import-apply').disabled,true);await blocked.elements.get('import-apply').events.click();assert.equal(blocked.importPackets.filter(p=>p.params.arguments.operation==='apply').length,0);
+});
+test('late backup preparation never starts the next upload, preview or recovery after panel invalidation',async t=>{
+ for(const operation of ['from_path','chunk','preview','apply'])for(const action of ['close','hide','switch','teardown']){
+  const w=await widget(t,{holdImport:operation});w.elements.get('open-menu').events.click();w.elements.get('import-path').value='/synthetic/meeting.zip';let pending;
+  if(operation==='chunk'){const bytes=Buffer.from('synthetic zip bytes');w.elements.get('import-file').files=[{name:'fixture.zip',size:bytes.length,slice:(start,end)=>({arrayBuffer:async()=>Uint8Array.from(bytes.subarray(start,end)).buffer})}];pending=w.elements.get('import-file').events.change();}
+  else{pending=w.elements.get('import-path-load').events.click();if(operation==='apply'){await pending;pending=w.elements.get('import-apply').events.click();}}
+  await settle();const packet=w.importPackets.at(-1);assert.equal(packet.params.arguments.operation,operation);
+  if(action==='close')w.elements.get('close-menu').events.click();if(action==='hide'){w.document.hidden=true;w.callbacks.visibilitychange();}if(action==='switch'){w.elements.get('project').value='second';await w.elements.get('project').events.change();}if(action==='teardown')w.callbacks.pagehide();
+  const sent=w.sent.length;w.receive({id:packet.id,result:{structuredContent:{importId:packet.params.arguments.importId,offset:100,restored:true,paused:true,projectId:'recovered'}}});await pending;assert.equal(w.sent.length,sent,operation+' / '+action);assert.equal(w.elements.get('import-preview').hidden,true);
+ }
+});
+test('an uncertain recovery is retried only by another click with its original confirmation',async t=>{
+ const w=await widget(t,{holdImport:'apply'});w.elements.get('open-menu').events.click();w.elements.get('import-path').value='/synthetic/meeting.zip';await w.elements.get('import-path-load').events.click();const pending=w.elements.get('import-apply').events.click();await settle();const first=w.importPackets.at(-1).params.arguments;w.expire();await pending;assert.equal(w.importPackets.filter(p=>p.params.arguments.operation==='apply').length,1);
+ w.importBehavior.hold=null;await w.elements.get('import-apply').events.click();assert.deepEqual(w.importPackets.at(-1).params.arguments,first);assert.equal(w.sent.filter(p=>p.method==='ui/message'||p.method==='openai/message').length,0);
 });
 test('connection checks are explicit, read-only and late results cannot reopen closed views',async t=>{
  const w=await widget(t,{holdUtility:'room_check'});w.elements.get('open-menu').events.click();const pending=w.elements.get('check-connection').events.click();await settle();const packet=w.utilityPackets[0];assert.equal(w.utilityPackets.length,1);await w.intervals[0]();assert.equal(w.utilityPackets.length,1);w.elements.get('close-menu').events.click();w.receive({id:packet.id,result:{structuredContent:{rows:[]}}});await pending;assert.equal(w.elements.get('connection-check').hidden,true);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);

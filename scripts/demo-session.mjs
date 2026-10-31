@@ -6,10 +6,13 @@ import {randomUUID} from 'node:crypto';
 import {Projects} from '../host-plugin/projects.mjs';
 import {RoomStore} from '../host-plugin/store.mjs';
 import {handle} from '../host-plugin/server.mjs';
+import {RoomExport} from '../host-plugin/exports.mjs';
 import {wav} from '../test/audio.fixture.mjs';
-export async function demoSession(){
+export async function demoSession({recovery=false}={}){
  const base=path.resolve('.local/demo-data');fs.mkdirSync(base,{recursive:true});const home=fs.mkdtempSync(path.join(base,'session-')),token=randomUUID();
- const registry=new Projects(home,{openingReader:()=>({status:'selected',projectId:'demo'}),setupContextReader:()=>({scopeId:'demo-native',name:'Example project',nativeProjectIds:['demo-native']}),catalogReader:project=>({scopeId:'demo-native',candidates:project.members.map(m=>({threadId:m.threadId,hostId:m.hostId,chatTitle:m.name}))})});
+ const openingThreadId=recovery?'synthetic-recovery-director':'synthetic-director',context=id=>{const recover=id?.startsWith('synthetic-recovery');return {scopeId:recover?'recovery-native':'demo-native',name:recover?'Recovery example':'Example project',nativeProjectIds:[recover?'recovery-native':'demo-native']};};
+ const options={openingReader:(projects,id)=>{const scope=context(id).scopeId,matches=projects.filter(p=>context(p.members.find(m=>m.id==='director').threadId).scopeId===scope);return matches.length===1?{status:'selected',projectId:matches[0].id}:{status:'unregistered',projectName:context(id).name};},setupContextReader:context,catalogReader:project=>({scopeId:context(project.members[0].threadId).scopeId,candidates:project.members.map(m=>({threadId:m.threadId,hostId:m.hostId,chatTitle:m.name}))})};
+ const registry=new Projects(home,options);
  registry.configure({id:'demo',name:'Example project',members:[{id:'director',name:'Director',role:'Director',roleType:'director',threadId:'synthetic-director',hostId:'local'},{id:'designer',name:'Designer',role:'Designer',roleType:'designer',threadId:'synthetic-designer',hostId:'local'},{id:'programmer',name:'Programmer',role:'Programmer',roleType:'programmer',threadId:'synthetic-programmer',hostId:'local'},{id:'qa',name:'QA',role:'QA',roleType:'qa',threadId:'synthetic-qa',hostId:'local'}]});
  const store=new RoomStore(registry.roomPath('demo'),registry.get('demo')),requestId=randomUUID();
  store.submit({id:requestId,text:'Make the settings screen easier to read. Keep the existing button actions.',recipients:['director']});store.claim({requestId,memberId:'director'});
@@ -18,7 +21,13 @@ export async function demoSession(){
  store.post({requestId,memberId:'director',kind:'progress',messageKey:'sample-progress',text:'The layout decision is agreed. The programmer will check the change before handing it to QA.',details:'Example technical handoff\nEditable scope: ui/settings-layout.css\nPreserve existing button actions.\nDeveloper self-check precedes independent QA.\nThese are sample meeting records; no live agents were invoked.'});
  const audio=path.join(home,'example.wav');fs.writeFileSync(audio,wav());store.post({requestId,memberId:'designer',kind:'progress',messageKey:'sample-audio',text:'A short audio attachment can be previewed when needed. Click Play to listen.',audio:[{path:audio,caption:'Synthetic test tone — sample attachment'}]});
  const html=handle({method:'resources/read',params:{uri:'ui://team-room/meeting.html'}},registry).contents[0].text;
- const allowed=new Set(['room_state','room_check','room_export','room_roster','room_image','room_audio','room_projects','room_pause','room_manage','room_team_setup']);
+ let backupPath;
+ if(recovery){
+  const source=new Projects(path.join(home,'backup-source'),options);source.configure({id:'recovery',name:'Recovery example',members:[{id:'director',name:'Recovered director',role:'Director',roleType:'director',threadId:'synthetic-recovery-director',hostId:'local'}]});
+  const original=new RoomStore(source.roomPath('recovery'),source.get('recovery')),id=randomUUID(),image=path.join(home,'recovery.png');fs.writeFileSync(image,Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=','base64'));
+  original.submit({id,text:'  Preserve 原文 / 원문 exactly.  ',recipients:['director']});original.claim({requestId:id,memberId:'director'});original.reply({requestId:id,memberId:'director',text:'Recovered final report.',details:'Original evidence stays unchanged.',images:[{path:image,caption:'Original image caption'}],audio:[{path:audio,caption:'Original sound caption'}]});backupPath=new RoomExport(source,original).create({projectId:'recovery',exportId:randomUUID()}).path;
+ }
+ const allowed=new Set(['room_state','room_check','room_export','room_import','room_roster','room_image','room_audio','room_projects','room_pause','room_manage','room_team_setup']);
  const server=http.createServer(async(req,res)=>{
   const send=(code,data,type='application/json')=>{res.writeHead(code,{'Content-Type':type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(data);};
   if(req.method==='GET'&&req.url==='/')return send(200,`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Team Room — recorded example</title><style>body{margin:0;background:#101010;color:#eee;font:14px system-ui}header{height:64px;box-sizing:border-box;padding:10px 24px;border-bottom:1px solid #444}header strong{display:block;font-size:18px}header span{font-size:12px;color:#bbb}iframe{display:block;width:100%;height:calc(100vh - 128px);border:0}footer{height:64px;box-sizing:border-box;padding:16px 24px;background:#222;font-size:18px}#mask{position:absolute;background:#222;color:#ddd;display:none;box-sizing:border-box;padding:8px;z-index:20}</style></head><body><header><strong>Team Meeting Room</strong><span>Real plugin UI · sample data · no live AI · local file path hidden</span></header><iframe title="Team Room" sandbox="allow-scripts allow-same-origin"></iframe><div id="mask">Local backup path · hidden for this demo</div><footer id="caption">Follow the team's own posts in one place.</footer><script>
@@ -32,8 +41,9 @@ frame.contentWindow.postMessage({jsonrpc:'2.0',id:p.id,result},'*');}catch(e){fr
 </script></body></html>`,'text/html; charset=utf-8');
   if(req.method!=='POST'||req.url!=='/rpc'||req.headers['x-demo-session']!==token)return send(403,'{}');
   let body='';for await(const chunk of req){body+=chunk;if(body.length>400000)return send(413,'{}');}
-  try{const packet=JSON.parse(body);if(!allowed.has(packet.params?.name))return send(403,'{}');send(200,JSON.stringify(handle({method:'tools/call',params:{...packet.params,_meta:{thread_id:'synthetic-director'}}},registry)));}catch{return send(400,'{}');}
+  try{const packet=JSON.parse(body);if(!allowed.has(packet.params?.name))return send(403,'{}');send(200,JSON.stringify(handle({method:'tools/call',params:{...packet.params,_meta:{thread_id:openingThreadId}}},registry)));}catch{return send(400,'{}');}
  });
- await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
- return {url:'http://127.0.0.1:'+server.address().port,home,registry,store,requestId,async close(){await new Promise(resolve=>server.close(resolve));}};
+ // Keep the private fixture server outside browser-blocked service ports.
+ await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(30000+parseInt(randomUUID().slice(0,4),16)%10000,'127.0.0.1',()=>{server.off('error',reject);resolve();});});
+ return {url:'http://127.0.0.1:'+server.address().port,home,registry,store,requestId,backupPath,async close(){await new Promise(resolve=>server.close(resolve));}};
 }

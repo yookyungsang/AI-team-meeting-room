@@ -17,6 +17,7 @@ import {MenuTeam} from './menu-team.mjs';
 import {RoomLifecycle} from './room-lifecycle.mjs';
 import {diagnose} from './diagnostics.mjs';
 import {RoomExport} from './exports.mjs';
+import {RoomImport} from './imports.mjs';
 import {renderWidget} from './ui.mjs';
 
 const root=path.dirname(fileURLToPath(import.meta.url));
@@ -77,6 +78,7 @@ TOOLS.find(t=>t.name==='room_team').description+=' New basic menu teams reuse th
 const menuSetupTool=TOOLS.find(t=>t.name==='room_team_setup');
 TOOLS.push(tool('room_check','Explicit user connection check only. Read project membership, director routing, participant catalog and saved setup. Host observations report capabilities, never authorize native work. No writes, chat creation, model calls or automatic repair; unsupported native permissions remain unverified.',schema({projectId:member,host:schema({message:{type:'boolean'},draft:{type:'boolean'},protocol:str})}),true,['app']));
 TOOLS.push(tool('room_export','Explicit selected-room export only. preview counts records and attachments; create(projectId,exportId) writes one scoped verified ZIP under runtime/exports with raw records, offline HTML, Markdown and media. Same ID reuses the original archive. download returns bounded bytes only in UI metadata. Never writes project sources, restores a live room, invokes AI, or exports another project.',schema({projectId:member,operation:{type:'string',enum:['preview','create','download']},exportId:str},['projectId','operation']),false,['app']));
+TOOLS.push(tool('room_import','Explicit human backup recovery in the original local project only. list reads this opening chat’s own staged imports. Stage a selected ZIP in bounded chunks (16 MiB upload) or from_path (128 MiB). preview verifies ZIP structure, manifest, media, original participant membership and destination without overwriting history. apply requires the exact preview checksum/name and confirmed:true; restores only a missing quiescent room, paused, with original routes. Existing records, work-control ownership/attempts and usage sources stay untouched. Interrupted apply resumes only on the same explicit call. No native chat creation, messages, AI, code execution or automatic retry.',schema({operation:{type:'string',enum:['list','start','chunk','from_path','preview','apply']},importId:str,name:{type:'string',maxLength:240},size:{type:'integer',minimum:1,maximum:16777216},offset:{type:'integer',minimum:0},data:{type:'string',maxLength:174764},path:{type:'string',maxLength:2000},projectId:member,sha256:str,confirmName:str,confirmed:{type:'boolean'}},['operation']),false,['app']));
 menuSetupTool.inputSchema.properties.operation.enum.push('resume');
 menuSetupTool.inputSchema.properties.language={type:'string',enum:['ko','en','ja','zh-Hans','zh-Hant']};
 menuSetupTool.inputSchema.properties.projectId=member;menuSetupTool.inputSchema.properties.setupId=str;
@@ -119,13 +121,17 @@ export function handle(request,registry=projects){
     if(args.resolveCurrent!==undefined&&typeof args.resolveCurrent!=='boolean')throw new Error('자동 프로젝트 확인 여부를 확인해 주세요.');
     const opening=!args.projectId&&(name==='room_open'||name==='room_state'&&args.resolveCurrent===true)?registry.opening(openingThread(request.params?._meta)):null;
     const selectedId=args.projectId||opening?.projectId;
-    const project=selectedId&&!['room_configure','room_team','room_team_setup','room_check'].includes(name)?registry.get(selectedId):null;
+    const project=selectedId&&!['room_configure','room_team','room_team_setup','room_check','room_import'].includes(name)?registry.get(selectedId):null;
     const store=project?new RoomStore(registry.roomPath(project.id),project,()=>registry.get(project.id)):null;
     const control=store?new WorkControl(store,registry.home):null,usage=control?new UsageLedger(control):null;
     const snapshot=()=>{if(!store||store.project.archivedAt)return {version:1,paused:true,requests:[],messages:[],members:[],project:null,projects:registry.list(),mode:'host-relay',...(store?{deletedProjectId:project.id,opening:{status:'deleted'}}:{})};new Validation(control).refresh();return {...store.snapshot(),projects:registry.list(),work:control.summary(),usageReports:usage.reports()};};
     if(project?.archivedAt&&(name==='room_validation'||name==='room_work'&&!['status','read'].includes(args.operation)||name==='room_usage'&&!['summary','report'].includes(args.operation)))throw new Error('삭제된 회의실은 복구한 뒤 작업을 변경해 주세요.');
     switch(name){
      case 'room_check':data=diagnose(registry,{...args,threadId:openingThread(request.params?._meta)});break;
+     case 'room_import':{
+      const importer=new RoomImport(registry),method={list:'list',start:'start',chunk:'chunk',from_path:'fromPath',preview:'preview',apply:'apply'}[args.operation];
+      if(!method)throw new Error('지원하지 않는 백업 불러오기 작업입니다.');data=importer[method]({...args,threadId:openingThread(request.params?._meta)});break;
+     }
      case 'room_export':{
       const exporter=new RoomExport(registry,store);
       if(args.operation==='preview')data=exporter.preview();

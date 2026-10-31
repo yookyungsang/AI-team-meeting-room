@@ -6,7 +6,7 @@
 
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.15.0. You can use the plugin across projects, with separate connections and records for each. The meeting UI supports Korean, English, Japanese, Simplified Chinese and Traditional Chinese. Choose Auto or a specific language under Menu → Language. Reports retain the user's requested or established conversation language. Older Korean control labels remain documented below alongside English names.
+This guide describes version 0.16.0. Japanese, Simplified Chinese and Traditional Chinese installation/user guides are linked below. You can use the plugin across projects, with separate connections and records for each. The meeting UI supports Korean, English, Japanese, Simplified Chinese and Traditional Chinese. Choose Auto or a specific language under Menu → Language. Reports retain the user's requested or established conversation language. Older Korean control labels remain documented below alongside English names.
 
 ## Get started
 
@@ -324,3 +324,16 @@ Choose **Menu → Back up as ZIP** to save the selected room's original posts, w
 Complete archives are limited to 128 MiB. Missing/corrupt media fail explicitly rather than producing a partial successful backup. Host download is available only when advertised, up to 16 MiB; use the saved local path for larger ZIPs. Copy the archive to separate storage for protection against loss of the original runtime folder. A successful **Create a new backup** captures the latest records under a new ID; only an uncertain retry reuses the original archive. Automatic backup/import/restore is not included. Archives contain private meeting content and connection data; never publish them in source control.
 
 Choose **Menu → Language → Automatic / 한국어 / English / 日本語 / 简体中文 / 繁體中文**. Auto follows Korean, Japanese and Chinese browser locales, falling back to English. For Chinese, explicit Hans/Hant tags take precedence; otherwise TW/HK/MO use Traditional Chinese and other Chinese locales use Simplified Chinese. No location lookup is made. A local preference is reused when available. Packaged labels and new setup drafts need no translation AI. Existing posts, original user text, attachment captions and model settings are retained. Actual work and team initialization still have ordinary usage.
+
+
+## Import a ZIP backup
+
+Open the room from the **original local project chat**, then choose **Menu → Import backup → Choose ZIP file**. File selection supports 16 MiB; use **Import from a local path** for an absolute local ZIP path up to 128 MiB. Review the room name, participant and record/media counts, then explicitly click **Restore reviewed room**. Selecting a file and previewing it do not change meeting records.
+
+Recovery requires a missing room/registration, finished backup work and verified original staff chats still in that native project. Existing records are never overwritten or merged. Soft-deleted rooms use **Archived rooms → Restore** instead. Unfinished backups remain readable through their offline index.html; no old job is automatically re-executed.
+
+New requests are paused after recovery. Select the restored room above, inspect its staff, original posts and attachments, then explicitly resume new requests if needed. Use **Check earlier recovery → Continue checking** after an interruption. Uncertain results are reconciled only through another explicit confirmation of the same original recovery, never an automatic retry.
+
+Workspace authorization, project source files, QA/work-control ledgers, usage sources and native Codex chats are not imported. Existing local ownership, attempt history and usage records remain untouched; missing usage remains unavailable. See [recovery scope and guards](skills/team-room/references/backup-recovery.md).
+
+[日本語 guide](USER_GUIDE.ja.md) · [简体中文 guide](USER_GUIDE.zh-Hans.md) · [繁體中文 guide](USER_GUIDE.zh-Hant.md) · [Actual-host checks and duplicate-tab limitations](skills/team-room/references/host-validation.md)

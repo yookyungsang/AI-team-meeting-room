@@ -5,6 +5,7 @@ import {createHash} from 'node:crypto';
 export const MAX_IMAGE_BYTES=8*1024*1024;
 const check=(value,message)=>{if(!value)throw new Error(message);};
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
+export {mime as imageMime};
 function mime(bytes){
  if(bytes.length>=24&&bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))&&bytes.toString('ascii',12,16)==='IHDR')return 'image/png';
  if(bytes.length>=4&&bytes[0]===255&&bytes[1]===216&&bytes[2]===255)return 'image/jpeg';

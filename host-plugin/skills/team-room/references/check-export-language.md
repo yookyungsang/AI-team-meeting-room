@@ -11,7 +11,7 @@ and its project registry entry, original posts/details and immutable media.
 The ZIP includes offline `index.html`, `meeting.md`, raw scoped JSON, attachments
 and a SHA-256 manifest. Source records are not rewritten. Archives live under
 `TEAM_ROOM_HOME/exports/<projectId>/` and are private, not source assets. There is
-no automatic import/restore or background backup. A new successful backup uses
+no automatic restore or background backup. A new successful backup uses
 a new ID; only an uncertain retry reuses the original export ID and snapshot.
 
 Limits: 128 MiB per complete archive, no partial success for missing/damaged media.
@@ -26,7 +26,14 @@ Auto uses Korean for `ko`, Japanese for `ja`, and Chinese for `zh`: explicit
 Chinese and other Chinese locales use Simplified Chinese. Other locales use
 English. This checks the browser language, not location. A local preference is
 reused when storage is available. Packaged labels, diagnostics and new setup
-drafts use no translator AI. Full manuals remain available in Korean and English.
+drafts use no translator AI. Manuals are available in Korean, English, Japanese,
+Simplified Chinese and Traditional Chinese. The complete collaboration policy
+remains Korean, with the operating skill's English summary.
 Never rewrite authored posts, human requests, captions, model choices or saved
 work because the UI language changed. Existing setup language/identities stay
 with their original journal. Ordinary work and actual setup still have usage.
+
+**Menu → Import backup** provides [explicit missing-room recovery](backup-recovery.md).
+It previews one original-project ZIP, blocks conflicts and unfinished work, and
+restores verified records/attachments paused only after a separate user click.
+It never grants workspace access, imports usage sources, creates chats or invokes AI.

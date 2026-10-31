@@ -16,4 +16,5 @@ team-menu.json
 
 # Private runtime backups, never publish user meeting archives
 exports/
+imports/
 *.zip
