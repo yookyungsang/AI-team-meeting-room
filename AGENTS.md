@@ -1,7 +1,7 @@
 # Team Room development
 
 - This repository owns the generic meeting plugin. Do not depend on a game or another project's source directory.
-- Preserve the installed plugin ID jyfood-room@jyfood-local and MCP server key team-room unless the user explicitly requests an identity migration.
+- Preserve the installed plugin ID team-room@team-room-local and MCP server key team-room unless the user explicitly requests an identity migration.
 - Never commit real chat IDs, membership registries, room transcripts, local paths, tokens or screenshots from user conversations. Tests use synthetic members.
 - Runtime data lives outside the repository in ~/.codex/team-room, or TEAM_ROOM_HOME. Tests must use isolated temporary data.
 - Local work controls live in host-plugin/control.mjs, validation.mjs and usage.mjs. Preserve explicit workspace authorization, guarded writes, persistent ownership and attempt history. External editors are not OS-locked. Usage must come from observed records and show participant totals only after completion; missing/overlapping data is unavailable, never guessed. Unity execution is explicit, bounded and never auto-retried or allowed to kill a reused PID.

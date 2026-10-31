@@ -6,7 +6,7 @@
 
 팀 회의실은 프로젝트의 기존 총괄 채팅과 담당자 채팅을 연결해 요청, 질문, 진행 보고와 결과를 한곳에서 보는 플러그인입니다. 사용자는 총괄에게 목표를 전달하고, 필요한 담당자가 자신의 작업 결과를 직접 게시합니다.
 
-이 설명서는 0.16.2 기준입니다. 다른 프로젝트에서도 사용할 수 있으며, 각 프로젝트의 담당자와 기록은 따로 관리합니다.
+이 설명서는 0.17.0 기준입니다. 다른 프로젝트에서도 사용할 수 있으며, 각 프로젝트의 담당자와 기록은 따로 관리합니다.
 
 ## 처음 사용하기
 
@@ -56,20 +56,22 @@
 
 Node.js 22 이상, Git, 로컬 플러그인과 MCP Apps를 지원하는 Codex가 필요합니다. 처음 설치할 때는 터미널에서 다음 명령을 실행합니다.
 
+**0.17.0부터 설치 이름이 변경되었습니다.** 이전 이름으로 설치했다면 업데이트 전에 [설치 이름 이전 안내](MIGRATION.md)를 따르세요.
+
 ```sh
 git clone https://github.com/yookyungsang/AI-team-meeting-room.git
 cd AI-team-meeting-room
 codex plugin marketplace add .
-codex plugin add jyfood-room@jyfood-local
+codex plugin add team-room@team-room-local
 ```
 
-저장소가 비공개라면 GitHub 접근 권한이 필요합니다. 표시 이름은 **팀 회의실**, 내부 설치 ID는 `jyfood-room@jyfood-local`, MCP 서버 이름은 `team-room`입니다.
+저장소가 비공개라면 GitHub 접근 권한이 필요합니다. 표시 이름은 **팀 회의실**, 내부 설치 ID는 `team-room@team-room-local`, MCP 서버 이름은 `team-room`입니다.
 
 업데이트할 때는 원본 저장소에서 변경 사항을 받은 뒤 같은 설치 명령으로 반영합니다. 설치 캐시 파일을 직접 수정하지 않습니다.
 
 ```sh
 git pull --ff-only
-codex plugin add jyfood-room@jyfood-local
+codex plugin add team-room@team-room-local
 ```
 
 진행 중인 작업을 마친 뒤 Codex를 완전히 종료하고 다시 실행하면 새 설치본을 로드합니다. 코드 수정본을 로컬에서 설치한 경우에는 해당 원본 저장소를 기준으로 업데이트합니다.

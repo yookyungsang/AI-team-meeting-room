@@ -2,27 +2,29 @@
 
 **简体中文** · [繁體中文](USER_GUIDE.zh-Hant.md) · [日本語](USER_GUIDE.ja.md) · [English](USER_GUIDE.en.md) · [한국어](USER_GUIDE.ko.md)
 
-适用于 **0.16.2**。这是一个本地 Codex 插件，可将项目中的现有聊天连接成团队，在一个会议室中查看任务、提问、进度、图片、音频和结果。既可用于游戏，也可用于其他项目。用户向总负责人下达目标，需要参与的成员分别报告自己的工作。
+适用于 **0.17.0**。这是一个本地 Codex 插件，可将项目中的现有聊天连接成团队，在一个会议室中查看任务、提问、进度、图片、音频和结果。既可用于游戏，也可用于其他项目。用户向总负责人下达目标，需要参与的成员分别报告自己的工作。
 
 ## 1. 安装与更新
 
 需要 Node.js 22 或更高版本、Git，以及支持本地插件和 MCP Apps 的 Codex。首次安装时，在用于存放插件源码的位置执行：
 
+**0.17.0 更改了安装名称。** 已使用旧名称安装的用户，请先参阅[迁移步骤（韩语、英语）](MIGRATION.md)，再更新。
+
 ```sh
 git clone https://github.com/yookyungsang/AI-team-meeting-room.git
 cd AI-team-meeting-room
 codex plugin marketplace add .
-codex plugin add jyfood-room@jyfood-local
+codex plugin add team-room@team-room-local
 ```
 
 更新时，在同一插件源码文件夹执行：
 
 ```sh
 git pull --ff-only
-codex plugin add jyfood-room@jyfood-local
+codex plugin add team-room@team-room-local
 ```
 
-请先完成正在进行的工作，再完全退出并重新打开 Codex。更新插件不会删除现有聊天或会议记录。插件 ID 保持为 `jyfood-room@jyfood-local`，MCP 服务器名为 `team-room`。
+请先完成正在进行的工作，再完全退出并重新打开 Codex。更新插件不会删除现有聊天或会议记录。插件 ID 保持为 `team-room@team-room-local`，MCP 服务器名为 `team-room`。
 
 ## 2. 创建第一个团队
 

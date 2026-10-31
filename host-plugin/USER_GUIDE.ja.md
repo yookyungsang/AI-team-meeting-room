@@ -2,27 +2,29 @@
 
 **日本語** · [한국어](USER_GUIDE.ko.md) · [English](USER_GUIDE.en.md) · [简体中文](USER_GUIDE.zh-Hans.md) · [繁體中文](USER_GUIDE.zh-Hant.md)
 
-バージョン **0.16.2**。Codexのプロジェクト内のチャットをチームとして接続し、依頼・質問・進捗・画像・音声・結果を一か所で確認するローカルプラグインです。ゲーム以外のプロジェクトでも利用できます。最初に総括へ目標を送り、必要な担当者が自分の作業を直接報告します。
+バージョン **0.17.0**。Codexのプロジェクト内のチャットをチームとして接続し、依頼・質問・進捗・画像・音声・結果を一か所で確認するローカルプラグインです。ゲーム以外のプロジェクトでも利用できます。最初に総括へ目標を送り、必要な担当者が自分の作業を直接報告します。
 
 ## 1. インストールと更新
 
 Node.js 22以上、Git、ローカルプラグインとMCP Appsに対応したCodexが必要です。初回はプラグインのソース用フォルダーで実行します。
 
+**0.17.0でインストール名が変わりました。** 旧名でインストール済みの場合は、更新前に[移行手順（韓国語・英語）](MIGRATION.md)を確認してください。
+
 ```sh
 git clone https://github.com/yookyungsang/AI-team-meeting-room.git
 cd AI-team-meeting-room
 codex plugin marketplace add .
-codex plugin add jyfood-room@jyfood-local
+codex plugin add team-room@team-room-local
 ```
 
 更新するときは、このソースフォルダーで次を実行します。
 
 ```sh
 git pull --ff-only
-codex plugin add jyfood-room@jyfood-local
+codex plugin add team-room@team-room-local
 ```
 
-進行中の作業を終えてからCodexを完全に終了し、開き直してください。インストールの更新だけでは既存チャットや会議記録を削除しません。プラグインIDは `jyfood-room@jyfood-local`、MCPサーバー名は `team-room` です。
+進行中の作業を終えてからCodexを完全に終了し、開き直してください。インストールの更新だけでは既存チャットや会議記録を削除しません。プラグインIDは `team-room@team-room-local`、MCPサーバー名は `team-room` です。
 
 ## 2. 最初のチームを作る
 

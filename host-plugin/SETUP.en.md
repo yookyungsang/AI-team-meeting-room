@@ -2,7 +2,7 @@
 
 [한국어](SETUP.ko.md) | **English** | [Full user guide](USER_GUIDE.en.md)
 
-For version 0.16.2. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → use the room in the same chat → assign the first task**.
+For version 0.17.0. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → use the room in the same chat → assign the first task**.
 
 A new team has **one director, one planner, one designer, TWO programmers and one QA participant**. The chat where setup starts becomes the director, preserving its history and current model/effort. Only the other five participants get new chats. Setup starts with a written request in a Codex project chat.
 
@@ -29,10 +29,10 @@ For a first installation, you need Node.js 22 or later, Git, a Codex host suppor
 git clone https://github.com/yookyungsang/AI-team-meeting-room.git
 cd AI-team-meeting-room
 codex plugin marketplace add .
-codex plugin add jyfood-room@jyfood-local
+codex plugin add team-room@team-room-local
 ```
 
-The installation ID is `jyfood-room@jyfood-local`; the display name is **팀 회의실** (Team Meeting Room). Run the last command inside the downloaded `AI-team-meeting-room` directory.
+The installation ID is `team-room@team-room-local`; the display name is **팀 회의실** (Team Meeting Room). Run the last command inside the downloaded `AI-team-meeting-room` directory.
 
 Finish active work, then **fully quit and reopen Codex**. A successful installation does not guarantee that an already open conversation immediately reloads the new tools.
 
@@ -219,11 +219,13 @@ A new attempt requires verified absence and an explicit human retry request, wit
 
 ## Updates and usage
 
+**If you installed under the old name, follow the [installation-name migration](MIGRATION.md) first.** The commands below are routine updates for an installation already using the new name.
+
 From the downloaded `AI-team-meeting-room` directory, run:
 
 ```sh
 git pull --ff-only
-codex plugin add jyfood-room@jyfood-local
+codex plugin add team-room@team-room-local
 ```
 
 Finish active work, then fully quit/reopen Codex. Updating the plugin does not require creating a new staff team.

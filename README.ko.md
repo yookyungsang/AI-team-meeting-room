@@ -5,7 +5,7 @@
 > **현재 공개 베타입니다.** 먼저 사용해 보고 의견을 보내실 수 있습니다. 실제 앱에서 처음 팀 만들기, 작업·QA·중단 복구의 전체 흐름, 재시작·중복 탭 동작은 추가 검증 중입니다. [검증 범위](docs/host-validation.md)를 확인하고, 문제가 생기면 앱·플러그인 버전과 재현 순서를 [GitHub Issues](https://github.com/yookyungsang/AI-team-meeting-room/issues)에 남겨 주세요.
 
 [![자동 검사](https://github.com/yookyungsang/AI-team-meeting-room/actions/workflows/checks.yml/badge.svg)](https://github.com/yookyungsang/AI-team-meeting-room/actions/workflows/checks.yml)
-[현재 공개 베타 v0.16.2 · 설치 안내](https://github.com/yookyungsang/AI-team-meeting-room/releases/tag/v0.16.2) · [배포와 자동 검사 설명](docs/RELEASING.md)
+[현재 공개 베타 v0.17.0](https://github.com/yookyungsang/AI-team-meeting-room/releases/tag/v0.17.0) · [새 설치 이름과 이전 안내](docs/releases/v0.17.0.md) · [배포와 자동 검사 설명](docs/RELEASING.md)
 
 기존 Codex 대화창을 프로젝트별 회의실로 연결하는 로컬 MCP App입니다. 사용자는 총괄에게 요청하고, 담당자는 자신의 질문·답변·진행 상황을 직접 게시합니다.
 
@@ -63,10 +63,10 @@ Node.js 22 이상, Git, 로컬 플러그인과 MCP Apps를 지원하는 Codex가
 git clone https://github.com/yookyungsang/AI-team-meeting-room.git
 cd AI-team-meeting-room
 codex plugin marketplace add .
-codex plugin add jyfood-room@jyfood-local
+codex plugin add team-room@team-room-local
 ```
 
-Codex에 표시되는 이름은 **팀 회의실**, MCP 서버 이름은 **team-room**입니다. 기존 사용자의 설치를 유지하기 위해 내부 플러그인/마켓플레이스 ID는 jyfood-room@jyfood-local로 유지합니다. 이 이름은 프로젝트 제한을 뜻하지 않습니다. Codex가 이미 실행 중이면 완전히 종료한 뒤 다시 실행해 새 버전을 로드합니다.
+Codex에 표시되는 이름은 **팀 회의실**, MCP 서버 이름은 **team-room**입니다. 0.17.0부터 설치 ID는 `team-room@team-room-local`입니다. 기존 이름으로 설치했다면 먼저 [설치 이름 이전 안내](host-plugin/MIGRATION.md)를 따라 주세요. 회의 기록·담당자 연결의 저장 위치는 유지합니다. Codex가 이미 실행 중이면 완전히 종료한 뒤 다시 실행해 새 버전을 로드합니다.
 
 원격 저장소가 비공개인 경우 저장소 접근 권한이 필요합니다. 원본 코드는 이 독립 저장소에서 수정하고 버전을 올린 뒤 같은 설치 명령으로 갱신합니다. 설치 캐시는 직접 수정하지 않습니다.
 
@@ -170,7 +170,7 @@ npm start
 GitHub에 main 브랜치 변경이나 PR을 올리면 Windows·Linux의 Node 22에서 패키지와
 기존 테스트를 자동 검사합니다. AI 호출 없이 가상 데이터로 검사하고, 오래된 중복
 실행을 취소하며 예약 실행·자동 배포는 추가하지 않습니다.
-[버전별 배포 안내](docs/releases/v0.16.2.md)에서 설치·업데이트 방법을,
+[버전별 배포 안내](docs/releases/v0.17.0.md)에서 설치·업데이트 방법을,
 [검사 범위와 배포 절차](docs/RELEASING.md)에서 자동 검사 설명을 확인하세요.
 
 npm start는 웹 서버가 아니라 JSON-RPC stdio MCP 서버를 실행합니다. 브라우저 주소로 직접 열 수 없습니다. 런타임은 Node 내장 모듈만 사용하며 npm install이 필요하지 않습니다.

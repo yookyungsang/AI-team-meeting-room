@@ -6,7 +6,7 @@
 
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.16.2. Japanese, Simplified Chinese and Traditional Chinese installation/user guides are linked below. You can use the plugin across projects, with separate connections and records for each. The meeting UI supports Korean, English, Japanese, Simplified Chinese and Traditional Chinese. Choose Auto or a specific language under Menu → Language. Reports retain the user's requested or established conversation language. Older Korean control labels remain documented below alongside English names.
+This guide describes version 0.17.0. Japanese, Simplified Chinese and Traditional Chinese installation/user guides are linked below. You can use the plugin across projects, with separate connections and records for each. The meeting UI supports Korean, English, Japanese, Simplified Chinese and Traditional Chinese. Choose Auto or a specific language under Menu → Language. Reports retain the user's requested or established conversation language. Older Korean control labels remain documented below alongside English names.
 
 ## Get started
 
@@ -56,20 +56,22 @@ An existing participant ID cannot be assigned to another chat. Use a new partici
 
 You need Node.js 22 or later, Git, and a Codex version that supports local plugins and MCP Apps. For a first installation, run:
 
+**The install name changed in 0.17.0.** If you installed under the old name, follow the [installation-name migration](MIGRATION.md) before updating.
+
 ```sh
 git clone https://github.com/yookyungsang/AI-team-meeting-room.git
 cd AI-team-meeting-room
 codex plugin marketplace add .
-codex plugin add jyfood-room@jyfood-local
+codex plugin add team-room@team-room-local
 ```
 
-A private repository requires GitHub access. The display name is **팀 회의실** (Team Meeting Room), the installation ID is `jyfood-room@jyfood-local`, and the MCP server key is `team-room`.
+A private repository requires GitHub access. The display name is **팀 회의실** (Team Meeting Room), the installation ID is `team-room@team-room-local`, and the MCP server key is `team-room`.
 
 To update, pull changes in your source checkout and install from it again. Do not edit the installed cache directly.
 
 ```sh
 git pull --ff-only
-codex plugin add jyfood-room@jyfood-local
+codex plugin add team-room@team-room-local
 ```
 
 Finish active work, then fully quit and reopen Codex to load the updated installation. If you installed from a modified local source checkout, update that same source.

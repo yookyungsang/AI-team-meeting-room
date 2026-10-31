@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-  "name": "jyfood-room",
-  "version": "0.16.2",
+  "name": "team-room",
+  "version": "0.17.0",
   "description": "A local project-scoped meeting panel connecting existing director and participant chats.",
   "author": {
     "name": "yookyungsang"
@@ -11,6 +11,8 @@
       "interface": {
         "displayName": "팀 회의실",
         "shortDescription": "프로젝트별 기존 대화창 협업 회의실",
+        "logo": "./assets/team-room-icon.png",
+        "composerIcon": "./assets/team-room-icon.png",
         "category": "Productivity",
         "capabilities": [
           "Interactive",

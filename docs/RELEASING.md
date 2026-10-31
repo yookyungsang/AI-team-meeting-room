@@ -33,7 +33,9 @@ Passing checks are evidence for the covered cases, not a claim that all bugs are
 
 1. Finish the authorized change. Update `package.json`, both plugin manifests,
    the UI app version and setup/user-guide version labels together when changing
-   the installed plugin. Preserve `jyfood-room@jyfood-local` and `team-room`.
+   the installed plugin. Preserve `team-room@team-room-local` and MCP key `team-room`.
+   The user-authorized 0.17.0 rename is documented in
+   [installation-name migration](../host-plugin/MIGRATION.md); do not silently rename again.
 2. Add bilingual `docs/releases/vX.Y.Z.md` with changes, installation/update
    commands and actual validation limits. Never include runtime data, real chat
    IDs, local paths, transcripts, tokens or conversation screenshots.

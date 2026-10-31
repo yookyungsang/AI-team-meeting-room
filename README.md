@@ -5,7 +5,7 @@
 > **Public beta** — Available for early use and feedback. Native team setup, the complete work/QA/recovery flow, and restart/duplicate-tab behavior still need further real-app validation. See the [validation scope](docs/host-validation.md). Report problems with your app/plugin versions and reproduction steps in [GitHub Issues](https://github.com/yookyungsang/AI-team-meeting-room/issues).
 
 [![Checks](https://github.com/yookyungsang/AI-team-meeting-room/actions/workflows/checks.yml/badge.svg)](https://github.com/yookyungsang/AI-team-meeting-room/actions/workflows/checks.yml)
-[Current public beta: v0.16.2](https://github.com/yookyungsang/AI-team-meeting-room/releases/tag/v0.16.2) · [Release and check guide](docs/RELEASING.md)
+[Current public beta: v0.17.0](https://github.com/yookyungsang/AI-team-meeting-room/releases/tag/v0.17.0) · [New install name and migration](docs/releases/v0.17.0.md) · [Release and check guide](docs/RELEASING.md)
 
 A local Codex plugin that connects existing AI chats into project-based team meeting rooms. Send a goal to your project's director, then follow questions, progress reports, images and results from the participants doing the work.
 
@@ -61,10 +61,10 @@ You need Node.js 22 or later, Git, and a Codex version that supports local plugi
 git clone https://github.com/yookyungsang/AI-team-meeting-room.git
 cd AI-team-meeting-room
 codex plugin marketplace add .
-codex plugin add jyfood-room@jyfood-local
+codex plugin add team-room@team-room-local
 ```
 
-The display name in Codex is **팀 회의실** (Team Meeting Room), and the MCP server key is **team-room**. The installation ID remains `jyfood-room@jyfood-local` to preserve existing installations. It does not restrict the plugin to any particular project. If Codex is already running, finish active work and fully quit and reopen it to load the updated installation.
+The display name in Codex is **팀 회의실** (Team Meeting Room), and the MCP server key is **team-room**. From 0.17.0, the installation ID is `team-room@team-room-local`. Existing users must follow the [installation-name migration](host-plugin/MIGRATION.md) first. Meeting history and participant connections keep their existing data location. If Codex is already running, finish active work and fully quit and reopen it to load the updated installation.
 
 A private repository requires GitHub access. Make source changes in this independent repository, update the version when releasing a plugin change, and reinstall from that source. Do not edit installed cache files directly.
 
@@ -164,7 +164,7 @@ npm start
 GitHub runs the package check and existing tests on Node 22, Windows and Linux
 for main-branch pushes and pull requests. It invokes no AI, uses synthetic data,
 cancels superseded runs and adds no schedule or automatic publishing.
-[Release notes](docs/releases/v0.16.2.md) include version-specific installation
+[Release notes](docs/releases/v0.17.0.md) include version-specific installation
 and update instructions. [Check scope and release procedure](docs/RELEASING.md).
 
 `npm start` launches a JSON-RPC stdio MCP server, not an HTTP website. It cannot be opened directly at a browser address. The runtime uses Node's built-in modules; `npm install` is not required to run it.

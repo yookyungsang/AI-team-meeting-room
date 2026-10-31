@@ -2,7 +2,7 @@
 
 **한국어** | [English](SETUP.en.md) | [전체 사용 설명서](USER_GUIDE.ko.md)
 
-0.16.2 기준입니다. **설치 → 작업할 프로젝트 열기 → 작업자 생성 요청 → 모델 선택 → 같은 채팅에서 회의실 사용 → 첫 작업 지시** 순서로 진행합니다.
+0.17.0 기준입니다. **설치 → 작업할 프로젝트 열기 → 작업자 생성 요청 → 모델 선택 → 같은 채팅에서 회의실 사용 → 첫 작업 지시** 순서로 진행합니다.
 
 처음 팀을 만들면 **총괄 1명, 기획자 1명, 디자이너 1명, 프로그래머 2명, QA 1명**이 준비됩니다. 처음 팀 생성을 요청한 대화창이 총괄이 되고, 나머지 담당자 5명만 별도 대화창으로 만듭니다. 기존 대화 내용과 모델·추론 설정은 유지합니다. 팀 생성은 **Codex 채팅에 문장으로 요청**해서 사용합니다.
 
@@ -29,10 +29,10 @@
 git clone https://github.com/yookyungsang/AI-team-meeting-room.git
 cd AI-team-meeting-room
 codex plugin marketplace add .
-codex plugin add jyfood-room@jyfood-local
+codex plugin add team-room@team-room-local
 ```
 
-설치 결과에 표시되는 플러그인 ID는 `jyfood-room@jyfood-local`, 표시 이름은 **팀 회의실**입니다. 마지막 명령은 위에서 내려받은 `AI-team-meeting-room` 폴더 안에서 실행합니다.
+설치 결과에 표시되는 플러그인 ID는 `team-room@team-room-local`, 표시 이름은 **팀 회의실**입니다. 마지막 명령은 위에서 내려받은 `AI-team-meeting-room` 폴더 안에서 실행합니다.
 
 진행 중인 작업을 마친 뒤 **Codex를 완전히 종료하고 다시 실행**합니다. 설치 명령이 성공했어도 이미 열린 대화가 새 도구를 바로 읽는다고 보장하지는 않습니다.
 
@@ -218,11 +218,13 @@ Codex는 프로젝트와 현재 사용할 수 있는 대화창 생성 기능·�
 
 ## 업데이트와 사용량
 
+**예전 설치 이름을 사용했다면 먼저 [설치 이름 이전 안내](MIGRATION.md)를 따르세요.** 아래 명령은 새 이름으로 이미 설치한 사용자의 일반 업데이트 방법입니다.
+
 플러그인을 처음 내려받은 `AI-team-meeting-room` 폴더에서 실행합니다.
 
 ```sh
 git pull --ff-only
-codex plugin add jyfood-room@jyfood-local
+codex plugin add team-room@team-room-local
 ```
 
 진행 중인 작업을 마치고 Codex를 완전히 종료·재실행합니다. 기존 회의실을 업데이트할 때마다 새 작업자 팀을 만들 필요는 없습니다.
