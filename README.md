@@ -162,7 +162,7 @@ npm start
 GitHub runs the package check and existing tests on Node 22, Windows and Linux
 for main-branch pushes and pull requests. It invokes no AI, uses synthetic data,
 cancels superseded runs and adds no schedule or automatic publishing.
-[Release notes](docs/releases/v0.16.1.md) include version-specific installation
+[Release notes](docs/releases/v0.16.2.md) include version-specific installation
 and update instructions. [Check scope and release procedure](docs/RELEASING.md).
 
 `npm start` launches a JSON-RPC stdio MCP server, not an HTTP website. It cannot be opened directly at a browser address. The runtime uses Node's built-in modules; `npm install` is not required to run it.

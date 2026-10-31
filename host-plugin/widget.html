@@ -139,7 +139,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   function closeUtilities(){checkView=null;exportView=null;closeImport();$('connection-check').hidden=true;$('export-result').hidden=true;$('export-status').textContent='';$('export-path').value='';if(!disposed)controls();}
   let setupProgress=null, setupStale=false;const seenSetups=new Set(),dismissedSetups=new Set();
   let roomDelete=null, deletedView=null;
-  let disposed=false, hostContext={}, reportedHeight=null;
+  let disposed=false, hostContext={}, reportedHeight=null, appliedHeight=null;
   const expandedDetails=new Set();let detailsEpoch=0;
   // Inline height must not depend on the iframe's own viewport. Otherwise a
   // host measuring content can feed every resize back into the next height.
@@ -147,6 +147,9 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     if(disposed)return;
     if(update.displayMode && update.displayMode!==hostContext.displayMode && !update.containerDimensions)delete hostContext.containerDimensions;
     hostContext={...hostContext,...update};
+    // Restored background panels may receive context before becoming visible.
+    // Remember it without feeding hidden measurements back into the host.
+    if(document.hidden)return;
     const dimensions=hostContext.containerDimensions||{};
     const positive=n=>Number.isFinite(n)&&n>0;
     const fullscreen=hostContext.displayMode==='fullscreen';
@@ -154,8 +157,15 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     if(positive(dimensions.height))height=fullscreen?dimensions.height:Math.min(height,dimensions.height);
     else if(positive(dimensions.maxHeight))height=Math.min(height,dimensions.maxHeight);
     height=Math.max(1,Math.round(height));
-    document.documentElement.style.setProperty('--room-height',height+'px');
-    if(initialized && !positive(dimensions.height) && height!==reportedHeight){
+    if(height!==appliedHeight){
+      appliedHeight=height;document.documentElement.style.setProperty('--room-height',height+'px');
+    }
+    // Fullscreen dimensions belong to the host. Echoing its viewport back as
+    // an intrinsic size can turn host layout changes into a resize feedback
+    // loop. Inline owns only its bounded intrinsic height; a fixed host height
+    // also needs no echo. A later inline transition must report afresh.
+    if(fullscreen || positive(dimensions.height)){reportedHeight=null;return;}
+    if(initialized && height!==reportedHeight){
       reportedHeight=height;
       window.parent.postMessage({jsonrpc:'2.0',method:'ui/notifications/size-changed',params:{height}},'*');
     }
@@ -822,7 +832,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     finally{polling=false;if(!disposed)controls();}
   }
   function schedule(){if(timer)clearInterval(timer);timer=null;if(!disposed&&initialized&&!document.hidden)timer=setInterval(poll,4000);}
-  document.addEventListener('visibilitychange',()=>{schedule();if(document.hidden){resetAudio();closeRoster();closeTeamSetup();closeLifecycle();closeUtilities();}else poll();});
+  document.addEventListener('visibilitychange',()=>{schedule();if(document.hidden){resetAudio();closeRoster();closeTeamSetup();closeLifecycle();closeUtilities();}else{applyLayout();poll();}});
   async function selectProject(selected,{automatic=false}={}){
     if(disposed||!initialized||document.hidden||sending||pausing||switching){renderProjects();return;}
     if(automatic&&!openingAllowed)return;
@@ -903,7 +913,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   async function initialize(){
     if(window.parent===window){$('connection').textContent=t('단독 창에서는 연결할 수 없습니다.');showError(t('기존 채팅의 MCP App 패널에서 팀 회의실을 열어 주세요.'));return;}
     try{
-      const result=await rpc('ui/initialize',{appInfo:{name:'team-room',version:'0.16.1'},appCapabilities:{availableDisplayModes:['inline','fullscreen']},protocolVersion:'2026-01-26'});
+      const result=await rpc('ui/initialize',{appInfo:{name:'team-room',version:'0.16.2'},appCapabilities:{availableDisplayModes:['inline','fullscreen']},protocolVersion:'2026-01-26'});
       if(disposed)return;
       if(result?.protocolVersion!=='2026-01-26')throw new Error(t('지원되는 호스트 통신 버전을 확인하지 못했습니다.'));
       hostObservation={protocol:result.protocolVersion,message:false,draft:false};canDownload=Boolean(result.hostCapabilities?.downloadFile);canOpenFile=Boolean(result.hostCapabilities?.experimental?.['openai/files']||result.hostCapabilities?.extensions?.['openai/files']);

@@ -93,6 +93,21 @@ try{
  }
  for(const width of (process.env.TEAM_ROOM_LAYOUT_NARROW_ONLY==='1'?[420]:[1280,420])){
   const page=await browser.newPage({locale:'ko-KR'}),frame=await mount(page,renderWidget(),width);
+  // A fullscreen pane owns its viewport. Feeding that height back into an
+  // auto-sizing host creates a second writer during restore/resize.
+  await context(page,{displayMode:'inline'});await context(page,{displayMode:'fullscreen'});
+  const fullscreenSizes=await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/notifications/size-changed').length);
+  for(const height of [950,925,926,924,950]){
+   await page.locator('iframe').evaluate((el,height)=>{el.style.height=height+'px';},height);
+   await frame.waitForFunction(height=>document.documentElement.style.getPropertyValue('--room-height')===height+'px',height);
+  }
+  assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/notifications/size-changed').length),fullscreenSizes,'fullscreen must not echo viewport changes to host');
+  await context(page,{displayMode:'inline',containerDimensions:{maxHeight:640}});
+  await frame.evaluate(()=>{window.layoutWrites=0;window.layoutObserver=new MutationObserver(rows=>{window.layoutWrites+=rows.length;});window.layoutObserver.observe(document.documentElement,{attributes:true,attributeFilter:['style']});});
+  for(let i=0;i<25;i++)await context(page,{containerDimensions:{maxHeight:640.2}});
+  assert.equal(await frame.evaluate(()=>window.layoutWrites),0,'same rounded height must not rewrite styles');
+  await frame.evaluate(()=>window.layoutObserver.disconnect());
+  report.cases.push({width,fullscreenViewportResizeEchoes:0,unchangedHeightStyleWrites:0,host:'synthetic host with real browser resize'});
   for(let i=0;i<10;i++){
    await context(page,{displayMode:'fullscreen',containerDimensions:{height:1000}});
    await context(page,{displayMode:'inline',containerDimensions:{maxHeight:720}});

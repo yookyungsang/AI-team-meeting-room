@@ -38,8 +38,8 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
  const rosterPackets=[],rosterBehavior={hold:holdRoster,error:rosterError},rosterChanges=new Map();
  const catalogs=new Map([...states].map(([id,room])=>[id,{projectId:id,revision:1,optionsRevision:1,members:room.members.map(m=>({...m})),choices:[...room.members.map(m=>({...m})),{id:'designer',name:'선택 디자이너',role:'디자이너'}]}]));
  for(const data of catalogs.values()){data.roles=roleCatalog();data.members=data.members.map(m=>({...m,roleType:roleTypeOf(m)}));data.choices=data.choices.map(m=>({...m,roleType:roleTypeOf(m)}));}
- const styles=new Map();
- const document={hidden:false,body:{hidden:false},documentElement:{style:{setProperty:(key,value)=>styles.set(key,value)}},activeElement:null,getElementById:id=>{if(!elements.has(id))elements.set(id,new Element());return elements.get(id);},createElement:tag=>new Element(tag),addEventListener:(name,fn)=>callbacks[name]=fn};
+ const styles=new Map(),styleWrites=[];
+ const document={hidden:false,body:{hidden:false},documentElement:{style:{setProperty:(key,value)=>{styleWrites.push({key,value});styles.set(key,value);}}},activeElement:null,getElementById:id=>{if(!elements.has(id))elements.set(id,new Element());return elements.get(id);},createElement:tag=>new Element(tag),addEventListener:(name,fn)=>callbacks[name]=fn};
  const parent={postMessage:packet=>{sent.push(packet);if(packet.id===undefined)return;let result={};
   if(packet.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostCapabilities:{message:{text:capability},downloadFile:downloadSupport?{}:undefined,experimental:{...(draftSupport?{'openai/message':{}}:{}),...(fileSupport?{'openai/files':{}}:{})}}};
   if(packet.method==='tools/call'){
@@ -96,7 +96,7 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
  const receive=data=>callbacks.message({source:parent,data:{jsonrpc:'2.0',...data}});
  const respondMessage=(index,result={})=>receive({id:messagePackets[index].id,result});
  const expire=()=>{for(const [id,fn] of [...timeouts]){timeouts.delete(id);fn();}};
- return {importPackets,importBehavior,utilityPackets,utilityBehavior,rosterPackets,rosterBehavior,catalogs,sent,elements,state,second,states,chooser,notify,callbacks,intervals,document,styles,receive,window,messagePackets,imagePackets,audioPackets,openingPackets,teamPackets,teamData,respondMessage,expire,managePackets,manageBehavior,archived,copied,storage};
+ return {importPackets,importBehavior,utilityPackets,utilityBehavior,rosterPackets,rosterBehavior,catalogs,sent,elements,state,second,states,chooser,notify,callbacks,intervals,document,styles,styleWrites,receive,window,messagePackets,imagePackets,audioPackets,openingPackets,teamPackets,teamData,respondMessage,expire,managePackets,manageBehavior,archived,copied,storage};
 }
 
 async function previewDelete(w){w.elements.get('open-menu').events.click();await w.elements.get('delete-room').events.click();}
@@ -614,6 +614,39 @@ test('fullscreen to inline converges to bounded height without resize feedback',
  w.receive({method:'ui/notifications/host-context-changed',params:{displayMode:'inline'}});
  assert.equal(w.styles.get('--room-height'),'720px');
  assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+});
+
+test('fullscreen viewport resizes never ask the host to resize its own container',async t=>{
+ const w=await widget(t),sizes=()=>w.sent.filter(p=>p.method==='ui/notifications/size-changed');
+ const initial=sizes().length;w.window.innerHeight=960;
+ w.receive({method:'ui/notifications/host-context-changed',params:{displayMode:'fullscreen'}});
+ for(let i=0;i<40;i++){w.window.innerHeight=960-i;w.callbacks.resize();}
+ assert.equal(w.styles.get('--room-height'),'921px');assert.equal(sizes().length,initial);
+ // Re-entering inline needs one fresh bounded report even if its last
+ // previously reported inline height was the same before fullscreen.
+ w.receive({method:'ui/notifications/host-context-changed',params:{displayMode:'inline'}});
+ assert.equal(w.styles.get('--room-height'),'720px');assert.equal(sizes().length,initial+1);
+ assert.equal(sizes().at(-1).params.height,720);
+});
+
+test('unchanged resize and host-context bursts do not rewrite layout styles',async t=>{
+ const w=await widget(t);w.receive({method:'ui/notifications/host-context-changed',params:{displayMode:'inline',containerDimensions:{maxHeight:640}}});
+ const writes=w.styleWrites.length,count=w.sent.length;
+ for(let i=0;i<60;i++){w.window.innerHeight=500+i;w.callbacks.resize();w.receive({method:'ui/notifications/host-context-changed',params:{containerDimensions:{maxHeight:640.2}}});}
+ assert.equal(w.styles.get('--room-height'),'640px');assert.equal(w.styleWrites.length,writes);assert.equal(w.sent.length,count);
+});
+
+test('hidden restoration remembers host dimensions without layout or size notifications until visible',async t=>{
+ const w=await widget(t),input=w.elements.get('text');input.value='keep original draft';
+ w.document.hidden=true;w.callbacks.visibilitychange();const writes=w.styleWrites.length,count=w.sent.length;
+ for(let i=0;i<30;i++)w.receive({method:'ui/notifications/host-context-changed',params:{displayMode:'fullscreen',containerDimensions:{height:900+i}}});
+ w.callbacks.resize();assert.equal(w.styleWrites.length,writes);assert.equal(w.sent.length,count);
+ w.document.hidden=false;w.callbacks.visibilitychange();await settle();
+ assert.equal(w.styles.get('--room-height'),'929px');assert.equal(w.styleWrites.length,writes+1);assert.equal(input.value,'keep original draft');
+ assert.equal(w.sent.slice(count).filter(p=>p.method==='ui/notifications/size-changed').length,0);
+ w.callbacks.pagehide();const stoppedWrites=w.styleWrites.length,stoppedPackets=w.sent.length;
+ w.receive({method:'ui/notifications/host-context-changed',params:{displayMode:'inline'}});w.callbacks.visibilitychange();w.callbacks.resize();await settle();
+ assert.equal(w.styleWrites.length,stoppedWrites);assert.equal(w.sent.length,stoppedPackets);
 });
 
 test('teardown acknowledges a host request with a colliding ID and stops pending polling permanently',async t=>{
