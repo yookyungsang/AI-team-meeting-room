@@ -2,7 +2,7 @@
 
 [한국어](SETUP.ko.md) | **English** | [Full user guide](USER_GUIDE.en.md)
 
-For version 0.14.0. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → use the room in the same chat → assign the first task**.
+For version 0.15.0. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → use the room in the same chat → assign the first task**.
 
 A new team has **one director, one planner, one designer, TWO programmers and one QA participant**. The chat where setup starts becomes the director, preserving its history and current model/effort. Only the other five participants get new chats. Setup starts with a written request in a Codex project chat.
 
@@ -263,4 +263,4 @@ Choose **Menu → Back up as ZIP** to save the selected room's original posts, w
 
 Complete archives are limited to 128 MiB. Missing/corrupt media fail explicitly rather than producing a partial successful backup. Host download is available only when advertised, up to 16 MiB; use the saved local path for larger ZIPs. Copy the archive to separate storage for protection against loss of the original runtime folder. A successful **Create a new backup** captures the latest records under a new ID; only an uncertain retry reuses the original archive. Automatic backup/import/restore is not included. Archives contain private meeting content and connection data; never publish them in source control.
 
-Choose **Menu → Language → Automatic / Korean / English**. Automatic uses Korean for a Korean browser locale and English otherwise. A local preference is reused when available. Packaged labels and new setup drafts need no translation AI. Existing posts, original user text, attachment captions and model settings are retained. Actual work and team initialization still have ordinary usage.
+Choose **Menu → Language → Automatic / 한국어 / English / 日本語 / 简体中文 / 繁體中文**. Auto follows Korean, Japanese and Chinese browser locales, falling back to English. For Chinese, explicit Hans/Hant tags take precedence; otherwise TW/HK/MO use Traditional Chinese and other Chinese locales use Simplified Chinese. No location lookup is made. A local preference is reused when available. Packaged labels and new setup drafts need no translation AI. Existing posts, original user text, attachment captions and model settings are retained. Actual work and team initialization still have ordinary usage.

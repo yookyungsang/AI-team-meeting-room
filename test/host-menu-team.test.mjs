@@ -37,6 +37,15 @@ test('an English first-team request retains exact model choices and uses English
  const resumed=ok(f,{operation:'resume',projectId:receipt.projectId,setupId:receipt.setupId});assert.match(resumed.continuationPrompt,/Continue after interruption/);assert(!/[가-힣]/.test(resumed.continuationPrompt));
 });
 
+test('new Japanese and Chinese setups localize drafts and titles while saved language, routing and model choices remain immutable',t=>{
+ for(const [language,name,lead] of [['ja','総括ディレクター','基本チーム'],['zh-Hans','总负责人','基本团队'],['zh-Hant','總負責人','基本團隊']]){
+  const f=fixture(t),preview=ok(f,{operation:'preview',language}),receipt=ok(f,approve(preview));
+  assert(receipt.prompt.includes(lead));assert(!/[가-힣]/.test(receipt.prompt));assert.match(receipt.prompt,/gpt-6\.1-sol \/ high/);assert.match(receipt.prompt,/gpt-6-luna \/ medium/);assert.match(receipt.prompt,/set_thread_title/);assert.match(receipt.prompt,new RegExp('TEAM-ROOM-SETUP '+receipt.projectId+' '+receipt.setupId));
+  const setup=f.team.status(receipt);assert.equal(setup.roles[0].title,'Fixture alpha · '+name);assert.equal(setup.roles[0].reuseSource,'opening-chat');assert.equal(setup.roles.filter(r=>r.slotId.startsWith('programmer')).length,2);assert.deepEqual(setup.requestedChoices,requested);assert(!fs.existsSync(f.registry.file));
+  const bytes=fs.readFileSync(f.team.file);const reopened=ok(f,{operation:'preview',language:'en'});assert.equal(reopened.continuationPrompt,receipt.prompt);assert(fs.readFileSync(f.team.file).equals(bytes));
+  const resumed=ok(f,{operation:'resume',projectId:receipt.projectId,setupId:receipt.setupId});assert(resumed.continuationPrompt.startsWith(receipt.prompt));assert(!/[가-힣]/.test(resumed.continuationPrompt));assert(fs.readFileSync(f.team.file).equals(bytes));
+ }
+});
 test('confirmed role models are verified before approval and reach native actions exactly without changing default roles',t=>{
  const f=fixture(t),preview=ok(f,{operation:'preview'}),args=approve(preview),receipt=ok(f,args);
  assert.equal(receipt.dispatch,true);assert.match(receipt.prompt,/프로그래머 2명/);assert.match(receipt.prompt,/역할별 모델/);assert.match(receipt.prompt,/새 대화창 5개만/);assert.match(receipt.prompt,/별도 초기화 메시지를 보내지/);

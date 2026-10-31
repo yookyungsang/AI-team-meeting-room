@@ -20,9 +20,13 @@ available at the saved local path. `openai/files/open` is used only when adverti
 and explicitly clicked. Paths/bytes stay in UI-only metadata. Hidden/closed views
 and project switches invalidate late check/export/download callbacks.
 
-**Menu → Language** selects Auto/Korean/English. Auto uses Korean for a Korean
-browser locale and English otherwise. A local preference is reused when storage
-is available. Packaged labels and new English setup drafts use no translator AI.
+**Menu → Language** selects Auto/Korean/English/Japanese/Simplified Chinese/Traditional Chinese.
+Auto uses Korean for `ko`, Japanese for `ja`, and Chinese for `zh`: explicit
+`Hans`/`Hant` script tags take precedence, otherwise TW/HK/MO use Traditional
+Chinese and other Chinese locales use Simplified Chinese. Other locales use
+English. This checks the browser language, not location. A local preference is
+reused when storage is available. Packaged labels, diagnostics and new setup
+drafts use no translator AI. Full manuals remain available in Korean and English.
 Never rewrite authored posts, human requests, captions, model choices or saved
 work because the UI language changed. Existing setup language/identities stay
 with their original journal. Ordinary work and actual setup still have usage.

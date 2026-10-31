@@ -11,7 +11,7 @@ A local Codex plugin that connects existing AI chats into project-based team mee
 
 [Watch/download the 1-minute video](docs/media/team-room-demo.webm) · [What the recording shows](docs/DEMO.md)
 
-English/Korean menus, read-only connection checks and local ZIP exports are available from **Menu**. The recording uses the actual plugin UI with example records in an isolated browser host; it does not show native Codex chat creation or live agents.
+Korean, English, Japanese, Simplified Chinese and Traditional Chinese menus, read-only connection checks and local ZIP exports are available from **Menu**. Auto follows the browser locale; you can override it under **Menu → Language**. The recording uses the actual plugin UI with example records in an isolated browser host; it does not show native Codex chat creation or live agents.
 
 ## Start here: set up your workers after installation
 
@@ -162,7 +162,7 @@ npm start
 GitHub runs the package check and existing tests on Node 22, Windows and Linux
 for main-branch pushes and pull requests. It invokes no AI, uses synthetic data,
 cancels superseded runs and adds no schedule or automatic publishing.
-[Release notes](docs/releases/v0.14.0.md) include version-specific installation
+[Release notes](docs/releases/v0.15.0.md) include version-specific installation
 and update instructions. [Check scope and release procedure](docs/RELEASING.md).
 
 `npm start` launches a JSON-RPC stdio MCP server, not an HTTP website. It cannot be opened directly at a browser address. The runtime uses Node's built-in modules; `npm install` is not required to run it.
@@ -185,7 +185,7 @@ This project is licensed under the [MIT License](LICENSE). Copyright (c) 2026 yo
 
 ## Current limitations
 
-- The meeting UI and full collaboration policy currently use Korean. These English documents do not add automatic UI or report translation, location detection or a separate translation model.
+- The meeting UI has five packaged languages. Full manuals are available in Korean and English, and the full collaboration policy is in Korean. UI language selection never translates existing posts or changes the report language, staff models or saved setup plans. No translation model or location lookup is added.
 - Stored configuration is not a substitute for human authorization or caller authentication. Follow the operating skill and verified human scope.
 - Failed or uncertain delivery is not resent automatically. Check the exact project/request status first.
 - The host decides whether additions steer an active turn or wait for a later turn. The director also checks saved additions at meaningful checkpoints and before completion. This does not add an idle AI call or model runtime.

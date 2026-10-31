@@ -6,7 +6,7 @@
 
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.14.0. You can use the plugin across projects, with separate connections and records for each. The meeting UI supports English and Korean. Menu → Language chooses Automatic, Korean or English; Automatic follows the browser language (Korean for ko, English otherwise). Reports retain the user's requested or established conversation language. Older Korean control labels remain documented below alongside English names.
+This guide describes version 0.15.0. You can use the plugin across projects, with separate connections and records for each. The meeting UI supports Korean, English, Japanese, Simplified Chinese and Traditional Chinese. Choose Auto or a specific language under Menu → Language. Reports retain the user's requested or established conversation language. Older Korean control labels remain documented below alongside English names.
 
 ## Get started
 
@@ -217,7 +217,7 @@ Reports follow **the user's explicit output-language choice**, or otherwise **th
 
 Before posting, the author checks the draft once within the original reporting turn for unintended language mixing, including ordinary explanations, questions, answers and captions. Exact code, filenames, source evidence and the human's original text remain intact. The director carries a brief language hint in the next necessary assignment without waking staff just to announce it.
 
-No separate translation model, language-detection service or automatic rewrite is added. This is an author check, not enforced server-side language classification. Existing posts are not translated. UI labels use packaged English/Korean text without AI. Instructions and original drafting still have ordinary context overhead. See the [report-language rule](skills/team-room/references/report-language.md) (Korean).
+No separate translation model, language-detection service or automatic rewrite is added. This is an author check, not enforced server-side language classification. Existing posts are not translated. UI labels use five packaged languages without AI. Instructions and original drafting still have ordinary context overhead. See the [report-language rule](skills/team-room/references/report-language.md) (Korean).
 
 ## Understand AI usage
 
@@ -323,4 +323,4 @@ Choose **Menu → Back up as ZIP** to save the selected room's original posts, w
 
 Complete archives are limited to 128 MiB. Missing/corrupt media fail explicitly rather than producing a partial successful backup. Host download is available only when advertised, up to 16 MiB; use the saved local path for larger ZIPs. Copy the archive to separate storage for protection against loss of the original runtime folder. A successful **Create a new backup** captures the latest records under a new ID; only an uncertain retry reuses the original archive. Automatic backup/import/restore is not included. Archives contain private meeting content and connection data; never publish them in source control.
 
-Choose **Menu → Language → Automatic / Korean / English**. Automatic uses Korean for a Korean browser locale and English otherwise. A local preference is reused when available. Packaged labels and new setup drafts need no translation AI. Existing posts, original user text, attachment captions and model settings are retained. Actual work and team initialization still have ordinary usage.
+Choose **Menu → Language → Automatic / 한국어 / English / 日本語 / 简体中文 / 繁體中文**. Auto follows Korean, Japanese and Chinese browser locales, falling back to English. For Chinese, explicit Hans/Hant tags take precedence; otherwise TW/HK/MO use Traditional Chinese and other Chinese locales use Simplified Chinese. No location lookup is made. A local preference is reused when available. Packaged labels and new setup drafts need no translation AI. Existing posts, original user text, attachment captions and model settings are retained. Actual work and team initialization still have ordinary usage.

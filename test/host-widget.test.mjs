@@ -24,7 +24,7 @@ class Element {
  set innerHTML(value){throw new Error('unsafe HTML rendering');}
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
-async function widget(t,{capability={},messageFails=false,autoSelect=true,deferMessages=false,holdSubmit=false,holdImages=false,badImage=false,holdAudio=false,badAudio=false,holdRoster=null,rosterError=null,currentProject=null,openingStatus='unavailable',holdOpening=false,initialInput,holdTeam=null,teamStatus='preview',holdManage=null,busyRoom=false,draftSupport=true,openingProjectName,language='ko-KR',fileSupport=false,downloadSupport=false,holdUtility=null}={}){
+async function widget(t,{capability={},messageFails=false,autoSelect=true,deferMessages=false,holdSubmit=false,holdImages=false,badImage=false,holdAudio=false,badAudio=false,holdRoster=null,rosterError=null,currentProject=null,openingStatus='unavailable',holdOpening=false,initialInput,holdTeam=null,teamStatus='preview',holdManage=null,busyRoom=false,draftSupport=true,openingProjectName,language='ko-KR',storedLanguage,fileSupport=false,downloadSupport=false,holdUtility=null}={}){
  const elements=new Map(),sent=[],callbacks={},intervals=[],messagePackets=[],imagePackets=[],audioPackets=[],openingPackets=[],teamPackets=[],copied=[],timeouts=new Map();let timeoutSeq=0;
  const utilityPackets=[],utilityBehavior={hold:holdUtility};
  const teamData={previewId:randomUUID(),setupId:randomUUID(),projectId:'created',projectName:'가상 새 프로젝트',status:teamStatus,roles:TEAM_ROLES.map(r=>({id:r.id,name:r.name})),modelMode:'default',continuationPrompt:'Synthetic original team request',setupStatus:'planned',readyCount:0};
@@ -82,7 +82,8 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
   if(packet.method==='ui/initialize'&&initialInput!==undefined)queueMicrotask(()=>callbacks.message({source:parent,data:{jsonrpc:'2.0',method:'ui/notifications/tool-input',params:{arguments:initialInput}}}));
  }};
  const window={parent,addEventListener:(name,fn)=>callbacks[name]=fn};
- vm.runInNewContext(script,{window,document,navigator:{language,clipboard:{writeText:async value=>{copied.push(value);}}},crypto:{randomUUID},console,Intl,Date,Map,Set,Object,Array,JSON,setTimeout:fn=>{const id=++timeoutSeq;timeouts.set(id,fn);return id;},clearTimeout:id=>timeouts.delete(id),setInterval:fn=>{intervals.push(fn);return intervals.length;},clearInterval(){}});
+ const storage=new Map(storedLanguage?[['team-room-ui-language',storedLanguage]]:[]);
+ vm.runInNewContext(script,{window,document,navigator:{language,clipboard:{writeText:async value=>{copied.push(value);}}},localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value)},crypto:{randomUUID},console,Intl,Date,Map,Set,Object,Array,JSON,setTimeout:fn=>{const id=++timeoutSeq;timeouts.set(id,fn);return id;},clearTimeout:id=>timeouts.delete(id),setInterval:fn=>{intervals.push(fn);return intervals.length;},clearInterval(){}});
  t.after(async()=>{callbacks.pagehide();await settle();});
  await settle();
  const notify=data=>callbacks.message({source:parent,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:data}}});
@@ -90,7 +91,7 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
  const receive=data=>callbacks.message({source:parent,data:{jsonrpc:'2.0',...data}});
  const respondMessage=(index,result={})=>receive({id:messagePackets[index].id,result});
  const expire=()=>{for(const [id,fn] of [...timeouts]){timeouts.delete(id);fn();}};
- return {utilityPackets,utilityBehavior,rosterPackets,rosterBehavior,catalogs,sent,elements,state,second,states,chooser,notify,callbacks,intervals,document,styles,receive,window,messagePackets,imagePackets,audioPackets,openingPackets,teamPackets,teamData,respondMessage,expire,managePackets,manageBehavior,archived,copied};
+ return {utilityPackets,utilityBehavior,rosterPackets,rosterBehavior,catalogs,sent,elements,state,second,states,chooser,notify,callbacks,intervals,document,styles,receive,window,messagePackets,imagePackets,audioPackets,openingPackets,teamPackets,teamData,respondMessage,expire,managePackets,manageBehavior,archived,copied,storage};
 }
 
 async function previewDelete(w){w.elements.get('open-menu').events.click();await w.elements.get('delete-room').events.click();}
@@ -99,6 +100,20 @@ test('English controls follow browser language; changing UI language preserves u
  w.state.messages.push({id:'literal',authorId:'director',text:'프로젝트 선택'});w.notify(w.state);w.elements.get('text').value='내가 쓴 원문';const before=JSON.stringify(w.state);
  const text=node=>[node.textContent||'',...(node.children||[]).map(text)].join('');assert(text(w.elements.get('messages')).includes('프로젝트 선택'));
  w.elements.get('ui-language').value='ko';w.elements.get('ui-language').events.change();assert.equal(w.elements.get('pause').textContent,'새 요청 일시정지');assert.equal(w.elements.get('text').value,'내가 쓴 원문');assert.equal(JSON.stringify(w.state),before);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+});
+test('Japanese and both Chinese scripts follow locale, script tags and an explicit saved preference',async t=>{
+ for(const [locale,expected] of [['ja-JP','ja'],['zh-CN','zh-Hans'],['zh-SG','zh-Hans'],['zh','zh-Hans'],['zh-TW','zh-Hant'],['zh-HK','zh-Hant'],['zh-MO','zh-Hant'],['zh-Hans-TW','zh-Hans'],['zh-Hant-CN','zh-Hant'],['fr-FR','en']]){
+  const w=await widget(t,{language:locale});assert.equal(w.document.documentElement.lang,expected,locale);assert.equal(w.elements.get('ui-language').value,'auto');
+ }
+ const saved=await widget(t,{language:'en-US',storedLanguage:'zh-Hant'});assert.equal(saved.document.documentElement.lang,'zh-Hant');assert.equal(saved.elements.get('pause').textContent,'暫停新請求');saved.elements.get('ui-language').value='auto';saved.elements.get('ui-language').events.change();assert.equal(saved.document.documentElement.lang,'en');assert.equal(saved.storage.get('team-room-ui-language'),'auto');
+ const invalid=await widget(t,{language:'ja-JP',storedLanguage:'unsupported'});assert.equal(invalid.document.documentElement.lang,'ja');assert.equal(invalid.elements.get('ui-language').value,'auto');
+});
+test('switching through all five languages preserves authored posts, details, media, draft and native calls',async t=>{
+ const w=await widget(t);w.state.messages.push({id:'literal',authorId:'director',text:'팀 회의실 · 日本語 · 简体中文 · 繁體中文',details:'작업 상세 보기',images:[{id:'fixture',caption:'프로젝트 선택'}]});w.notify(w.state);w.elements.get('text').value='원문 그대로。保持原文。';const before=JSON.stringify(w.state),calls=w.sent.length;
+ for(const [code,label] of [['ja','新規依頼を一時停止'],['zh-Hans','暂停新请求'],['zh-Hant','暫停新請求'],['en','Pause new requests'],['ko','새 요청 일시정지'],['ja','新規依頼を一時停止']]){
+  w.elements.get('ui-language').value=code;w.elements.get('ui-language').events.change();assert.equal(w.elements.get('pause').textContent,label);assert.equal(w.elements.get('text').value,'원문 그대로。保持原文。');assert.equal(JSON.stringify(w.state),before);assert.equal(w.storage.get('team-room-ui-language'),code);
+ }
+ assert.equal(w.sent.length,calls);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
 });
 test('connection checks are explicit, read-only and late results cannot reopen closed views',async t=>{
  const w=await widget(t,{holdUtility:'room_check'});w.elements.get('open-menu').events.click();const pending=w.elements.get('check-connection').events.click();await settle();const packet=w.utilityPackets[0];assert.equal(w.utilityPackets.length,1);await w.intervals[0]();assert.equal(w.utilityPackets.length,1);w.elements.get('close-menu').events.click();w.receive({id:packet.id,result:{structuredContent:{rows:[]}}});await pending;assert.equal(w.elements.get('connection-check').hidden,true);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);

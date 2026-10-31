@@ -44,7 +44,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
 <form id="form" class="composer"><label id="input-label" class="input-label sr-only" for="text" data-i18n="프로젝트를 선택해 주세요">프로젝트를 선택해 주세요</label><textarea id="text" aria-describedby="send-hint" aria-keyshortcuts="Enter" maxlength="6000" rows="2" placeholder="목표, 질문 또는 수정 의견을 남겨 주세요." data-i18n-placeholder="목표, 질문 또는 수정 의견을 남겨 주세요." required></textarea><button id="send" class="button primary" type="submit" hidden tabindex="-1" disabled data-i18n="총괄에게 보내기 ↑">총괄에게 보내기 ↑</button></form>
 </main></div></div>
 <dialog id="room-menu" aria-labelledby="menu-title"><header class="menu-header"><h2 id="menu-title" data-i18n="회의실 메뉴">회의실 메뉴</h2><button id="close-menu" class="button" type="button" aria-label="회의실 메뉴 닫기" data-i18n-aria-label="회의실 메뉴 닫기" data-i18n="닫기 ×">닫기 ×</button></header><div class="menu-content">
-<section class="requests"><label for="ui-language" data-i18n="화면 언어 / Language">화면 언어 / Language</label><select id="ui-language" class="button"><option value="auto" data-i18n="자동 / Auto">자동 / Auto</option><option value="ko" data-i18n="한국어">한국어</option><option value="en">English</option></select></section>
+<section class="requests"><label for="ui-language" data-i18n="화면 언어 / Language">화면 언어 / Language</label><select id="ui-language" class="button"><option value="auto" data-i18n="자동 / Auto">자동 / Auto</option><option value="ko">한국어</option><option value="en">English</option><option value="ja">日本語</option><option value="zh-Hans">简体中文</option><option value="zh-Hant">繁體中文</option></select></section>
 <section id="team-setup-entry" class="requests"><button id="create-team" class="button" type="button" aria-expanded="false" aria-controls="team-setup" disabled data-i18n="기본 팀 만들기">기본 팀 만들기</button><section id="team-setup" class="roster-editor" aria-labelledby="team-setup-title" hidden><h3 id="team-setup-title" data-i18n="이 프로젝트에 기본 팀 만들기">이 프로젝트에 기본 팀 만들기</h3><p id="team-setup-project" class="small"></p><ul id="team-setup-roles"></ul><p id="team-setup-method" class="small" data-i18n="현재 대화창을 총괄로 사용하고 이름을 바꿉니다. 기획자·디자이너·프로그래머 2명·QA의 새 대화창 5개만 만듭니다. 총괄의 대화 내용과 현재 모델·추론은 유지합니다. 팀 연결 후 이 대화에서 바로 작업을 지시할 수 있습니다.">현재 대화창을 총괄로 사용하고 이름을 바꿉니다. 기획자·디자이너·프로그래머 2명·QA의 새 대화창 5개만 만듭니다. 총괄의 대화 내용과 현재 모델·추론은 유지합니다. 팀 연결 후 이 대화에서 바로 작업을 지시할 수 있습니다.</p><p class="small" data-i18n="설명을 보거나 취소할 때는 AI를 호출하지 않습니다. 요청문 준비까지는 AI를 호출하지 않습니다. 채팅 입력창에서 요청문을 확인하고 직접 전송하면 생성·초기화 사용량이 발생합니다. 기존 설정은 같은 요청문으로 이어갑니다.">설명을 보거나 취소할 때는 AI를 호출하지 않습니다. 요청문 준비까지는 AI를 호출하지 않습니다. 채팅 입력창에서 요청문을 확인하고 직접 전송하면 생성·초기화 사용량이 발생합니다. 기존 설정은 같은 요청문으로 이어갑니다.</p><div class="roster-actions"><button id="team-setup-apply" class="button primary" type="button" disabled data-i18n="설명 확인 · 요청문 준비">설명 확인 · 요청문 준비</button><button id="team-setup-cancel" class="button" type="button" data-i18n="취소">취소</button></div><section id="team-setup-handoff" hidden><label for="team-setup-request-text" class="input-label" data-i18n="현재 프로젝트 채팅에 직접 보낼 요청문">현재 프로젝트 채팅에 직접 보낼 요청문</label><textarea id="team-setup-request-text" rows="5" readonly></textarea><div class="roster-actions"><button id="team-setup-draft" class="button" type="button" data-i18n="채팅 입력창에 넣기">채팅 입력창에 넣기</button><button id="team-setup-copy" class="button" type="button" data-i18n="요청문 복사">요청문 복사</button></div><p class="small" data-i18n="입력창에서 내용을 확인하고 직접 전송하세요. 입력창 넣기가 지원되지 않으면 요청문을 복사해 같은 프로젝트 채팅에 붙여 넣어 보내세요. 직접 전송 전에는 대화창을 만들지 않습니다.">입력창에서 내용을 확인하고 직접 전송하세요. 입력창 넣기가 지원되지 않으면 요청문을 복사해 같은 프로젝트 채팅에 붙여 넣어 보내세요. 직접 전송 전에는 대화창을 만들지 않습니다.</p></section><p id="team-setup-status" class="status" role="status" aria-live="polite"></p></section></section>
 <section class="requests"><button id="check-connection" class="button" type="button" data-i18n="연결 점검">연결 점검</button><section id="connection-check" hidden><h3 data-i18n="연결 점검 결과">연결 점검 결과</h3><p id="check-status" class="status" role="status"></p><ul id="check-rows" class="roster-rows"></ul><p class="small" data-i18n="프로젝트·총괄·호스트 지원을 읽기 전용으로 확인합니다. 채팅 생성이나 AI 호출은 하지 않습니다. 실제 생성 권한은 팀 설정 때 확인합니다.">프로젝트·총괄·호스트 지원을 읽기 전용으로 확인합니다. 채팅 생성이나 AI 호출은 하지 않습니다. 실제 생성 권한은 팀 설정 때 확인합니다.</p></section></section>
 <section class="requests"><h3 data-i18n="회의 기록 백업·내보내기">회의 기록 백업·내보내기</h3><p class="small" data-i18n="회의 원문·작업 상세·이미지·음원을 ZIP으로 보관합니다. 압축을 푼 뒤 index.html을 열면 오프라인으로 볼 수 있습니다. 원본 기록은 유지하며 자동 복원은 포함되지 않습니다.">회의 원문·작업 상세·이미지·음원을 ZIP으로 보관합니다. 압축을 푼 뒤 index.html을 열면 오프라인으로 볼 수 있습니다. 원본 기록은 유지하며 자동 복원은 포함되지 않습니다.</p><button id="export-room" class="button" type="button" disabled data-i18n="ZIP으로 백업">ZIP으로 백업</button><section id="export-result" hidden><label for="export-path" data-i18n="저장된 ZIP 파일">저장된 ZIP 파일</label><textarea id="export-path" rows="2" readonly></textarea><div class="roster-actions"><button id="export-download" class="button" type="button" data-i18n="파일로 다운로드">파일로 다운로드</button><button id="export-open" class="button" type="button" data-i18n="ZIP 열기">ZIP 열기</button><button id="export-copy" class="button" type="button" data-i18n="경로 복사">경로 복사</button></div><p class="small" data-i18n="회의 내용과 연결 정보가 포함된 개인 백업입니다. 공개 저장소에 올리지 마세요.">회의 내용과 연결 정보가 포함된 개인 백업입니다. 공개 저장소에 올리지 마세요.</p></section><p id="export-status" class="status" role="status" aria-live="polite"></p></section>
@@ -69,22 +69,28 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
 'use strict';
 (() => {
   const $ = id => document.getElementById(id);
-  const EN=/*ROOM_TRANSLATIONS*/{};
-  const UI_SOURCE=Object.fromEntries(Object.entries(EN).map(([key,value])=>[value,key]));
+  const TRANSLATIONS=/*ROOM_TRANSLATIONS*/{};
+  const languages=['ko',...Object.keys(TRANSLATIONS)];
   let languagePreference='auto';try{languagePreference=localStorage.getItem('team-room-ui-language')||'auto';}catch{}
-  const detectedLanguage=()=>navigator.language?(/^ko\b/i.test(navigator.language)?'ko':'en'):'ko';
-  let uiLanguage=languagePreference==='auto'?detectedLanguage():languagePreference==='en'?'en':'ko';
-  const t=value=>uiLanguage==='en'&&typeof value==='string'?(EN[value]??value):value;
+  if(!languages.includes(languagePreference))languagePreference='auto';
+  const detectedLanguage=()=>{
+    const locale=(navigator.language||'ko').toLowerCase().replace(/_/g,'-'),parts=locale.split('-');
+    if(parts[0]==='ko'||parts[0]==='ja')return parts[0];
+    if(parts[0]==='zh')return parts.includes('hant')?'zh-Hant':parts.includes('hans')?'zh-Hans':parts.some(p=>['tw','hk','mo'].includes(p))?'zh-Hant':'zh-Hans';
+    return 'en';
+  };
+  let uiLanguage=languagePreference==='auto'?detectedLanguage():languagePreference;
+  const t=value=>typeof value==='string'&&TRANSLATIONS[uiLanguage]&&Object.hasOwn(TRANSLATIONS[uiLanguage],value)?TRANSLATIONS[uiLanguage][value]:value;
   function translateStatic(){
     document.documentElement.lang=uiLanguage;document.title=t('팀 회의실');
     if(document.querySelectorAll){
-      for(const node of document.querySelectorAll('[data-i18n]')){const key=Object.hasOwn(EN,node.textContent)?node.textContent:UI_SOURCE[node.textContent]||node.dataset.i18n;node.textContent=t(key);}
+      for(const node of document.querySelectorAll('[data-i18n]'))node.textContent=t(node.dataset.i18n);
       for(const attr of ['placeholder','aria-label','title','alt'])for(const node of document.querySelectorAll('[data-i18n-'+attr+']'))node.setAttribute(attr,t(node.getAttribute('data-i18n-'+attr)));
     }
     $('ui-language').value=languagePreference;
   }
   $('ui-language').addEventListener('change',()=>{
-    if(disposed)return;languagePreference=['ko','en'].includes($('ui-language').value)?$('ui-language').value:'auto';uiLanguage=languagePreference==='auto'?detectedLanguage():languagePreference;
+    if(disposed)return;languagePreference=languages.includes($('ui-language').value)?$('ui-language').value:'auto';uiLanguage=languagePreference==='auto'?detectedLanguage():languagePreference;
     try{localStorage.setItem('team-room-ui-language',languagePreference);}catch{}
     translateStatic();signature='';if(state)accept(state,{expected:projectId});renderProjects();renderDeliveries();controls();if(roster)renderRoster(roster);
     if(checkView?.data)renderConnectionCheck(checkView.data);
@@ -428,7 +434,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   }
   async function tool(name,args){return extract(await rpc('tools/call',{name,arguments:args}));}
   const utilityCurrent=r=>!disposed&&!document.hidden&&projectId===r.projectId&&$('room-menu').open;
-  function renderConnectionCheck(data){$('check-rows').replaceChildren();for(const row of data.rows){const li=make('li');li.append(make('strong','',row.status==='ok'?t('정상'):row.status==='warning'?t('확인 필요'):t('미확인')),make('div','small',uiLanguage==='ko'?(row.detailKo||row.detail):row.detail));if(row.action)li.append(make('div','small',uiLanguage==='ko'?(row.actionKo||row.action):row.action));$('check-rows').append(li);}$('check-status').textContent=t('점검을 마쳤습니다. 실제 생성 권한은 별도 확인이 필요합니다.');}
+  function renderConnectionCheck(data){$('check-rows').replaceChildren();for(const row of data.rows){const li=make('li');li.append(make('strong','',row.status==='ok'?t('정상'):row.status==='warning'?t('확인 필요'):t('미확인')),make('div','small',uiLanguage==='en'?row.detail:t(row.detailKo||row.detail)));if(row.action)li.append(make('div','small',uiLanguage==='en'?row.action:t(row.actionKo||row.action)));$('check-rows').append(li);}$('check-status').textContent=t('점검을 마쳤습니다. 실제 생성 권한은 별도 확인이 필요합니다.');}
 
   $('check-connection').addEventListener('click',async()=>{
     if(disposed||document.hidden||!initialized||switching||checkView?.busy||!$('room-menu').open)return;
@@ -606,7 +612,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     }catch(err){if(rosterCurrent(r)){if(err.rejected)r.pending=null;$('roster-status').textContent=err.message+(err.rejected?t('\n내용을 수정하거나 목록을 새로고침해 주세요.'):t('\n자동 재시도하지 않습니다. 같은 변경 다시 저장 또는 목록 새로고침을 선택해 주세요.'));}}
     finally{r.busy=false;if(rosterCurrent(r))renderRoster(r);}
   });
-  function time(value){const d=new Date(value);return Number.isNaN(d.getTime())?'':new Intl.DateTimeFormat(uiLanguage==='en'?'en-US':'ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(d);}
+  function time(value){const d=new Date(value);return Number.isNaN(d.getTime())?'':new Intl.DateTimeFormat(uiLanguage,{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(d);}
   function renderProjects(){
     const select=$('project');select.replaceChildren();const placeholder=make('option','',!projectId&&openingProjectName?openingProjectName+t(' · 팀 연결 전'):t('프로젝트 선택'));placeholder.value='';select.append(placeholder);
     const rows=projects.slice();if(state?.project && !rows.some(p=>p.id===state.project.id))rows.push(state.project);
@@ -819,7 +825,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   async function initialize(){
     if(window.parent===window){$('connection').textContent=t('단독 창에서는 연결할 수 없습니다.');showError(t('기존 채팅의 MCP App 패널에서 팀 회의실을 열어 주세요.'));return;}
     try{
-      const result=await rpc('ui/initialize',{appInfo:{name:'team-room',version:'0.14.0'},appCapabilities:{availableDisplayModes:['inline','fullscreen']},protocolVersion:'2026-01-26'});
+      const result=await rpc('ui/initialize',{appInfo:{name:'team-room',version:'0.15.0'},appCapabilities:{availableDisplayModes:['inline','fullscreen']},protocolVersion:'2026-01-26'});
       if(disposed)return;
       if(result?.protocolVersion!=='2026-01-26')throw new Error(t('지원되는 호스트 통신 버전을 확인하지 못했습니다.'));
       hostObservation={protocol:result.protocolVersion,message:false,draft:false};canDownload=Boolean(result.hostCapabilities?.downloadFile);canOpenFile=Boolean(result.hostCapabilities?.experimental?.['openai/files']||result.hostCapabilities?.extensions?.['openai/files']);
