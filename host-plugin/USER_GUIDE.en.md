@@ -6,7 +6,7 @@
 
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.13.3. You can use the plugin across projects, with separate connections and records for each. The current meeting UI uses Korean labels; reports follow the user's requested or established conversation language. This guide includes the Korean control labels so you can find them; it does not add automatic UI translation or language switching to the app.
+This guide describes version 0.13.4. You can use the plugin across projects, with separate connections and records for each. The current meeting UI uses Korean labels; reports follow the user's requested or established conversation language. This guide includes the Korean control labels so you can find them; it does not add automatic UI translation or language switching to the app.
 
 ## Get started
 
@@ -302,3 +302,15 @@ Updating the source or plugin preserves records when the data location stays the
 The plugin does not provide automatic cloud sync, automatic collection of complete histories from other chats, or an independent model runtime.
 
 An unconnected opening displays the verified project name with “팀 연결 전”. Room registration finishes after team connection. Reopen Basic team to recover the original continuation request after an authorization blocker; a saved menu receipt never substitutes for direct human approval or bypasses host review.
+
+## Team setup progress and recovery
+
+The main room view shows saved progress such as **3/5 new participants ready** and each role's state. The reused director has its own row and is excluded from the five-new-chat count. A prepared request remains marked as awaiting direct submission until actual setup advances.
+
+Until an initial room connection completes, only the meeting work composer is read-only; its draft is preserved and input unlocks after connection. The original Codex chat stays available for stop requests and troubleshooting. Extending an already operating room does not block its existing work input.
+
+Closing the menu or room view preserves chats and the journal; it does not cancel native work. After quitting/reopening Codex, the same saved progress is shown. Closing a view or elapsed time alone never proves interruption or native absence.
+
+If setup stopped or failed, choose **중단·오류 후 이어하기** (Continue after interruption/error). This prepares the original continuation draft or copyable text only. Review and SEND it yourself in the original director chat. Already-ready workers, model choices and attempt history are retained. Reconcile actual native results before any authorized retry; never recreate an uncertain result. **문제 자세히 보기** shows the recorded error.
+
+**상태 새로고침** reads saved local state. Visible UI refreshes carry the progress; hidden/closed views stop refreshing and ignore late callbacks. No background AI, native-chat polling or automatic resend is added. Actual setup, authorized continuation and role initialization have ordinary usage.

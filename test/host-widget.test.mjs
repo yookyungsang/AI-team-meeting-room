@@ -116,6 +116,50 @@ test('an archived state clears selection and cannot be undone by a late historic
 });
 
 async function explainTeam(w){w.elements.get('open-menu').events.click();await w.elements.get('create-team').events.click();}
+const setupProgress=(extra={})=>({projectId:'created',setupId:'fixture-setup',projectName:'예시 프로젝트',status:'creating',readyCount:3,totalCount:5,blocksWork:true,canContinue:true,roles:TEAM_ROLES.map((r,i)=>({id:r.id,name:r.name,state:i<4?'ready':'creating',existing:i===0})),...extra});
+
+test('team progress locks only the meeting composer, preserves drafts and unlocks after verified connection',async t=>{
+ const w=await widget(t);w.elements.get('text').value='Draft to keep';w.state.teamProgress=setupProgress({projectId:'test'});w.notify(w.state);
+ assert.equal(w.elements.get('team-progress').hidden,false);assert.match(w.elements.get('team-progress-summary').textContent,/3\/5명/);assert.equal(w.elements.get('team-progress-roles').children.length,6);assert.equal(w.elements.get('text').readOnly,true);assert.equal(w.elements.get('send').disabled,true);
+ await w.elements.get('form').events.submit({preventDefault(){}});assert.equal(w.sent.filter(p=>p.params?.name==='room_submit').length,0);
+ w.state.teamProgress={...w.state.teamProgress,status:'connected',readyCount:5,blocksWork:false};w.notify(w.state);
+ assert.equal(w.elements.get('text').value,'Draft to keep');assert.equal(w.elements.get('text').readOnly,false);assert.equal(w.elements.get('send').disabled,false);assert.match(w.elements.get('team-progress-title').textContent,/완료/);
+ assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+});
+
+test('reopened setup records show progress and errors without pretending a process stopped or polling native chats',async t=>{
+ const w=await widget(t,{autoSelect:false});w.chooser.teamProgress=setupProgress({status:'attention',failure:{operation:'catalog',reason:'Synthetic unsupported model'}});w.notify(w.chooser);
+ assert.match(w.elements.get('team-progress-title').textContent,/확인이 필요/);assert.match(w.elements.get('team-progress-error-text').textContent,/Synthetic unsupported/);assert.equal(w.elements.get('team-progress-errors').hidden,false);
+ w.elements.get('open-menu').events.click();w.elements.get('close-menu').events.click();assert.equal(w.elements.get('team-progress').hidden,false);
+ await w.intervals[0]();assert.equal(w.elements.get('team-progress-bar').value,3);assert.equal(w.teamPackets.length,0);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+ const before=w.sent.length;w.document.hidden=true;w.callbacks.visibilitychange();await w.intervals[0]();assert.equal(w.sent.length,before);
+});
+
+test('explicit continuation only prepares one editable draft for the same plan and preserves manual copy fallback',async t=>{
+ for(const draftSupport of [true,false]){
+  const w=await widget(t,{autoSelect:false,draftSupport});const p=setupProgress();p.setupId=w.teamData.setupId;w.chooser.teamProgress=p;w.notify(w.chooser);
+  const pending=w.elements.get('team-progress-resume').events.click();await w.elements.get('team-progress-resume').events.click();await pending;
+  assert.equal(w.teamPackets.length,1);assert.equal(w.teamPackets[0].params.arguments.operation,'resume');assert.equal(w.teamPackets[0].params.arguments.setupId,p.setupId);assert.equal(w.elements.get('team-setup-apply').disabled,true);
+  await w.elements.get('team-progress-resume').events.click();assert.equal(w.teamPackets.length,1);
+  const messages=w.sent.filter(p=>p.method==='ui/message');assert.equal(messages.length,draftSupport?1:0);if(draftSupport)assert.equal(messages[0].params._meta['openai/message'].send,false);
+  await w.elements.get('team-setup-copy').events.click();assert.equal(w.copied[0],w.teamData.continuationPrompt);
+ }
+});
+
+test('late continuation responses after close, hiding, switching or teardown never dispatch a draft',async t=>{
+ for(const action of ['close','hide','switch','teardown']){
+  const w=await widget(t,{autoSelect:false,holdTeam:'resume'}),p=setupProgress();p.setupId=w.teamData.setupId;w.notify({...w.chooser,teamProgress:p});
+  const pending=w.elements.get('team-progress-resume').events.click();await settle();const packet=w.teamPackets.at(-1);
+  if(action==='close')w.elements.get('close-menu').events.click();if(action==='hide'){w.document.hidden=true;w.callbacks.visibilitychange();}if(action==='switch'){w.elements.get('project').value='second';await w.elements.get('project').events.change();}if(action==='teardown')w.callbacks.pagehide();
+  const before=w.sent.length;w.receive({id:packet.id,result:{structuredContent:w.teamData}});await pending;assert.equal(w.sent.length,before,action);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0,action);
+ }
+});
+
+test('stale setup reads retain the work gate and another project never inherits it',async t=>{
+ const w=await widget(t);w.notify({...w.state,teamProgress:setupProgress({projectId:'test',canContinue:false})});assert.equal(w.elements.get('team-progress-resume').disabled,true);
+ w.notify({...w.state,teamProgressUnavailable:true});assert.equal(w.elements.get('text').readOnly,true);assert.match(w.elements.get('team-progress-help').textContent,/최신 기록/);
+ w.elements.get('project').value='second';await w.elements.get('project').events.change();assert.equal(w.elements.get('team-progress').hidden,true);assert.equal(w.elements.get('text').readOnly,false);
+});
 test('the basic-team trigger toggles closed even during preview and ignores the late response',async t=>{
  const w=await widget(t,{autoSelect:false,holdTeam:'preview'});w.elements.get('open-menu').events.click();const loading=w.elements.get('create-team').events.click();await settle();assert.equal(w.elements.get('create-team').disabled,false);await w.elements.get('create-team').events.click();assert.equal(w.elements.get('team-setup').hidden,true);assert.equal(w.elements.get('create-team').textContent,'기본 팀 만들기');w.receive({id:w.teamPackets[0].id,result:{structuredContent:w.teamData}});await loading;assert.equal(w.elements.get('team-setup').hidden,true);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
 });

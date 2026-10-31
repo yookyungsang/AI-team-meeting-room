@@ -33,11 +33,13 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
 .roster-editor{border:1px solid #444;border-radius:10px;padding:12px;margin:12px 0}.roster-editor h3{margin:0 0 8px;font-size:14px}.roster-rows{list-style:none;padding:0;margin:12px 0;display:grid;gap:12px}.roster-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 76px;gap:8px;align-items:start}.roster-row label{display:block;min-width:0;font-size:11px;line-height:18px}.roster-row input,.roster-row select,.roster-add select{display:block;width:100%;min-width:0;font:inherit;color:#eee;background:#222;border:1px solid #555;border-radius:6px;padding:7px}.roster-row input:focus-visible,.roster-row select:focus-visible,.roster-add select:focus-visible{outline:2px solid #ddd;outline-offset:2px}.roster-add{display:flex;gap:8px;margin:12px 0}.roster-add select{flex:1;width:0}.roster-actions{display:flex;flex-wrap:wrap;gap:8px}.roster-status{white-space:pre-wrap;overflow-wrap:anywhere;margin:10px 0;font-size:12px}#edit-roster{margin-bottom:10px}@media(max-width:560px){.roster-row{grid-template-columns:minmax(0,1fr) 76px}.roster-row>.roster-role{grid-column:1;grid-row:2}.roster-row button{grid-column:2;grid-row:1/3}.roster-actions .button{flex:1}.roster-editor{padding:10px}}
 .roster-role{min-width:0}.roster-row input,.roster-row select{height:36px;margin-top:4px;line-height:20px}.roster-row>button{align-self:start;height:36px;margin-top:22px;padding:7px 8px}.roster-role-note{margin:5px 0 0;line-height:1.6;font-size:10px}.roster-role label+label{display:block;margin-top:7px}
 #deleted-rooms-list{grid-template-columns:minmax(0,1fr)}#deleted-rooms-list .member{justify-content:space-between}#deleted-rooms-list .member>div{min-width:0;overflow-wrap:anywhere}#deleted-rooms-list button{flex:none}
+.setup-progress{border:1px solid #484848;border-radius:10px;padding:12px 14px;margin-top:12px;background:#191919;overflow-wrap:anywhere}.setup-progress h2{font-size:15px;margin:0 0 6px}.setup-progress p{margin:7px 0;line-height:1.8}.setup-progress progress{display:block;width:100%;height:10px;accent-color:#d2d2d2}.setup-progress ul{list-style:none;padding:0;margin:10px 0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 16px;font-size:12px}.setup-progress li{display:flex;flex-wrap:wrap;justify-content:space-between;gap:3px 8px}.setup-progress li span:last-child{color:#bbb}.setup-progress summary{cursor:pointer;font-size:12px}.setup-progress .roster-actions{margin-top:10px}@media(max-width:560px){.setup-progress ul{grid-template-columns:minmax(0,1fr)}.setup-progress{padding:10px 12px}}
 </style></head>
 <body><div class="shell">
 <header class="top"><h1>팀 회의실</h1><label class="project-picker" for="project">프로젝트<select id="project" disabled><option value="">프로젝트 선택</option></select></label><button id="open-menu" class="button menu-trigger" type="button" aria-haspopup="dialog" aria-controls="room-menu">메뉴 ☰</button></header>
 <div class="layout"><main class="main">
 <p id="error" class="notice error" role="alert" hidden></p><p id="paused" class="notice" hidden>새 요청이 일시정지됐습니다. 진행 중인 작업을 취소하지는 않습니다.</p>
+<section id="team-progress" class="setup-progress" aria-labelledby="team-progress-title" hidden><h2 id="team-progress-title">팀을 준비하고 있어요</h2><p id="team-progress-summary" role="status" aria-live="polite"></p><progress id="team-progress-bar" aria-label="새 담당자 준비 진행률" max="5" value="0"></progress><ul id="team-progress-roles" aria-label="담당자별 준비 상태"></ul><p id="team-progress-help" class="small"></p><details id="team-progress-errors" hidden><summary>문제 자세히 보기</summary><p id="team-progress-error-text" class="small"></p></details><div class="roster-actions"><button id="team-progress-resume" class="button" type="button">중단·오류 후 이어하기</button><button id="team-progress-refresh" class="button" type="button">상태 새로고침</button><button id="team-progress-dismiss" class="button" type="button" hidden>닫기</button></div></section>
 <section id="records" class="records" aria-label="실제 회의 발언" tabindex="0"><div id="empty" class="empty"><strong>무엇을 함께 진행할까요?</strong>총괄 디렉터에게 목표나 질문을 남겨 주세요.<br>담당자들이 직접 기록한 질문·답변·진행을 이곳에서 확인합니다.</div><ol id="messages" class="messages"></ol></section>
 <form id="form" class="composer"><label id="input-label" class="input-label sr-only" for="text">프로젝트를 선택해 주세요</label><textarea id="text" aria-describedby="send-hint" aria-keyshortcuts="Enter" maxlength="6000" rows="2" placeholder="목표, 질문 또는 수정 의견을 남겨 주세요." required></textarea><button id="send" class="button primary" type="submit" hidden tabindex="-1" disabled>총괄에게 보내기 ↑</button></form>
 </main></div></div>
@@ -91,6 +93,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   const drafts=new Map();
   let roster=null;
   let teamSetup=null, createdTeamTarget=null;
+  let setupProgress=null, setupStale=false;const seenSetups=new Set(),dismissedSetups=new Set();
   let roomDelete=null, deletedView=null;
   let disposed=false, hostContext={}, reportedHeight=null;
   const expandedDetails=new Set();let detailsEpoch=0;
@@ -328,7 +331,8 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   }
   function controls() {
     const loaded=Boolean(projectId && state?.project?.id===projectId && !switching);
-    $('send').disabled=!initialized || !canMessage || !loaded || state.paused || sending || duplicateMessage() || !$('text').value.trim();
+    const setupLocked=Boolean(setupProgress?.blocksWork&&(!projectId||setupProgress.projectId===projectId));
+    $('send').disabled=!initialized || !canMessage || !loaded || state.paused || setupLocked || sending || duplicateMessage() || !$('text').value.trim();
     $('send').textContent=sending?'요청 전달 중…':'총괄에게 보내기 ↑';
     $('pause').disabled=!initialized || !loaded || pausing || sending;
     $('pause').textContent=pausing?'변경 중…':state?.paused?'새 요청 재개':'새 요청 일시정지';
@@ -339,10 +343,38 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     $('room-delete-entry').hidden=!loaded;
     $('delete-room').disabled=!initialized||!loaded||sending||pausing||Boolean(roomDelete?.busy);
     $('room-delete-apply').disabled=!roomDelete||roomDelete.busy||!roomDelete.canDelete;
-    $('text').readOnly=sending;
+    $('text').readOnly=sending||setupLocked;
+    $('text').placeholder=setupLocked?'팀을 구성하고 있어요. 연결이 끝나면 작업을 입력할 수 있습니다.':'목표, 질문 또는 수정 의견을 남겨 주세요.';
+    $('team-progress-resume').disabled=!initialized||switching||!setupProgress?.canContinue||Boolean(teamSetup?.busy);
+    $('team-progress-refresh').disabled=!initialized||switching||polling;
     $('project').disabled=!initialized || sending || pausing || switching;
-    $('input-label').textContent=loaded?name('director')+(activeRequest()?' · 진행 중인 요청에 추가 전달':' · 총괄에게'):'프로젝트를 선택해 주세요';
+    $('input-label').textContent=setupLocked?'팀 구성 완료 후 작업을 입력할 수 있습니다.':loaded?name('director')+(activeRequest()?' · 진행 중인 요청에 추가 전달':' · 총괄에게'):'프로젝트를 선택해 주세요';
   }
+  function renderSetupProgress(next){
+    if(Object.hasOwn(next,'teamProgress')){
+      const p=next.teamProgress;
+      if(p&&typeof p.projectId==='string'&&typeof p.setupId==='string'&&Array.isArray(p.roles)&&Number.isInteger(p.readyCount)&&Number.isInteger(p.totalCount)){
+        setupProgress=p;setupStale=false;
+        if(p.status!=='connected'){seenSetups.add(p.setupId);if(!projectId&&openingAllowed)createdTeamTarget=p.projectId;}
+      }else if(!setupProgress?.blocksWork)setupProgress=null;
+      else setupStale=true;
+    }else if(next.teamProgressUnavailable)setupStale=true;
+    const p=setupProgress,visible=p&&(!projectId||p.projectId===projectId)&&!dismissedSetups.has(p.setupId)&&(p.status!=='connected'||seenSetups.has(p.setupId));
+    $('team-progress').hidden=!visible;if(!visible)return;
+    const complete=p.status==='connected',problem=p.status==='attention';
+    $('team-progress-title').textContent=complete?'팀 구성이 완료됐어요':problem?'팀 구성에 확인이 필요해요':p.status==='planned'?'팀 생성 요청을 기다리고 있어요':'팀을 준비하고 있어요';
+    $('team-progress-summary').textContent=p.projectName+' · 새 담당자 '+p.readyCount+'/'+p.totalCount+'명 준비됨'+(complete?' · 회의실 연결 완료':p.status==='ready'?' · 회의실 연결 대기':p.status==='planned'?' · 요청문 직접 전송 대기':'');
+    $('team-progress-bar').max=Math.max(1,p.totalCount);$('team-progress-bar').value=p.readyCount;
+    $('team-progress-roles').replaceChildren();
+    const labels={planned:'대기',creating:'결과 확인 중',uncertain:'확인 필요',ready:'준비 완료'};
+    for(const role of p.roles){const li=make('li');li.append(make('span','',role.name),make('span','',labels[role.state]||'기록 확인 필요'));$('team-progress-roles').append(li);}
+    $('team-progress-help').textContent=setupStale?'최신 기록을 확인하지 못했습니다. 저장된 진행을 유지하며 자동으로 다시 만들지 않습니다.':complete?'이 대화에서 바로 작업을 지시할 수 있습니다.':(problem?'이미 준비된 담당자는 유지했습니다. ':'생성 중이라면 잠시 기다려 주세요. ')+'창을 닫아도 기록은 유지됩니다. 중단됐다면 이어하기를 선택하세요. '+(p.canContinue?'중단 요청·오류 상담은 원래 Codex 채팅에서 할 수 있습니다.':'이어하기는 처음 요청한 총괄 대화창에서 할 수 있습니다.');
+    const errors=[...(p.failure?[p.failure.reason]:[]),...p.roles.filter(r=>r.reason).map(r=>r.name+': '+r.reason)];
+    $('team-progress-errors').hidden=!errors.length;$('team-progress-error-text').textContent=errors.join('\n');
+    $('team-progress-resume').hidden=complete;$('team-progress-dismiss').hidden=!complete;
+  }
+  $('team-progress-refresh').addEventListener('click',()=>poll());
+  $('team-progress-dismiss').addEventListener('click',()=>{if(setupProgress?.status==='connected'){dismissedSetups.add(setupProgress.setupId);$('team-progress').hidden=true;}});
   function rpc(method, params, onWait) {
     return new Promise((resolve,reject)=>{
       if(disposed){reject(new Error('회의실이 닫혔습니다.'));return;}
@@ -433,6 +465,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
       const data=await tool('room_team_setup',{operation:'apply',previewId:r.previewId,requestId:r.requestId,confirmed:true});if(!teamSetupCurrent(r))return;
       if(data.previewId!==r.previewId||data.projectId!==r.projectId||data.setupId!==r.setupId||typeof data.dispatch!=='boolean'||data.status!=='requested')throw new Error('원래 프로젝트의 팀 생성 요청을 확인할 수 없습니다.');
       if(!showTeamRequest(r,data.continuationPrompt||data.prompt))throw new Error('설정 요청문을 확인할 수 없습니다.');
+      if(data.progress)renderSetupProgress({teamProgress:data.progress});
       createdTeamTarget=r.projectId;
       $('team-setup-status').textContent='요청문을 준비했습니다. 확인 후 같은 프로젝트 채팅에 직접 보내세요. 아직 팀을 생성하지 않았습니다.';
       if(data.dispatch)await draftTeamRequest(r);
@@ -441,6 +474,23 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   });
   $('team-setup-draft').addEventListener('click',()=>draftTeamRequest(teamSetup));
   $('team-setup-copy').addEventListener('click',async()=>{const r=teamSetup;if(!r||!teamSetupCurrent(r)||!r.prompt)return;try{if(typeof navigator==='undefined'||!navigator.clipboard?.writeText)throw new Error('복사를 지원하지 않습니다.');await navigator.clipboard.writeText(r.prompt);if(teamSetupCurrent(r))$('team-setup-status').textContent='요청문을 복사했습니다. 같은 프로젝트 채팅에 붙여 넣고 직접 전송하세요.';}catch{if(teamSetupCurrent(r)){$('team-setup-request-text').focus();$('team-setup-request-text').select?.();$('team-setup-status').textContent='위 요청문을 직접 선택해 복사한 뒤 같은 프로젝트 채팅에 보내세요.';}}});
+  $('team-progress-resume').addEventListener('click',async()=>{
+    const p=setupProgress;if(disposed||document.hidden||!initialized||switching||!p?.canContinue||p.status==='connected'||teamSetup?.busy)return;
+    if(teamSetup?.setupId===p.setupId&&teamSetup.prompt){$('room-menu').showModal();return;}
+    $('room-menu').showModal();closeTeamSetup();
+    const r={sourceProjectId:projectId,busy:true,locked:true};teamSetup=r;$('team-setup').hidden=false;$('team-setup-project').textContent='원래 팀 구성 기록을 확인하고 있습니다.';$('team-setup-roles').replaceChildren();$('team-setup-status').textContent='';controls();
+    try{
+      const data=await tool('room_team_setup',{operation:'resume',projectId:p.projectId,setupId:p.setupId});if(!teamSetupCurrent(r))return;
+      if(data.projectId!==p.projectId||data.setupId!==p.setupId||!Array.isArray(data.roles)||typeof data.continuationPrompt!=='string')throw new Error('원래 팀 설정을 확인할 수 없습니다.');
+      Object.assign(r,data);$('team-setup-project').textContent='프로젝트: '+data.projectName;
+      for(const role of data.roles)$('team-setup-roles').append(make('li','',role.name+' · '+role.modelLabel));
+      $('team-setup-method').textContent='이미 준비된 담당자와 원래 생성 시도·모델을 유지합니다. 진행 중인 작업이 있으면 중복 실행하지 않으며 불확실한 결과를 먼저 확인합니다.';
+      showTeamRequest(r,data.continuationPrompt);$('team-setup-status').textContent='이어하기 요청문을 준비했습니다. 원래 Codex 채팅에서 확인하고 직접 전송하세요. 아직 재시도하지 않았습니다.';
+      if(data.progress)renderSetupProgress({teamProgress:data.progress});
+      await draftTeamRequest(r);
+    }catch(err){if(teamSetupCurrent(r))$('team-setup-status').textContent='이어가기 준비를 확인하지 못했습니다. '+err.message+' 자동 재시도하지 않습니다.';}
+    finally{r.busy=false;if(teamSetupCurrent(r))controls();}
+  });
   function closeRoster(){roster=null;$('roster-editor').hidden=true;$('edit-roster').hidden=false;$('members').hidden=false;$('delivery-panel').hidden=false;}
   const rosterCurrent=r=>!disposed&&!document.hidden&&roster===r&&projectId===r.projectId;
   function rosterControls(r){
@@ -535,7 +585,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     if(state?.project && next.project && state.project.id===next.project.id && (state.project.revision||1)>(next.project.revision||1))return false;
     if(next.opening&&!next.project)openingProjectName=next.opening.status==='unregistered'&&typeof next.opening.projectName==='string'?next.opening.projectName:'';
     if(next.opening&&!next.project)openingNotice=next.opening.status==='deleted'?'삭제된 회의실이 있습니다. 메뉴의 삭제된 회의실에서 복구할 수 있습니다.':next.opening.status==='unregistered'?(openingProjectName?openingProjectName+' 프로젝트를 확인했습니다. ':'')+'이 프로젝트는 팀 연결을 마치면 회의실이 자동 표시됩니다. 메뉴 → 기본 팀 만들기에서 기존 설정을 확인하거나 요청문을 준비하세요.':next.opening.status==='ambiguous'?'현재 프로젝트에 회의실이 여러 개 연결되어 있습니다. 상단에서 사용할 회의실을 선택해 주세요.':'현재 프로젝트를 자동으로 확인하지 못했습니다. 상단에서 프로젝트를 선택해 주세요.';
-    state=next;
+    state=next;renderSetupProgress(next);
     renderProjects();
     const current=JSON.stringify(next);
     if(signature!==current){
@@ -572,7 +622,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
         }
         li.append(make('span','avatar',m.authorId==='user'?'나':(m.authorName||name(m.authorId)).slice(0,1)),body);$('messages').append(li);
       });
-      $('empty').hidden=next.messages.length>0;
+      $('empty').hidden=next.messages.length>0||Boolean(setupProgress?.blocksWork&&(!projectId||setupProgress.projectId===projectId));
       if(!next.project)$('empty').textContent=openingNotice||'상단에서 프로젝트를 선택하면 해당 회의 기록을 확인할 수 있습니다.';
       else if(!next.messages.length)$('empty').textContent='총괄에게 목표나 질문을 남겨 주세요. 참여자가 직접 기록한 발언이 이곳에 표시됩니다.';
       if(bottom)records.scrollTop=records.scrollHeight;
@@ -628,8 +678,8 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     const expected=projectId,epoch=selectionEpoch,resolveCurrent=!expected&&openingAllowed&&!openingAttempted;
     if(resolveCurrent)openingAttempted=true;
     try{const data=await tool('room_state',expected?{projectId:expected}:resolveCurrent?{resolveCurrent:true}:{});if(disposed||document.hidden||epoch!==selectionEpoch)return;accept(data,{expected,allowOpen:resolveCurrent&&openingAllowed});if(!projectId&&openingAllowed&&createdTeamTarget&&projects.some(p=>p.id===createdTeamTarget))await selectProject(createdTeamTarget,{automatic:true});$('connection').textContent=canMessage?'호스트 연결됨 · 전송 지원 확인':'조회 전용 · 호스트가 메시지 전송 기능을 제공하지 않습니다.';}
-    catch{ if(!disposed)$('connection').textContent='상태 조회 실패 · 기록이 최신이 아닐 수 있습니다.'; }
-    finally{polling=false;}
+    catch{ if(!disposed&&!document.hidden&&epoch===selectionEpoch){$('connection').textContent='상태 조회 실패 · 기록이 최신이 아닐 수 있습니다.';renderSetupProgress({teamProgressUnavailable:true});} }
+    finally{polling=false;if(!disposed)controls();}
   }
   function schedule(){if(timer)clearInterval(timer);timer=null;if(!disposed&&initialized&&!document.hidden)timer=setInterval(poll,4000);}
   document.addEventListener('visibilitychange',()=>{schedule();if(document.hidden){resetAudio();closeRoster();closeTeamSetup();closeLifecycle();}else poll();});
@@ -639,7 +689,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     if(!automatic)openingAllowed=false;openingAttempted=true;openingNotice='';openingProjectName='';
     if(projectId===selected&&state?.project?.id===selected)return;
     closeRoster();closeTeamSetup();closeLifecycle();if(projectId)drafts.set(projectId,$('text').value);
-    projectId=selected;
+    projectId=selected;setupProgress=null;setupStale=false;$('team-progress').hidden=true;
     $('text').value=drafts.get(projectId)||'';
     const expected=projectId,epoch=++selectionEpoch;
     switching=true;state=null;signature='';showError('');renderDeliveries();
@@ -713,7 +763,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   async function initialize(){
     if(window.parent===window){$('connection').textContent='단독 창에서는 연결할 수 없습니다.';showError('기존 채팅의 MCP App 패널에서 팀 회의실을 열어 주세요.');return;}
     try{
-      const result=await rpc('ui/initialize',{appInfo:{name:'team-room',version:'0.13.3'},appCapabilities:{availableDisplayModes:['inline','fullscreen']},protocolVersion:'2026-01-26'});
+      const result=await rpc('ui/initialize',{appInfo:{name:'team-room',version:'0.13.4'},appCapabilities:{availableDisplayModes:['inline','fullscreen']},protocolVersion:'2026-01-26'});
       if(disposed)return;
       if(result?.protocolVersion!=='2026-01-26')throw new Error('지원되는 호스트 통신 버전을 확인하지 못했습니다.');
       messageExtension=Boolean(result.hostCapabilities?.experimental?.['openai/message'] || result.hostCapabilities?.extensions?.['openai/message']);

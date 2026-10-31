@@ -2,7 +2,7 @@
 
 [한국어](SETUP.ko.md) | **English** | [Full user guide](USER_GUIDE.en.md)
 
-For version 0.13.3. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → use the room in the same chat → assign the first task**.
+For version 0.13.4. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → use the room in the same chat → assign the first task**.
 
 A new team has **one director, one planner, one designer, TWO programmers and one QA participant**. The chat where setup starts becomes the director, preserving its history and current model/effort. Only the other five participants get new chats. Setup starts with a written request in a Codex project chat.
 
@@ -11,6 +11,7 @@ A new team has **one director, one planner, one designer, TWO programmers and on
 - [Check installation](#check-installation)
 - [Open the project you will work on](#open-the-project-you-will-work-on)
 - [Use this chat as director](#use-this-chat-as-director)
+- [Team setup progress and recovery](#team-setup-progress-and-recovery)
 - [Choose models by role](#choose-models-by-role)
 - [Verify connection and open the room](#verify-connection-and-open-the-room)
 - [Assign work and send corrections](#assign-work-and-send-corrections)
@@ -241,3 +242,15 @@ Connections and setup journals normally live under the user's `~/.codex/team-roo
 For everyday setup, use the copyable requests above. The last reference is technical material for plugin developers and agents.
 
 To remove a room from the active list, use **메뉴 → 회의실 삭제** and confirm. Restore it under **삭제된 회의실 → 복구**. Native chats stay; unfinished work blocks deletion. [Delete/restore guide](USER_GUIDE.en.md#delete-and-restore-a-room).
+
+## Team setup progress and recovery
+
+The main room view shows saved progress such as **3/5 new participants ready** and each role's state. The reused director has its own row and is excluded from the five-new-chat count. A prepared request remains marked as awaiting direct submission until actual setup advances.
+
+Until an initial room connection completes, only the meeting work composer is read-only; its draft is preserved and input unlocks after connection. The original Codex chat stays available for stop requests and troubleshooting. Extending an already operating room does not block its existing work input.
+
+Closing the menu or room view preserves chats and the journal; it does not cancel native work. After quitting/reopening Codex, the same saved progress is shown. Closing a view or elapsed time alone never proves interruption or native absence.
+
+If setup stopped or failed, choose **중단·오류 후 이어하기** (Continue after interruption/error). This prepares the original continuation draft or copyable text only. Review and SEND it yourself in the original director chat. Already-ready workers, model choices and attempt history are retained. Reconcile actual native results before any authorized retry; never recreate an uncertain result. **문제 자세히 보기** shows the recorded error.
+
+**상태 새로고침** reads saved local state. Visible UI refreshes carry the progress; hidden/closed views stop refreshing and ignore late callbacks. No background AI, native-chat polling or automatic resend is added. Actual setup, authorized continuation and role initialization have ordinary usage.

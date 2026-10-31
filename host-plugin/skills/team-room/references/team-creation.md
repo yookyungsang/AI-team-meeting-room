@@ -143,3 +143,9 @@ the plugin. Planning/status/model selection themselves invoke no AI, while the
 orchestrating chat and each native initial role turn have ordinary usage. Setup
 adds no recurring AI calls and does not grant runtime, file, messaging or paid
 media permissions beyond the verified human request.
+
+## Saved progress UI
+
+room_state exposes scoped saved teamProgress for the visible room view, including five-new-worker counts, role states and recorded failures. Initial setup blocks new meeting work until connect completes, while the original Codex chat stays usable. Existing-room extensions preserve active work. Closing/hiding the view does not cancel native turns or infer interruption. The UI resumes from the same journal and only prepares an editable continuation request after an explicit click; the human reviews and sends it. No native status polling or background AI is added.
+
+For asynchronous role initialization, use one bounded native event wait for the relevant created chats and verify completion or attention before record; do not mark an initial turn as complete merely because an ID was returned. Record native failures/uncertain results once with block and the original attemptId. Local driver errors are journaled in the same operation; status includes the unresolved failure. On an explicit continuation, reconcile existing attempts and in-flight work before any permitted retry. Keep ready roles and original models.

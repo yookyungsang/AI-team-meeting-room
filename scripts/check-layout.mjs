@@ -381,6 +381,22 @@ try{
   assert.equal(await frame.locator('#team-setup-entry').isVisible(),false);report.cases.push({width,menuTeamSetup:{explanationBeforeApply:true,roles:6,cancelWithoutAI:true,explicitApply:true,singleEditableDraft:true,noAutomaticSubmission:true,toggleCloses:true,existingSetupContinuation:true,verifiedProjectBeforeConnection:true,connectedRoomSelected:true},modelCalls:0});await page.close();
  }
  for(const width of [1280,420]){
+  const project={id:'progress-fixture',name:'팀 구성 예시 프로젝트'},progress={projectId:project.id,setupId:'synthetic-progress-setup',projectName:project.name,status:'creating',readyCount:3,totalCount:5,blocksWork:true,canContinue:true,roles:TEAM_ROLES.map((r,i)=>({id:r.id,name:r.name,state:i<4?'ready':'creating',existing:i===0}))},room={project,projects:[project],members:[{id:'director',name:'예시 총괄',role:'총괄 디렉터'}],requests:[],messages:[],paused:false,teamProgress:progress};
+  const page=await browser.newPage(),frame=await mount(page,fs.readFileSync(path.join(root,'host-plugin/widget.html'),'utf8'),width,room);
+  await frame.locator('#team-progress').waitFor({state:'visible'});assert.match(await frame.locator('#team-progress-summary').textContent(),/3\/5명/);assert.equal(await frame.locator('#text').getAttribute('readonly'),'');
+  assert.equal(await frame.locator('.shell').evaluate(el=>el.scrollWidth>el.clientWidth),false);await frame.locator('.shell').screenshot({path:path.join(output,`team-generation-progress-${width}.png`)});
+  await page.evaluate(({roles,project,progress})=>{window.menuTeamFixture={projectId:project.id,setupId:progress.setupId,projectName:project.name,status:'existing',modelMode:'default',directorMode:'opening-chat',roles};}, {roles:TEAM_ROLES.map(r=>({id:r.id,name:r.name,modelLabel:'기존 선택 유지'})),project,progress});
+  const errorState={...room,teamProgress:{...progress,status:'attention',failure:{operation:'record',reason:'예시: 생성 결과를 확인하지 못했습니다. 이미 준비된 담당자는 유지합니다.'}}};
+  await page.evaluate(state=>{window.testRoomState=state;document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:state}},'*');},errorState);
+  await frame.locator('#team-progress-errors').waitFor({state:'visible'});await frame.locator('#team-progress-errors summary').click();await frame.locator('.shell').screenshot({path:path.join(output,`team-generation-error-${width}.png`)});
+  await frame.locator('#team-progress-resume').click();await frame.waitForFunction(()=>document.querySelector('#team-setup-request-text').value==='Synthetic original setup request');await frame.locator('#close-menu').click();
+  assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.params?.name==='room_team_setup'&&p.params.arguments.operation==='resume').length),1);assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').every(p=>p.params._meta?.['openai/message']?.send===false)),true);
+  const completed={...room,teamProgress:{...progress,status:'connected',readyCount:5,blocksWork:false}};
+  await page.evaluate(state=>{window.testRoomState=state;document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:state}},'*');},completed);
+  await frame.waitForFunction(()=>!document.querySelector('#text').readOnly);assert.match(await frame.locator('#team-progress-title').textContent(),/완료/);await frame.locator('.shell').screenshot({path:path.join(output,`team-generation-complete-${width}.png`)});
+  report.cases.push({width,teamGeneration:{savedProgress:true,composerLockedUntilConnected:true,errorVisible:true,explicitContinuationDraftOnly:true,noAutomaticRetry:true,completeUnlocks:true},modelCalls:0});await page.close();
+ }
+ for(const width of [1280,420]){
   const project={id:'delete-fixture',name:'삭제와 복구를 확인하는 예시 프로젝트'},room={project,projects:[project],members:[{id:'director',name:'예시 총괄',role:'총괄 디렉터'}],requests:[],messages:[],paused:false};
   const page=await browser.newPage(),frame=await mount(page,fs.readFileSync(path.join(root,'host-plugin/widget.html'),'utf8'),width,room);
   await page.evaluate(room=>{window.lifecycleFixture={room,archived:false};},room);

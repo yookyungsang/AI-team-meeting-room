@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {check,hash,now,transaction} from './control.mjs';
@@ -27,6 +28,34 @@ export class MenuTeam{
   check(opening.status==='unregistered','이미 연결된 회의실이 있거나 소속을 확인할 수 없습니다. 기존 회의실의 구성원 편집을 이용해 주세요.');
  }
  otherSetup(context,setupId){return this.team.read().setups.find(s=>s.id!==setupId&&context.nativeProjectIds.includes(s.codexProjectId)&&s.hostId==='local');}
+ scopedSetup({threadId,projectId,setupId}){
+  const setups=this.team.read().setups;
+  if(projectId){
+   if(this.registry.read().projects.some(p=>p.id===projectId&&p.archivedAt))return null;
+   const setup=setups.findLast(s=>s.projectId===projectId&&(!setupId||s.id===setupId));
+   if(!setup)return null;
+   if(!this.registry.read().projects.some(p=>p.id===projectId)){const context=this.context(threadId);check(setup.hostId==='local'&&context.nativeProjectIds.includes(setup.codexProjectId),'현재 프로젝트의 팀 구성 기록만 확인할 수 있습니다.');}
+   return setup;
+  }
+  if(!threadId)return null;
+  const context=this.context(threadId);
+  return setups.findLast(s=>s.hostId==='local'&&context.nativeProjectIds.includes(s.codexProjectId)&&!this.registry.read().projects.some(p=>p.id===s.projectId&&p.archivedAt))||null;
+ }
+ progress(args){
+  const setup=this.scopedSetup(args);if(!setup)return null;
+  const workers=setup.slots.filter(s=>!s.existing&&!s.openingThreadId),origin=setup.slots.find(s=>s.openingThreadId)?.openingThreadId||this.menuOrigin(setup);
+  return {projectId:setup.projectId,setupId:setup.id,projectName:setup.name,status:setup.status==='connected'?'connected':setup.failure||setup.slots.some(s=>s.state==='uncertain')?'attention':setup.status,blocksWork:!setup.existingRoom&&setup.status!=='connected',readyCount:workers.filter(s=>s.state==='ready').length,totalCount:workers.length,canContinue:!!args.threadId&&(!origin||origin===args.threadId),roles:setup.slots.map(s=>({id:s.id,name:s.name,state:s.state,existing:!!(s.existing||s.openingThreadId),...(s.reason?{reason:s.reason}:{})})),...(setup.failure?{failure:{operation:setup.failure.operation,reason:setup.failure.reason}}:{})};
+ }
+ menuOrigin(setup){return this.menuRows().find(r=>r.projectId===setup.projectId&&r.setupId===setup.id)?.openerThreadId;}
+ menuRows(){return fs.existsSync(this.file)?JSON.parse(fs.readFileSync(this.file,'utf8')).requests:[];}
+ resume(args){
+  check(uuid(args.setupId)&&typeof args.projectId==='string','이어갈 프로젝트와 원래 설정 ID가 필요합니다.');
+  const setup=this.scopedSetup(args);check(setup&&setup.status!=='connected','진행 중인 원래 팀 설정을 확인해 주세요.');
+  const progress=this.progress(args);check(progress.canContinue,'처음 팀 만들기를 요청한 총괄 대화창에서 이어가 주세요.');
+  const context=this.context(args.threadId);check(setup.hostId==='local'&&context.nativeProjectIds.includes(setup.codexProjectId),'원래 프로젝트의 총괄 대화창에서 이어가 주세요.');
+  const row={context,projectId:setup.projectId,setupId:setup.id,status:'existing',...(setup.openingScopeId?{directorMode:'opening-chat'}:{}),choices:setup.requestedChoices||setup.slots.map(s=>({slotId:s.id,...(s.choice||{model:'default'})}))};
+  return {...this.view(row),progress,continuationPrompt:directRequest(row,row.choices)+'\n\n중단·오류 후 이어가기 요청입니다. 현재 진행 중인 설정 작업이 있으면 중복 실행하지 마세요. 원래 시도별 실제 생성 결과를 먼저 확인하고 이미 준비된 담당자는 유지하세요. 생성 여부가 불확실하면 새로 만들지 말고 원래 시도로 확인하세요. 실제 미생성이 확인된 실패만 이 직접 재개 요청 범위에서 원래 retry 절차를 따르세요.'};
+ }
  view(row){const choices=row.choices||defaultChoices(),setup=this.team.read().setups.find(s=>s.id===row.setupId&&s.projectId===row.projectId);return {previewId:row.id,projectId:row.projectId,setupId:row.setupId,projectName:row.context.name,status:row.status,directorMode:row.directorMode||'new-chat',roles:displayRoles(row,choices),modelMode:choices.some(c=>c.model!=='default')?'role-preset':'default',...(row.status!=='preview'?{setupStatus:setup?.status||'planned',readyCount:setup?.slots.filter(s=>s.identity).length||0,continuationPrompt:directRequest(row,choices)}:{})};}
  preview({threadId}){
   const context=this.context(threadId);this.unconnected(threadId);
@@ -54,7 +83,7 @@ export class MenuTeam{
    const plan=this.team.plan({projectId:row.projectId,setupId:row.setupId,name:context.name,codexProjectId:context.nativeProjectIds[0],hostId:'local',models:[],...(row.directorMode==='opening-chat'?{directorThreadId:row.openerThreadId}:{}),...(row.choices?{requestedChoices:choices}:{})});
    if(choices.every(c=>c.model==='default'))this.team.approve({projectId:row.projectId,setupId:row.setupId,confirmed:true,choices:plan.roles.map(r=>({slotId:r.slotId,model:'default'}))});
    row.requestId=requestId;row.status='requested';row.requestedAt=now();
-   return {...this.view(row),dispatch:true,handoff:'editable-draft',prompt:directRequest(row,choices)};
+   return {...this.view(row),progress:this.progress({threadId,projectId:row.projectId,setupId:row.setupId}),dispatch:true,handoff:'editable-draft',prompt:directRequest(row,choices)};
   });
  }
 }

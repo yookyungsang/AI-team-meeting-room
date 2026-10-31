@@ -21,6 +21,7 @@ function fixture(t){
 const call=(f,args,threadId='alpha-one')=>handle({method:'tools/call',params:{name:'room_team_setup',arguments:args,_meta:{thread_id:threadId}}},f.registry);
 const ok=(f,args,threadId)=>{const result=call(f,args,threadId);assert(!result.isError,result.content?.[0]?.text);return result.structuredContent;};
 const approve=(preview,requestId=randomUUID())=>({operation:'apply',previewId:preview.previewId,requestId,confirmed:true});
+const snapshot=(f,projectId,threadId='alpha-one')=>handle({method:'tools/call',params:{name:'room_state',arguments:projectId?{projectId}:{resolveCurrent:true},_meta:{thread_id:threadId}}},f.registry).structuredContent;
 
 test('menu preview is local, stable and cannot initialize chats or a room before confirmation',t=>{
  const f=fixture(t),first=ok(f,{operation:'preview'}),again=ok(f,{operation:'preview'});
@@ -127,4 +128,44 @@ test('explicit current-director plans require host identity and native scope, wh
  const prior=ok(g,{operation:'preview'});assert.equal(prior.previewId,preview.previewId);assert.equal(prior.directorMode,'new-chat');
  const receipt=ok(g,approve(prior)),choices=state.requests[0].choices;assert.match(receipt.prompt,/새 대화창 6개/);assert(!receipt.prompt.includes('새 대화창 5개'));
  g.team.catalog({...receipt,models:observed});g.team.approve({...receipt,confirmed:true,choices});assert.equal(g.team.claim({...receipt,slotId:'director'}).nativeTool,'create_thread');
+});
+
+test('saved progress is read-only, scoped and counts five new workers separately from the reused director',t=>{
+ const f=fixture(t);assert.equal(snapshot(f).teamProgress,null);assert(!fs.existsSync(f.team.file));assert(!fs.existsSync(f.menu.file));
+ const receipt=ok(f,approve(ok(f,{operation:'preview'})));assert.equal(receipt.progress.totalCount,5);assert.equal(receipt.progress.readyCount,0);
+ f.team.catalog({...receipt,models:observed});f.team.approve({...receipt,confirmed:true,choices:requested});
+ for(const id of ['director','planner','designer']){const claim=f.team.claim({...receipt,slotId:id});f.team.record({...receipt,slotId:id,attemptId:claim.attemptId,threadId:id==='director'?'alpha-one':'fixture-'+id,hostId:'local',codexProjectId:'native-alpha',verified:true,titleVerified:true});}
+ const before=fs.readFileSync(f.team.file),menu=fs.readFileSync(f.menu.file),progress=snapshot(f).teamProgress;
+ assert.equal(progress.readyCount,2);assert.equal(progress.totalCount,5);assert.equal(progress.blocksWork,true);assert.equal(progress.canContinue,true);assert.equal(progress.roles[0].state,'ready');assert.equal(progress.roles[0].threadId,undefined);
+ assert.equal(snapshot(f,undefined,'alpha-two').teamProgress.canContinue,false);assert.equal(snapshot(f,undefined,'beta-one').teamProgress,null);
+ assert(fs.readFileSync(f.team.file).equals(before));assert(fs.readFileSync(f.menu.file).equals(menu));
+});
+
+test('resume prepares the original direct request after restart without changing attempts or creating chats',t=>{
+ const f=fixture(t),receipt=ok(f,approve(ok(f,{operation:'preview'})));f.team.catalog({...receipt,models:observed});f.team.approve({...receipt,confirmed:true,choices:requested});
+ const claim=f.team.claim({...receipt,slotId:'qa'});f.team.block({...receipt,slotId:'qa',attemptId:claim.attemptId,reason:'Synthetic interrupted native receipt'});
+ const before=fs.readFileSync(f.team.file),menu=fs.readFileSync(f.menu.file),args={operation:'resume',projectId:receipt.projectId,setupId:receipt.setupId};
+ const resumed=new MenuTeam(f.registry).resume({...args,threadId:'alpha-one'});assert.equal(resumed.setupId,receipt.setupId);assert.match(resumed.continuationPrompt,/이미 준비된 담당자는 유지/);assert.match(resumed.continuationPrompt,/생성 여부가 불확실하면 새로 만들지/);assert.match(resumed.continuationPrompt,/GPT-6 Luna · Medium/);assert.equal(resumed.progress.status,'attention');
+ assert.equal(ok(f,args).progress.roles.find(r=>r.id==='qa').state,'uncertain');assert.equal(call(f,args,'alpha-two').isError,true);assert.equal(call(f,args,'beta-one').isError,true);assert.equal(call(f,{...args,setupId:randomUUID()}).isError,true);
+ assert(fs.readFileSync(f.team.file).equals(before));assert(fs.readFileSync(f.menu.file).equals(menu));assert.equal(f.team.claim({...receipt,slotId:'qa'}).dispatch,false);
+});
+
+test('authorized setup errors are persisted once for the UI and cleared by successful recovery with history retained',t=>{
+ const f=fixture(t),receipt=ok(f,approve(ok(f,{operation:'preview'}))),args={operation:'catalog',projectId:receipt.projectId,setupId:receipt.setupId,models:observed.slice(0,1)};
+ const run=(a,threadId='alpha-one')=>handle({method:'tools/call',params:{name:'room_team',arguments:a,_meta:{thread_id:threadId}}},f.registry);
+ assert.equal(run(args,'beta-one').isError,true);assert.equal(f.team.read().setups[0].failure,undefined);
+ const untouched=fs.readFileSync(f.team.file);assert.equal(run({operation:'plan',projectId:receipt.projectId,setupId:receipt.setupId,name:'Foreign rewrite',codexProjectId:'native-alpha',hostId:'local',models:[]},'beta-one').isError,true);assert(fs.readFileSync(f.team.file).equals(untouched));
+ assert.equal(run(args).isError,true);const progress=snapshot(f).teamProgress;assert.equal(progress.status,'attention');assert.match(progress.failure.reason,/지원하지 않습니다/);assert.equal(progress.failure.operation,'catalog');
+ const before=fs.readFileSync(f.team.file);run(args);assert(fs.readFileSync(f.team.file).equals(before));assert.equal(f.team.read().setups[0].failureHistory.length,1);
+ assert(!run({...args,models:observed}).isError);assert.equal(snapshot(f).teamProgress.status,'planned');assert.equal(f.team.read().setups[0].failure,undefined);assert.equal(f.team.read().setups[0].failureHistory.length,1);
+});
+
+test('the room cannot accept new work between initial registry commit and setup connection; exact old storage retries remain valid',t=>{
+ const f=fixture(t),receipt=ok(f,approve(ok(f,{operation:'preview'})));f.team.catalog({...receipt,models:observed});f.team.approve({...receipt,confirmed:true,choices:requested});
+ for(const role of TEAM_ROLES){const claim=f.team.claim({...receipt,slotId:role.id});f.team.record({...receipt,slotId:role.id,attemptId:claim.attemptId,threadId:role.id==='director'?'alpha-one':'fixture-'+role.id,hostId:'local',codexProjectId:'native-alpha',verified:true,titleVerified:true});}
+ const configure=f.registry.configure.bind(f.registry);f.registry.configure=config=>{configure(config);throw new Error('Synthetic interruption after room registration');};assert.throws(()=>f.team.connect(receipt),/interruption/);
+ const submit={projectId:receipt.projectId,id:randomUUID(),text:'First actual task',recipients:['director']},send=()=>handle({method:'tools/call',params:{name:'room_submit',arguments:submit}},f.registry);
+ assert.equal(snapshot(f,receipt.projectId).teamProgress.blocksWork,true);assert.equal(send().isError,true);assert(!fs.existsSync(f.registry.roomPath(receipt.projectId)));
+ f.registry.configure=configure;f.team.connect(receipt);assert.equal(snapshot(f,receipt.projectId).teamProgress.status,'connected');assert.equal(snapshot(f,receipt.projectId).teamProgress.blocksWork,false);assert(!send().isError);assert(!send().isError);
+ assert.equal(call(f,{operation:'resume',projectId:receipt.projectId,setupId:receipt.setupId}).isError,true);
 });

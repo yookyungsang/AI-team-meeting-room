@@ -56,9 +56,28 @@ export class TeamSetup{
   check(setup.hostId==='local'&&context?.scopeId===setup.openingScopeId&&context.nativeProjectIds?.includes(setup.codexProjectId),'처음 요청한 총괄 대화의 프로젝트 소속이 바뀌었거나 확인되지 않습니다. 원래 연결을 확인해 주세요.');
  }
  view(setup,{includeCatalog=false}={}){
-  return {projectId:setup.projectId,setupId:setup.id,name:setup.name,status:setup.status,codexProjectId:setup.codexProjectId,hostId:setup.hostId,...(setup.openingScopeId?{directorMode:'opening-chat',directorThreadId:setup.slots.find(s=>s.openingThreadId).openingThreadId}:{}),...(setup.requestedChoices?{requestedChoices:setup.requestedChoices}:{}),roles:setup.slots.map(s=>({slotId:s.id,memberId:s.memberId,name:s.name,role:s.role,title:s.title,state:s.state,reused:!!(s.existing||s.openingThreadId),...(s.openingThreadId?{reuseSource:'opening-chat'}:{}),...(s.existing||s.openingThreadId?{model:{model:'default',reason:'기존 채팅 설정 유지'}}:{suggested:s.suggested,...(s.choice?{model:s.choice}:{})}),...(s.attemptId?{attemptId:s.attemptId}:{}),...(s.identity?{threadId:s.identity.threadId,hostId:s.identity.hostId}:{}),...(s.reason?{reason:s.reason}:{})})),...(includeCatalog?{modelOptions:[{id:'default',label:'호스트 기본 모델',efforts:[]},...setup.models]}:{})};
+  return {projectId:setup.projectId,setupId:setup.id,name:setup.name,status:setup.status,codexProjectId:setup.codexProjectId,hostId:setup.hostId,...(setup.failure?{failure:{operation:setup.failure.operation,reason:setup.failure.reason}}:{}),...(setup.openingScopeId?{directorMode:'opening-chat',directorThreadId:setup.slots.find(s=>s.openingThreadId).openingThreadId}:{}),...(setup.requestedChoices?{requestedChoices:setup.requestedChoices}:{}),roles:setup.slots.map(s=>({slotId:s.id,memberId:s.memberId,name:s.name,role:s.role,title:s.title,state:s.state,reused:!!(s.existing||s.openingThreadId),...(s.openingThreadId?{reuseSource:'opening-chat'}:{}),...(s.existing||s.openingThreadId?{model:{model:'default',reason:'기존 채팅 설정 유지'}}:{suggested:s.suggested,...(s.choice?{model:s.choice}:{})}),...(s.attemptId?{attemptId:s.attemptId}:{}),...(s.identity?{threadId:s.identity.threadId,hostId:s.identity.hostId}:{}),...(s.reason?{reason:s.reason}:{})})),...(includeCatalog?{modelOptions:[{id:'default',label:'호스트 기본 모델',efforts:[]},...setup.models]}:{})};
  }
  status(args){return this.view(this.find(this.read(),args));}
+ // UI reads never infer a stopped process, change attempts or launch work.
+ execute(args){
+  try{
+   const result=this[args.operation](args);
+   const failure=this.find(this.read(),args).failure;
+   if(failure&&(failure.operation===args.operation||args.operation==='connect')){
+    transaction(this.file,empty,state=>{const setup=this.find(state,args);if(setup.failure?.key===failure.key)delete setup.failure;});delete result.failure;
+   }
+   return result;
+  }catch(error){
+   try{transaction(this.file,empty,state=>{
+    const setup=this.find(state,args);if(setup.status==='connected')return;
+    const failure={operation:args.operation,reason:String(error.message).slice(0,1000)},key=hash(JSON.stringify(failure));
+    if(setup.failure?.key===key)return;
+    setup.failure={...failure,key,at:now()};(setup.failureHistory??=[]).push(setup.failure);
+   });}catch{}
+   throw error;
+  }
+ }
  plan(args){
   const {projectId,setupId,name,codexProjectId,hostId,brief='',roles=[],directorThreadId}=args;
   check(validId(projectId)&&uuid(setupId)&&text(name,120)&&text(codexProjectId,200)&&text(hostId,160),'회의실·계획 ID와 확인한 Codex 프로젝트·호스트가 필요합니다.');

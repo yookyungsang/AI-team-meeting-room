@@ -71,6 +71,10 @@ TOOLS.find(t=>t.name==='room_team').inputSchema.properties.requestedChoices={...
 TOOLS.find(t=>t.name==='room_team').inputSchema.properties.directorThreadId={...str,description:'For a NEW local room only: use the verified calling chat as director, preserving its current model/history. Must match host opening metadata and native project scope. Director claim returns set_thread_title, not create_thread. Omit to preserve an explicitly requested all-new or legacy plan.'};
 TOOLS.find(t=>t.name==='room_team').description+=' A menu role preset is saved as requestedChoices. Verify native create_thread capabilities, call catalog(models) once before approval, then approve those exact choices. Unsupported combinations block without fallback; defaults omit model/thinking. No extra human confirmation is needed for the already confirmed menu choices.';
 TOOLS.find(t=>t.name==='room_team').description+=' New basic menu teams reuse the original opening chat as director. Follow each claim nativeTool: set_thread_title renames that exact existing director without AI initialization; create_thread creates a missing worker. Never create a replacement director. Record the actual title receipt before connect; continue in the original director chat.';
+const menuSetupTool=TOOLS.find(t=>t.name==='room_team_setup');
+menuSetupTool.inputSchema.properties.operation.enum.push('resume');
+menuSetupTool.inputSchema.properties.projectId=member;menuSetupTool.inputSchema.properties.setupId=str;
+menuSetupTool.description+=' resume(projectId,setupId) reads the original journal and prepares continuation text only, never retries a native action. The human reviews and sends an editable draft in the original director chat. Saved progress is exposed in room_state without AI/native polling; an uncertain attempt never means permission to recreate.';
 TOOLS.find(t=>t.name==='room_roster').inputSchema.properties.operation.enum.push('discover');
 TOOLS.find(t=>t.name==='room_roster').description+=' discover reads only local Codex chat titles and project membership through a read-only metadata compatibility adapter, on explicit editor open/refresh; no AI or messages. It prepares same-project choices without activating them. UI additions are revalidated at save. Unsupported/remote indexes return an unavailable notice, never a global chat list.';
 Object.assign(TOOLS.find(t=>t.name==='room_get').inputSchema.properties,{
@@ -109,7 +113,7 @@ export function handle(request,registry=projects){
     if(args.resolveCurrent!==undefined&&typeof args.resolveCurrent!=='boolean')throw new Error('자동 프로젝트 확인 여부를 확인해 주세요.');
     const opening=!args.projectId&&(name==='room_open'||name==='room_state'&&args.resolveCurrent===true)?registry.opening(openingThread(request.params?._meta)):null;
     const selectedId=args.projectId||opening?.projectId;
-    const project=selectedId&&!['room_configure','room_team'].includes(name)?registry.get(selectedId):null;
+    const project=selectedId&&!['room_configure','room_team','room_team_setup'].includes(name)?registry.get(selectedId):null;
     const store=project?new RoomStore(registry.roomPath(project.id),project,()=>registry.get(project.id)):null;
     const control=store?new WorkControl(store,registry.home):null,usage=control?new UsageLedger(control):null;
     const snapshot=()=>{if(!store||store.project.archivedAt)return {version:1,paused:true,requests:[],messages:[],members:[],project:null,projects:registry.list(),mode:'host-relay',...(store?{deletedProjectId:project.id,opening:{status:'deleted'}}:{})};new Validation(control).refresh();return {...store.snapshot(),projects:registry.list(),work:control.summary(),usageReports:usage.reports()};};
@@ -125,6 +129,7 @@ export function handle(request,registry=projects){
       const menu=new MenuTeam(registry),input={...args,threadId:openingThread(request.params?._meta)};
       if(args.operation==='preview')data=menu.preview(input);
       else if(args.operation==='apply')data=menu.apply(input);
+      else if(args.operation==='resume')data=menu.resume(input);
       else throw new Error('지원하지 않는 팀 만들기 작업입니다.');break;
      }
      case 'room_projects':data={projects:registry.list()};break;
@@ -142,14 +147,23 @@ export function handle(request,registry=projects){
       if(!['plan','catalog','approve','claim','record','block','retry','connect','status'].includes(args.operation))throw new Error('지원하지 않는 팀 구성 작업입니다.');
       if(args.operation==='plan'&&args.directorThreadId!==undefined&&openingThread(request.params?._meta)!==args.directorThreadId)throw new Error('총괄로 사용할 대화창은 이 요청을 보낸 현재 대화창이어야 합니다.');
       const team=new TeamSetup(registry);
-      if(!['plan','status'].includes(args.operation)){
-       const setup=team.find(team.read(),args),director=setup.slots.find(s=>s.openingThreadId);
+      if(args.operation!=='status'){
+       const setup=args.operation==='plan'?team.read().setups.find(s=>s.id===args.setupId):team.find(team.read(),args),director=setup?.slots.find(s=>s.openingThreadId);
        if(director&&openingThread(request.params?._meta)!==director.openingThreadId)throw new Error('이 팀 설정은 처음 요청한 총괄 대화창에서 이어가 주세요. 다른 대화를 총괄로 바꾸지 않습니다.');
       }
-      data=team[args.operation](args);break;
+      data=args.operation==='status'?team.status(args):team.execute(args);break;
      }
-     case 'room_open':case 'room_state':data={...snapshot(),...(opening?{opening}:{} )};break;
-     case 'room_submit':data=store.submit(args);data.state=snapshot();break;
+     case 'room_open':case 'room_state':{
+      data={...snapshot(),...(opening?{opening}:{} )};
+      try{data.teamProgress=new MenuTeam(registry).progress({threadId:openingThread(request.params?._meta),...(selectedId?{projectId:selectedId}:{})});}
+      catch{data.teamProgressUnavailable=true;}
+      break;
+     }
+     case 'room_submit':{
+      const setup=new TeamSetup(registry).read().setups.find(s=>s.projectId===args.projectId&&!s.existingRoom&&s.status!=='connected');
+      if(setup&&!store.read().requests.some(r=>r.id===args.id))throw new Error('팀 구성 중입니다. 담당자와 회의실 연결을 마친 뒤 작업을 보내 주세요. 중단·오류 상담은 원래 Codex 채팅에서 할 수 있습니다.');
+      data=store.submit(args);data.state=snapshot();break;
+     }
      case 'room_get':{
       data=store.get(args.requestId,args);
       if(!readGates.has(registry))readGates.set(registry,new ReadGate());
