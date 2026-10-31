@@ -1,7 +1,13 @@
 # Releases and automatic checks / 배포와 자동 검사
 
-[Latest release / 최신 배포](https://github.com/yookyungsang/AI-team-meeting-room/releases/latest) ·
+[Public beta releases / 공개 베타 배포](https://github.com/yookyungsang/AI-team-meeting-room/releases) ·
 [Automatic checks / 자동 검사](https://github.com/yookyungsang/AI-team-meeting-room/actions/workflows/checks.yml)
+
+The current release channel is **public beta**. Label new releases as GitHub
+pre-releases and link the current beta explicitly from the README;
+`releases/latest` can select an older release because it excludes pre-releases.
+Do not describe passing automated tests as complete native-app validation.
+Keep the [actual-host validation limits](host-validation.md) visible.
 
 ## What runs automatically
 
@@ -39,7 +45,7 @@ Passing checks are evidence for the covered cases, not a claim that all bugs are
    authorization, targeting that exact tested commit. GitHub CLI example:
 
    ```sh
-   gh release create vX.Y.Z --repo yookyungsang/AI-team-meeting-room --target TESTED_COMMIT_SHA --title "vX.Y.Z - Team Meeting Room" --notes-file docs/releases/vX.Y.Z.md --latest
+   gh release create vX.Y.Z --repo yookyungsang/AI-team-meeting-room --target TESTED_COMMIT_SHA --title "vX.Y.Z - Public Beta - Team Meeting Room" --notes-file docs/releases/vX.Y.Z.md --prerelease
    ```
 
    Replace the placeholders. If the tag/release already exists, inspect it and
@@ -51,6 +57,11 @@ Passing checks are evidence for the covered cases, not a claim that all bugs are
 
 ## 사용자 안내
 
+현재는 **공개 베타**로 배포하며 사용자의 실제 환경에서 의견과 오류 제보를 받습니다.
+GitHub의 `Pre-release` 표시와 README의 현재 베타 링크를 확인하세요. 처음 팀 만들기,
+작업·QA·중단 복구의 전체 흐름과 재시작·중복 탭 동작은 추가 실사용 검증이 필요합니다.
+문제가 생기면 앱·플러그인 버전과 재현 순서를 GitHub Issues에 남겨 주세요.
+
 **배포**는 버전별 변경 내용·설치법·업데이트 방법을 GitHub Releases에 모으는
 것입니다. 최신 배포에서 설명을 읽고 안내된 명령으로 설치하세요. Source code
 ZIP은 저장소 사본이며 설치 프로그램은 아닙니다. 기존 기록은 소스 폴더 밖에
@@ -61,5 +72,5 @@ ZIP은 저장소 사본이며 설치 프로그램은 아닙니다. 기존 기록
 같은 작업의 오래된 실행을 취소하고 예약 실행·자동 재시도는 추가하지 않습니다.
 검사 통과·실패와 로그는 위의 자동 검사 링크에서 확인할 수 있습니다.
 
-정식 배포는 검사 통과한 커밋을 대상으로 명시적으로 게시합니다. 검사가 통과해도
+베타 배포는 검사 통과한 커밋을 대상으로 명시적으로 게시합니다. 검사가 통과해도
 자동으로 사용자 설치를 바꾸거나 작업자를 호출하지 않습니다.

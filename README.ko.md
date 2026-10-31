@@ -2,8 +2,10 @@
 
 [English](README.md) | **한국어** | [日本語](host-plugin/USER_GUIDE.ja.md) | [简体中文](host-plugin/USER_GUIDE.zh-Hans.md) | [繁體中文](host-plugin/USER_GUIDE.zh-Hant.md)
 
+> **현재 공개 베타입니다.** 먼저 사용해 보고 의견을 보내실 수 있습니다. 실제 앱에서 처음 팀 만들기, 작업·QA·중단 복구의 전체 흐름, 재시작·중복 탭 동작은 추가 검증 중입니다. [검증 범위](docs/host-validation.md)를 확인하고, 문제가 생기면 앱·플러그인 버전과 재현 순서를 [GitHub Issues](https://github.com/yookyungsang/AI-team-meeting-room/issues)에 남겨 주세요.
+
 [![자동 검사](https://github.com/yookyungsang/AI-team-meeting-room/actions/workflows/checks.yml/badge.svg)](https://github.com/yookyungsang/AI-team-meeting-room/actions/workflows/checks.yml)
-[최신 배포·설치 안내](https://github.com/yookyungsang/AI-team-meeting-room/releases/latest) · [배포와 자동 검사 설명](docs/RELEASING.md)
+[현재 공개 베타 v0.16.2 · 설치 안내](https://github.com/yookyungsang/AI-team-meeting-room/releases/tag/v0.16.2) · [배포와 자동 검사 설명](docs/RELEASING.md)
 
 기존 Codex 대화창을 프로젝트별 회의실로 연결하는 로컬 MCP App입니다. 사용자는 총괄에게 요청하고, 담당자는 자신의 질문·답변·진행 상황을 직접 게시합니다.
 
