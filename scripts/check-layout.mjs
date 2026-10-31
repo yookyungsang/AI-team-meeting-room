@@ -5,6 +5,8 @@ import assert from 'node:assert/strict';
 import {pathToFileURL} from 'node:url';
 import {wav} from '../test/audio.fixture.mjs';
 import {roleCatalog} from '../host-plugin/roles.mjs';
+import {renderWidget} from '../host-plugin/ui.mjs';
+import {demoSession} from './demo-session.mjs';
 import {TEAM_ROLES} from '../host-plugin/team-setup.mjs';
 const root=path.resolve(import.meta.dirname,'..');
 const modulePath=process.env.PLAYWRIGHT_MODULE;
@@ -84,13 +86,13 @@ async function measurements(page,frame,count=20){
 try{
  const baseline=process.argv[2];
  if(baseline){
-  const page=await browser.newPage(),frame=await mount(page,fs.readFileSync(baseline,'utf8'),1280);
+  const page=await browser.newPage({locale:'ko-KR'}),frame=await mount(page,fs.readFileSync(baseline,'utf8'),1280);
   await context(page,{displayMode:'inline',containerDimensions:{maxHeight:720}});
   report.baselineHeights=await measurements(page,frame);
   await page.close();
  }
  for(const width of (process.env.TEAM_ROOM_LAYOUT_NARROW_ONLY==='1'?[420]:[1280,420])){
-  const page=await browser.newPage(),frame=await mount(page,fs.readFileSync(path.join(root,'host-plugin/widget.html'),'utf8'),width);
+  const page=await browser.newPage({locale:'ko-KR'}),frame=await mount(page,renderWidget(),width);
   for(let i=0;i<10;i++){
    await context(page,{displayMode:'fullscreen',containerDimensions:{height:1000}});
    await context(page,{displayMode:'inline',containerDimensions:{maxHeight:720}});
@@ -361,7 +363,7 @@ try{
  }
  for(const width of [1280,420]){
   const opening={project:null,projects:[],members:[],requests:[],messages:[],paused:true,opening:{status:'unregistered',projectName:'처음 시작하는 예시 프로젝트'}};
-  const page=await browser.newPage(),frame=await mount(page,fs.readFileSync(path.join(root,'host-plugin/widget.html'),'utf8'),width,opening);
+  const page=await browser.newPage({locale:'ko-KR'}),frame=await mount(page,renderWidget(),width,opening);
   await frame.waitForFunction(()=>document.querySelector('#project option').textContent.includes('팀 연결 전'));
   await page.evaluate(roles=>{window.menuTeamFixture={previewId:crypto.randomUUID(),setupId:crypto.randomUUID(),projectId:'created',projectName:'처음 시작하는 예시 프로젝트',status:'preview',modelMode:'role-preset',directorMode:'opening-chat',roles};},TEAM_ROLES.map(r=>({id:r.id,name:r.name,modelLabel:r.id==='director'?'현재 대화창 사용 · 현재 모델·추론 유지':r.id.startsWith('programmer')?'GPT-6.1 Sol · High':r.id==='qa'?'GPT-6 Luna · Medium':'Codex 기본 설정'})));
   await frame.locator('#open-menu').click();await frame.locator('#create-team').click();await frame.locator('#team-setup-apply').waitFor({state:'visible'});
@@ -382,7 +384,7 @@ try{
  }
  for(const width of [1280,420]){
   const project={id:'progress-fixture',name:'팀 구성 예시 프로젝트'},progress={projectId:project.id,setupId:'synthetic-progress-setup',projectName:project.name,status:'creating',readyCount:3,totalCount:5,blocksWork:true,canContinue:true,roles:TEAM_ROLES.map((r,i)=>({id:r.id,name:r.name,state:i<4?'ready':'creating',existing:i===0}))},room={project,projects:[project],members:[{id:'director',name:'예시 총괄',role:'총괄 디렉터'}],requests:[],messages:[],paused:false,teamProgress:progress};
-  const page=await browser.newPage(),frame=await mount(page,fs.readFileSync(path.join(root,'host-plugin/widget.html'),'utf8'),width,room);
+  const page=await browser.newPage({locale:'ko-KR'}),frame=await mount(page,renderWidget(),width,room);
   await frame.locator('#team-progress').waitFor({state:'visible'});assert.match(await frame.locator('#team-progress-summary').textContent(),/3\/5명/);assert.equal(await frame.locator('#text').getAttribute('readonly'),'');
   assert.equal(await frame.locator('.shell').evaluate(el=>el.scrollWidth>el.clientWidth),false);await frame.locator('.shell').screenshot({path:path.join(output,`team-generation-progress-${width}.png`)});
   await page.evaluate(({roles,project,progress})=>{window.menuTeamFixture={projectId:project.id,setupId:progress.setupId,projectName:project.name,status:'existing',modelMode:'default',directorMode:'opening-chat',roles};}, {roles:TEAM_ROLES.map(r=>({id:r.id,name:r.name,modelLabel:'기존 선택 유지'})),project,progress});
@@ -391,14 +393,14 @@ try{
   await frame.locator('#team-progress-errors').waitFor({state:'visible'});await frame.locator('#team-progress-errors summary').click();await frame.locator('.shell').screenshot({path:path.join(output,`team-generation-error-${width}.png`)});
   await frame.locator('#team-progress-resume').click();await frame.waitForFunction(()=>document.querySelector('#team-setup-request-text').value==='Synthetic original setup request');await frame.locator('#close-menu').click();
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.params?.name==='room_team_setup'&&p.params.arguments.operation==='resume').length),1);assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').every(p=>p.params._meta?.['openai/message']?.send===false)),true);
-  const completed={...room,teamProgress:{...progress,status:'connected',readyCount:5,blocksWork:false}};
+  const completed={...room,teamProgress:{...progress,status:'connected',readyCount:5,blocksWork:false,roles:progress.roles.map(r=>({...r,state:'ready'}))}};
   await page.evaluate(state=>{window.testRoomState=state;document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:state}},'*');},completed);
   await frame.waitForFunction(()=>!document.querySelector('#text').readOnly);assert.match(await frame.locator('#team-progress-title').textContent(),/완료/);await frame.locator('.shell').screenshot({path:path.join(output,`team-generation-complete-${width}.png`)});
   report.cases.push({width,teamGeneration:{savedProgress:true,composerLockedUntilConnected:true,errorVisible:true,explicitContinuationDraftOnly:true,noAutomaticRetry:true,completeUnlocks:true},modelCalls:0});await page.close();
  }
  for(const width of [1280,420]){
   const project={id:'delete-fixture',name:'삭제와 복구를 확인하는 예시 프로젝트'},room={project,projects:[project],members:[{id:'director',name:'예시 총괄',role:'총괄 디렉터'}],requests:[],messages:[],paused:false};
-  const page=await browser.newPage(),frame=await mount(page,fs.readFileSync(path.join(root,'host-plugin/widget.html'),'utf8'),width,room);
+  const page=await browser.newPage({locale:'ko-KR'}),frame=await mount(page,renderWidget(),width,room);
   await page.evaluate(room=>{window.lifecycleFixture={room,archived:false};},room);
   await frame.waitForFunction(()=>document.querySelector('#project').value==='delete-fixture');await frame.locator('#open-menu').click();await frame.locator('#delete-room').click();await frame.waitForFunction(()=>!document.querySelector('#room-delete-apply').disabled);
   assert.match(await frame.locator('#room-delete-summary').textContent(),/삭제와 복구/);await frame.locator('#room-delete-cancel').click();assert.equal(await page.evaluate(()=>window.lifecycleFixture.archived),false);
@@ -410,7 +412,7 @@ try{
  const projects=[{id:'alpha',name:'예시 프로젝트 A',directorName:'A 총괄'},{id:'beta',name:'예시 프로젝트 B',directorName:'B 총괄'}];
  for(const project of projects){
   const room={project:{id:project.id,name:project.name},projects,members:[{id:'director',name:project.directorName,role:'총괄 디렉터'}],requests:[],messages:[],paused:false};
-  const page=await browser.newPage(),frame=await mount(page,fs.readFileSync(path.join(root,'host-plugin/widget.html'),'utf8'),1280,room);
+  const page=await browser.newPage({locale:'ko-KR'}),frame=await mount(page,renderWidget(),1280,room);
   await frame.waitForFunction(id=>document.querySelector('#project').value===id,project.id);
   assert.match(await frame.locator('#input-label').textContent(),new RegExp(project.directorName));
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.params?.name==='room_state'&&p.params.arguments.resolveCurrent).length),1);
@@ -418,5 +420,14 @@ try{
   await frame.locator('.shell').screenshot({path:path.join(output,`automatic-project-${project.id}.png`)});
   report.cases.push({automaticProject:project.id,selectedOnMount:true,manualSelection:false,modelCalls:0});await page.close();
  }
+ const session=await demoSession();
+ try{for(const width of [1280,420]){
+  const page=await browser.newPage({locale:'en-US',viewport:{width,height:900}});await page.goto(session.url);const frame=page.frames().find(f=>f!==page.mainFrame());await frame.waitForFunction(()=>document.querySelector('#project').value==='demo');
+  assert.equal(await frame.locator('h1').textContent(),'Team Meeting Room');await frame.locator('#text').fill('Keep my draft exactly.');
+  await frame.locator('#open-menu').click();assert(!/[가-힣]/.test(await frame.locator('#room-menu').innerText()));await frame.locator('.guide summary').click();assert(!/[가-힣]/.test(await frame.locator('#room-menu').innerText()));await frame.locator('.guide summary').click();await frame.locator('#ui-language').selectOption('ko');assert.equal(await frame.locator('h1').textContent(),'팀 회의실');await frame.locator('#ui-language').selectOption('en');assert.equal(await frame.locator('#text').inputValue(),'Keep my draft exactly.');
+  await frame.locator('#check-connection').click();await frame.waitForFunction(()=>document.querySelector('#check-status').textContent.startsWith('Checks finished'));assert.match(await frame.locator('#check-rows').textContent(),/Native chat creation/);assert.equal(await frame.locator('#room-menu').evaluate(el=>el.scrollWidth>el.clientWidth),false);await frame.locator('#room-menu').screenshot({path:path.join(output,`english-connection-${width}.png`)});
+  await frame.locator('#export-room').click();await frame.locator('#export-result').waitFor({state:'visible'});const downloading=page.waitForEvent('download');await frame.locator('#export-download').click();const download=await downloading;await download.saveAs(path.join(output,`browser-export-${width}.zip`));assert.equal(fs.readFileSync(path.join(output,`browser-export-${width}.zip`)).readUInt32LE(0),0x04034b50);
+  assert.equal(await page.evaluate(()=>window.demoPackets.filter(p=>p.method==='ui/message').length),0);report.cases.push({width,englishMenus:true,languageTogglePreservesDraft:true,connectionCheckReadOnly:true,realExportDownload:true,modelCalls:0});await page.close();
+ }}finally{await session.close();}
  fs.writeFileSync(path.join(output,process.env.TEAM_ROOM_LAYOUT_NARROW_ONLY==='1'?'layout-report-narrow.json':'layout-report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));
 }finally{await browser.close();}

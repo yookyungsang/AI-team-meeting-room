@@ -31,6 +31,12 @@ test('menu preview is local, stable and cannot initialize chats or a room before
  assert.deepEqual(TOOLS.find(t=>t.name==='room_team_setup')._meta.ui.visibility,['app']);
 });
 
+test('an English first-team request retains exact model choices and uses English planned titles without invoking chats',t=>{
+ const f=fixture(t),preview=ok(f,{operation:'preview',language:'en'}),receipt=ok(f,approve(preview));assert.match(receipt.prompt,/Create only five chats/);assert.match(receipt.prompt,/gpt-6-luna \/ medium/);assert(!/[가-힣]/.test(receipt.prompt));
+ const director=f.team.status(receipt).roles.find(r=>r.slotId==='director');assert.equal(director.name,'Director');assert.equal(director.role,'Director');assert.equal(director.title,'Fixture alpha · Director');assert.deepEqual(f.team.status(receipt).requestedChoices,requested);assert(!fs.existsSync(f.registry.file));
+ const resumed=ok(f,{operation:'resume',projectId:receipt.projectId,setupId:receipt.setupId});assert.match(resumed.continuationPrompt,/Continue after interruption/);assert(!/[가-힣]/.test(resumed.continuationPrompt));
+});
+
 test('confirmed role models are verified before approval and reach native actions exactly without changing default roles',t=>{
  const f=fixture(t),preview=ok(f,{operation:'preview'}),args=approve(preview),receipt=ok(f,args);
  assert.equal(receipt.dispatch,true);assert.match(receipt.prompt,/프로그래머 2명/);assert.match(receipt.prompt,/역할별 모델/);assert.match(receipt.prompt,/새 대화창 5개만/);assert.match(receipt.prompt,/별도 초기화 메시지를 보내지/);

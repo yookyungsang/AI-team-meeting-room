@@ -100,13 +100,14 @@ export class TeamSetup{
     const override=roles.find(r=>r.slotId===role.id)||{},memberId=override.memberId||role.id;
     check(validId(memberId)&&memberId!=='user'&&(role.id==='director'?memberId==='director':memberId!=='director'),'역할의 담당자 ID를 확인해 주세요.');
     check(override.name===undefined||text(override.name,80),'담당자 이름은 80자까지입니다.');
+    check(override.roleLabel===undefined||text(override.roleLabel,80),'표시 역할은 80자까지입니다.');
     const binding=override.reuseMemberId||(existing&&base.some(m=>m.id===memberId)?memberId:undefined);
     const reused=binding&&base.find(m=>m.id===binding);check(!binding||reused,'이 회의실의 현재 담당자만 재사용할 수 있습니다.');
     if(role.id==='director'&&existing)check(reused?.id==='director','기존 회의실의 총괄 채팅을 유지해야 합니다.');
     if(role.id!=='director')check(reused?.id!=='director','총괄 채팅을 작업자로 중복 사용하지 않습니다.');
     if(!reused)check(!existing||!knownMembers(existing).some(m=>m.id===memberId),'새 채팅에는 기존·제외된 담당자와 다른 ID를 사용해 주세요.');
     const label=reused?.name||override.name||role.name;
-    return {id:role.id,memberId:reused?.id||memberId,name:label,role:reused?.role||role.name,title:name.slice(0,60)+' · '+label.slice(0,50),state:reused?'ready':'planned',...(reused?{existing:reused,identity:{threadId:reused.threadId,hostId:reused.hostId}}:opening&&role.id==='director'?{openingThreadId:directorThreadId}:{suggested:suggestion(role,models)})};
+    return {id:role.id,memberId:reused?.id||memberId,name:label,role:reused?.role||override.roleLabel||role.name,title:name.slice(0,60)+' · '+label.slice(0,50),state:reused?'ready':'planned',...(reused?{existing:reused,identity:{threadId:reused.threadId,hostId:reused.hostId}}:opening&&role.id==='director'?{openingThreadId:directorThreadId}:{suggested:suggestion(role,models)})};
    });
    check(new Set(slots.map(s=>s.memberId)).size===6,'한 담당자를 여러 역할에 중복 연결하지 않습니다.');
    check(!requested||slots.every(s=>!(s.existing||s.openingThreadId)||requested.find(c=>c.slotId===s.id).model==='default'),'기존 채팅의 모델을 새 팀 설정으로 바꾸지 않습니다.');

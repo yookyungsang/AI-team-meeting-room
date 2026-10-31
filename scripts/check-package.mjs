@@ -36,7 +36,7 @@ walk('host-plugin');
 const runtimeNames=new Set(['projects.json','work-control.json','usage-ledger.json','team-setups.json','team-menu.json','.codex-global-state.json','state_5.sqlite']);
 for(const file of files){
  assert(!runtimeNames.has(path.posix.basename(file)),'Runtime data must stay outside the package: '+file);
- assert(!/(?:^|\/)(?:rooms|validation|node_modules|\.local|\.git)(?:\/|$)|(?:\.lock|\.next|\.log)$|(?:^|\/)\.env(?:\.|$)/.test(file),'Unexpected package data: '+file);
+ assert(!/(?:^|\/)(?:rooms|validation|exports|node_modules|\.local|\.git)(?:\/|$)|(?:\.lock|\.next|\.log)$|(?:^|\/)\.env(?:\.|$)/.test(file),'Unexpected package data: '+file);
 }
 walk('docs');files.push('README.md','README.ko.md');
 let links=0;

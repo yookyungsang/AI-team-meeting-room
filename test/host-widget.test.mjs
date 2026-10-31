@@ -4,8 +4,9 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {randomUUID} from 'node:crypto';
 import {roleCatalog,roleTypeOf} from '../host-plugin/roles.mjs';
+import {renderWidget} from '../host-plugin/ui.mjs';
 import {TEAM_ROLES} from '../host-plugin/team-setup.mjs';
-const script=fs.readFileSync(new URL('../host-plugin/widget.html',import.meta.url),'utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
+const script=renderWidget().match(/<script>([\s\S]*?)<\/script>/)[1];
 class Element {
  constructor(tag='div'){this.tag=tag;this.children=[];this.events={};this.value='';this.dataset={};this.disabled=false;this.hidden=false;this.scrollHeight=0;this.scrollTop=0;this.clientHeight=300;}
  append(...nodes){this.children.push(...nodes);}
@@ -23,8 +24,9 @@ class Element {
  set innerHTML(value){throw new Error('unsafe HTML rendering');}
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
-async function widget(t,{capability={},messageFails=false,autoSelect=true,deferMessages=false,holdSubmit=false,holdImages=false,badImage=false,holdAudio=false,badAudio=false,holdRoster=null,rosterError=null,currentProject=null,openingStatus='unavailable',holdOpening=false,initialInput,holdTeam=null,teamStatus='preview',holdManage=null,busyRoom=false,draftSupport=true,openingProjectName}={}){
+async function widget(t,{capability={},messageFails=false,autoSelect=true,deferMessages=false,holdSubmit=false,holdImages=false,badImage=false,holdAudio=false,badAudio=false,holdRoster=null,rosterError=null,currentProject=null,openingStatus='unavailable',holdOpening=false,initialInput,holdTeam=null,teamStatus='preview',holdManage=null,busyRoom=false,draftSupport=true,openingProjectName,language='ko-KR',fileSupport=false,downloadSupport=false,holdUtility=null}={}){
  const elements=new Map(),sent=[],callbacks={},intervals=[],messagePackets=[],imagePackets=[],audioPackets=[],openingPackets=[],teamPackets=[],copied=[],timeouts=new Map();let timeoutSeq=0;
+ const utilityPackets=[],utilityBehavior={hold:holdUtility};
  const teamData={previewId:randomUUID(),setupId:randomUUID(),projectId:'created',projectName:'가상 새 프로젝트',status:teamStatus,roles:TEAM_ROLES.map(r=>({id:r.id,name:r.name})),modelMode:'default',continuationPrompt:'Synthetic original team request',setupStatus:'planned',readyCount:0};
  const projects=[{id:'test',name:'Test',directorName:'테스트 총괄'},{id:'second',name:'Second',directorName:'다른 총괄'}];
  const state={project:{id:'test',name:'Test'},projects,members:[{id:'director',name:'테스트 총괄',role:'총괄'}],requests:[],messages:[],paused:false};
@@ -38,9 +40,11 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
  const styles=new Map();
  const document={hidden:false,body:{hidden:false},documentElement:{style:{setProperty:(key,value)=>styles.set(key,value)}},activeElement:null,getElementById:id=>{if(!elements.has(id))elements.set(id,new Element());return elements.get(id);},createElement:tag=>new Element(tag),addEventListener:(name,fn)=>callbacks[name]=fn};
  const parent={postMessage:packet=>{sent.push(packet);if(packet.id===undefined)return;let result={};
-  if(packet.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostCapabilities:{message:{text:capability},experimental:draftSupport?{'openai/message':{}}:{}}};
+  if(packet.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostCapabilities:{message:{text:capability},downloadFile:downloadSupport?{}:undefined,experimental:{...(draftSupport?{'openai/message':{}}:{}),...(fileSupport?{'openai/files':{}}:{})}}};
   if(packet.method==='tools/call'){
    const {name,arguments:args}=packet.params;
+   if(name==='room_check'){utilityPackets.push(packet);result={structuredContent:{rows:[{id:'native-tools',status:'unverified',detail:'Native tools require actual setup.',detailKo:'실제 설정 때 도구 권한을 확인합니다.',action:'Do not create test chats.'}]}};if(utilityBehavior.hold===name)return;}
+   if(name==='room_export'){utilityPackets.push(packet);result={structuredContent:{projectId:args.projectId,exportId:args.exportId,name:'synthetic.zip',downloadable:true,counts:{messages:2,images:1,audio:1}},_meta:{'team-room/exportPath':'/synthetic/export.zip',...(args.operation==='download'?{'team-room/exportBytes':'UEsFBg=='}:{})}};if(utilityBehavior.hold===args.operation)return;}
    if(name==='room_manage'){
     managePackets.push(packet);const room=states.get(args.projectId);
     if(args.operation==='preview_delete')result={structuredContent:{projectId:args.projectId,name:room.project.name,revision:1,canDelete:!busyRoom,reasons:busyRoom?['진행 중인 요청 1건']:[],counts:{members:room.members.length,requests:room.requests.length,messages:room.messages.length,images:0,audio:0}}};
@@ -78,7 +82,7 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
   if(packet.method==='ui/initialize'&&initialInput!==undefined)queueMicrotask(()=>callbacks.message({source:parent,data:{jsonrpc:'2.0',method:'ui/notifications/tool-input',params:{arguments:initialInput}}}));
  }};
  const window={parent,addEventListener:(name,fn)=>callbacks[name]=fn};
- vm.runInNewContext(script,{window,document,navigator:{clipboard:{writeText:async value=>{copied.push(value);}}},crypto:{randomUUID},console,Intl,Date,Map,Set,Object,Array,JSON,setTimeout:fn=>{const id=++timeoutSeq;timeouts.set(id,fn);return id;},clearTimeout:id=>timeouts.delete(id),setInterval:fn=>{intervals.push(fn);return intervals.length;},clearInterval(){}});
+ vm.runInNewContext(script,{window,document,navigator:{language,clipboard:{writeText:async value=>{copied.push(value);}}},crypto:{randomUUID},console,Intl,Date,Map,Set,Object,Array,JSON,setTimeout:fn=>{const id=++timeoutSeq;timeouts.set(id,fn);return id;},clearTimeout:id=>timeouts.delete(id),setInterval:fn=>{intervals.push(fn);return intervals.length;},clearInterval(){}});
  t.after(async()=>{callbacks.pagehide();await settle();});
  await settle();
  const notify=data=>callbacks.message({source:parent,data:{jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:data}}});
@@ -86,10 +90,27 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
  const receive=data=>callbacks.message({source:parent,data:{jsonrpc:'2.0',...data}});
  const respondMessage=(index,result={})=>receive({id:messagePackets[index].id,result});
  const expire=()=>{for(const [id,fn] of [...timeouts]){timeouts.delete(id);fn();}};
- return {rosterPackets,rosterBehavior,catalogs,sent,elements,state,second,states,chooser,notify,callbacks,intervals,document,styles,receive,window,messagePackets,imagePackets,audioPackets,openingPackets,teamPackets,teamData,respondMessage,expire,managePackets,manageBehavior,archived,copied};
+ return {utilityPackets,utilityBehavior,rosterPackets,rosterBehavior,catalogs,sent,elements,state,second,states,chooser,notify,callbacks,intervals,document,styles,receive,window,messagePackets,imagePackets,audioPackets,openingPackets,teamPackets,teamData,respondMessage,expire,managePackets,manageBehavior,archived,copied};
 }
 
 async function previewDelete(w){w.elements.get('open-menu').events.click();await w.elements.get('delete-room').events.click();}
+test('English controls follow browser language; changing UI language preserves user prose and drafts without AI',async t=>{
+ const w=await widget(t,{language:'en-US'});assert.equal(w.elements.get('pause').textContent,'Pause new requests');assert.equal(w.elements.get('text').placeholder,'Leave a goal, question or correction.');
+ w.state.messages.push({id:'literal',authorId:'director',text:'프로젝트 선택'});w.notify(w.state);w.elements.get('text').value='내가 쓴 원문';const before=JSON.stringify(w.state);
+ const text=node=>[node.textContent||'',...(node.children||[]).map(text)].join('');assert(text(w.elements.get('messages')).includes('프로젝트 선택'));
+ w.elements.get('ui-language').value='ko';w.elements.get('ui-language').events.change();assert.equal(w.elements.get('pause').textContent,'새 요청 일시정지');assert.equal(w.elements.get('text').value,'내가 쓴 원문');assert.equal(JSON.stringify(w.state),before);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+});
+test('connection checks are explicit, read-only and late results cannot reopen closed views',async t=>{
+ const w=await widget(t,{holdUtility:'room_check'});w.elements.get('open-menu').events.click();const pending=w.elements.get('check-connection').events.click();await settle();const packet=w.utilityPackets[0];assert.equal(w.utilityPackets.length,1);await w.intervals[0]();assert.equal(w.utilityPackets.length,1);w.elements.get('close-menu').events.click();w.receive({id:packet.id,result:{structuredContent:{rows:[]}}});await pending;assert.equal(w.elements.get('connection-check').hidden,true);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+});
+test('export writes a scoped ZIP, supports host downloads and opens only after a separate user click',async t=>{
+ const w=await widget(t,{fileSupport:true,downloadSupport:true});w.elements.get('open-menu').events.click();await w.elements.get('export-room').events.click();assert.equal(w.elements.get('export-path').value,'/synthetic/export.zip');assert.equal(w.sent.filter(p=>p.method==='openai/files/open').length,0);
+ await w.elements.get('export-download').events.click();assert.equal(w.sent.filter(p=>p.method==='ui/download-file').length,1);await w.elements.get('export-open').events.click();assert.equal(w.sent.filter(p=>p.method==='openai/files/open').length,1);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+ const first=w.utilityPackets.find(p=>p.params.arguments.operation==='create').params.arguments.exportId;await w.elements.get('export-room').events.click();assert.notEqual(w.utilityPackets.at(-1).params.arguments.exportId,first);
+});
+test('late archive bytes after a project switch never dispatch a host download',async t=>{
+ const w=await widget(t,{downloadSupport:true,holdUtility:'download'});w.elements.get('open-menu').events.click();await w.elements.get('export-room').events.click();const pending=w.elements.get('export-download').events.click();await settle();const packet=w.utilityPackets.at(-1);w.elements.get('project').value='second';await w.elements.get('project').events.change();w.receive({id:packet.id,result:{structuredContent:{projectId:'test',exportId:packet.params.arguments.exportId,name:'synthetic.zip'},_meta:{'team-room/exportBytes':'UEsFBg=='}}});await pending;assert.equal(w.sent.filter(p=>p.method==='ui/download-file').length,0);assert.equal(w.elements.get('export-result').hidden,true);
+});
 test('room deletion previews scope, cancels without mutation and blocks busy rooms without AI',async t=>{
  for(const busyRoom of [false,true]){const w=await widget(t,{busyRoom});await previewDelete(w);assert.match(w.elements.get('room-delete-summary').textContent,/Test/);assert.equal(w.elements.get('room-delete-apply').disabled,busyRoom);if(busyRoom){assert.match(w.elements.get('room-delete-blockers').textContent,/진행 중인 요청/);await w.elements.get('room-delete-apply').events.click();}w.elements.get('room-delete-cancel').events.click();assert.equal(w.elements.get('room-delete').hidden,true);assert.deepEqual(w.managePackets.map(p=>p.params.arguments.operation),['preview_delete']);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);}
 });
@@ -286,7 +307,7 @@ test('opening and refreshing the project-chat picker performs local discovery wi
  const w=await widget(t);await w.elements.get('edit-roster').events.click();await w.elements.get('roster-refresh').events.click();
  assert.deepEqual(w.rosterPackets.map(p=>p.params.arguments.operation),['discover','discover']);
  assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);assert.equal(w.sent.filter(p=>p.params?.name==='room_submit').length,0);
- assert.doesNotMatch(fs.readFileSync(new URL('../host-plugin/widget.html',import.meta.url),'utf8'),/id="roster-prepare"/);
+ assert.doesNotMatch(renderWidget(),/id="roster-prepare"/);
 });
 
 test('excluding an edited member returns it to the picker and readding preserves its draft',async t=>{

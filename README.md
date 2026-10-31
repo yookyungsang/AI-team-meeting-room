@@ -7,17 +7,24 @@
 
 A local Codex plugin that connects existing AI chats into project-based team meeting rooms. Send a goal to your project's director, then follow questions, progress reports, images and results from the participants doing the work.
 
+[![Recorded product walkthrough](docs/media/demo-preview.png)](https://github.com/yookyungsang/AI-team-meeting-room/releases/download/v0.14.0/team-room-demo.webm)
+
+[Watch/download the 1-minute video](docs/media/team-room-demo.webm) · [What the recording shows](docs/DEMO.md)
+
+English/Korean menus, read-only connection checks and local ZIP exports are available from **Menu**. The recording uses the actual plugin UI with example records in an isolated browser host; it does not show native Codex chat creation or live agents.
+
 ## Start here: set up your workers after installation
 
 **[한국어: 설치부터 작업자 생성까지 따라 하기](host-plugin/SETUP.ko.md)** · **[English: step-by-step team setup](host-plugin/SETUP.en.md)**
 
 1. [Install the plugin](#install), finish active work, and fully restart Codex.
 2. Open a chat in the **actual project you will work on**.
-3. Open the room tab and choose **메뉴 → 기본 팀 만들기**. Review six roles and their displayed model/effort settings, then click **설명 확인 · 요청문 준비** to prepare an editable request. Review and send it yourself in the project chat; copy/paste the visible request if draft insertion is unavailable. Preparation invokes no AI; actual setup after direct submission has normal usage. For specific model choices, use the conversational alternative below. [Menu setup details](host-plugin/skills/team-room/references/menu-team-setup.md).
+3. Open the room tab and choose **Menu → Basic team setup**. Review six roles and their displayed model/effort settings, then click **Review explanation · prepare request** to prepare an editable request. Review and send it yourself in the project chat; copy/paste the visible request if draft insertion is unavailable. Preparation invokes no AI; actual setup after direct submission has normal usage. For specific model choices, use the conversational alternative below. [Menu setup details](host-plugin/skills/team-room/references/menu-team-setup.md).
 
 ```text
 Set up Team Meeting Room for this project.
-Create a director, planner, designer, TWO programmers and QA in separate chats.
+Use and rename this chat as director, preserving its history and current settings.
+Create only a planner, designer, TWO programmers and QA in separate chats.
 First show role names, existing/new choices, models and reasoning levels.
 After I choose models, create/name the chats, add role instructions and connect them.
 Preserve any already connected staff. Only set up the team for now.
@@ -155,7 +162,7 @@ npm start
 GitHub runs the package check and existing tests on Node 22, Windows and Linux
 for main-branch pushes and pull requests. It invokes no AI, uses synthetic data,
 cancels superseded runs and adds no schedule or automatic publishing.
-[Release notes](docs/releases/v0.13.4.md) include version-specific installation
+[Release notes](docs/releases/v0.14.0.md) include version-specific installation
 and update instructions. [Check scope and release procedure](docs/RELEASING.md).
 
 `npm start` launches a JSON-RPC stdio MCP server, not an HTTP website. It cannot be opened directly at a browser address. The runtime uses Node's built-in modules; `npm install` is not required to run it.

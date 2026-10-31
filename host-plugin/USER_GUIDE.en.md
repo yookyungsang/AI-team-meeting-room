@@ -6,7 +6,7 @@
 
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.13.4. You can use the plugin across projects, with separate connections and records for each. The current meeting UI uses Korean labels; reports follow the user's requested or established conversation language. This guide includes the Korean control labels so you can find them; it does not add automatic UI translation or language switching to the app.
+This guide describes version 0.14.0. You can use the plugin across projects, with separate connections and records for each. The meeting UI supports English and Korean. Menu → Language chooses Automatic, Korean or English; Automatic follows the browser language (Korean for ko, English otherwise). Reports retain the user's requested or established conversation language. Older Korean control labels remain documented below alongside English names.
 
 ## Get started
 
@@ -217,7 +217,7 @@ Reports follow **the user's explicit output-language choice**, or otherwise **th
 
 Before posting, the author checks the draft once within the original reporting turn for unintended language mixing, including ordinary explanations, questions, answers and captions. Exact code, filenames, source evidence and the human's original text remain intact. The director carries a brief language hint in the next necessary assignment without waking staff just to announce it.
 
-No separate translation model, language-detection service or automatic rewrite is added. This is an author check, not enforced server-side language classification. Existing posts and UI labels are not automatically translated. Instructions and original drafting still have ordinary context overhead. See the [report-language rule](skills/team-room/references/report-language.md) (Korean).
+No separate translation model, language-detection service or automatic rewrite is added. This is an author check, not enforced server-side language classification. Existing posts are not translated. UI labels use packaged English/Korean text without AI. Instructions and original drafting still have ordinary context overhead. See the [report-language rule](skills/team-room/references/report-language.md) (Korean).
 
 ## Understand AI usage
 
@@ -314,3 +314,13 @@ Closing the menu or room view preserves chats and the journal; it does not cance
 If setup stopped or failed, choose **중단·오류 후 이어하기** (Continue after interruption/error). This prepares the original continuation draft or copyable text only. Review and SEND it yourself in the original director chat. Already-ready workers, model choices and attempt history are retained. Reconcile actual native results before any authorized retry; never recreate an uncertain result. **문제 자세히 보기** shows the recorded error.
 
 **상태 새로고침** reads saved local state. Visible UI refreshes carry the progress; hidden/closed views stop refreshing and ignore late callbacks. No background AI, native-chat polling or automatic resend is added. Actual setup, authorized continuation and role initialization have ordinary usage.
+
+## Connection checks, backups and UI language
+
+Choose **Menu → Connection check** to inspect the current project, configured director, participant catalog and advertised host messaging/draft support. Results include suggested fixes. This reads metadata only; it does not repair routing, create chats or invoke AI. Actual native create/rename/wait permissions are verified during a real authorized setup, not assumed healthy here.
+
+Choose **Menu → Back up as ZIP** to save the selected room's original posts, work details, images and audio. Copy the saved path or use the host-supported Download/Open ZIP controls. Unzip and open `index.html` to read and preview media offline. The archive also contains `meeting.md`, scoped raw JSON and SHA-256 checksums. Other projects and source records are unchanged.
+
+Complete archives are limited to 128 MiB. Missing/corrupt media fail explicitly rather than producing a partial successful backup. Host download is available only when advertised, up to 16 MiB; use the saved local path for larger ZIPs. Copy the archive to separate storage for protection against loss of the original runtime folder. A successful **Create a new backup** captures the latest records under a new ID; only an uncertain retry reuses the original archive. Automatic backup/import/restore is not included. Archives contain private meeting content and connection data; never publish them in source control.
+
+Choose **Menu → Language → Automatic / Korean / English**. Automatic uses Korean for a Korean browser locale and English otherwise. A local preference is reused when available. Packaged labels and new setup drafts need no translation AI. Existing posts, original user text, attachment captions and model settings are retained. Actual work and team initialization still have ordinary usage.

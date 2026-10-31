@@ -13,3 +13,7 @@ team-menu.json
 *.log
 *.lock
 *.next
+
+# Private runtime backups, never publish user meeting archives
+exports/
+*.zip

@@ -2,7 +2,7 @@
 
 [한국어](SETUP.ko.md) | **English** | [Full user guide](USER_GUIDE.en.md)
 
-For version 0.13.4. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → use the room in the same chat → assign the first task**.
+For version 0.14.0. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → use the room in the same chat → assign the first task**.
 
 A new team has **one director, one planner, one designer, TWO programmers and one QA participant**. The chat where setup starts becomes the director, preserving its history and current model/effort. Only the other five participants get new chats. Setup starts with a written request in a Codex project chat.
 
@@ -254,3 +254,13 @@ Closing the menu or room view preserves chats and the journal; it does not cance
 If setup stopped or failed, choose **중단·오류 후 이어하기** (Continue after interruption/error). This prepares the original continuation draft or copyable text only. Review and SEND it yourself in the original director chat. Already-ready workers, model choices and attempt history are retained. Reconcile actual native results before any authorized retry; never recreate an uncertain result. **문제 자세히 보기** shows the recorded error.
 
 **상태 새로고침** reads saved local state. Visible UI refreshes carry the progress; hidden/closed views stop refreshing and ignore late callbacks. No background AI, native-chat polling or automatic resend is added. Actual setup, authorized continuation and role initialization have ordinary usage.
+
+## Connection checks, backups and UI language
+
+Choose **Menu → Connection check** to inspect the current project, configured director, participant catalog and advertised host messaging/draft support. Results include suggested fixes. This reads metadata only; it does not repair routing, create chats or invoke AI. Actual native create/rename/wait permissions are verified during a real authorized setup, not assumed healthy here.
+
+Choose **Menu → Back up as ZIP** to save the selected room's original posts, work details, images and audio. Copy the saved path or use the host-supported Download/Open ZIP controls. Unzip and open `index.html` to read and preview media offline. The archive also contains `meeting.md`, scoped raw JSON and SHA-256 checksums. Other projects and source records are unchanged.
+
+Complete archives are limited to 128 MiB. Missing/corrupt media fail explicitly rather than producing a partial successful backup. Host download is available only when advertised, up to 16 MiB; use the saved local path for larger ZIPs. Copy the archive to separate storage for protection against loss of the original runtime folder. A successful **Create a new backup** captures the latest records under a new ID; only an uncertain retry reuses the original archive. Automatic backup/import/restore is not included. Archives contain private meeting content and connection data; never publish them in source control.
+
+Choose **Menu → Language → Automatic / Korean / English**. Automatic uses Korean for a Korean browser locale and English otherwise. A local preference is reused when available. Packaged labels and new setup drafts need no translation AI. Existing posts, original user text, attachment captions and model settings are retained. Actual work and team initialization still have ordinary usage.
