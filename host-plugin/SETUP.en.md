@@ -2,15 +2,15 @@
 
 [한국어](SETUP.ko.md) | **English** | [Full user guide](USER_GUIDE.en.md)
 
-For version 0.13.2. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → open the room in the director chat → assign the first task**.
+For version 0.13.3. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → use the room in the same chat → assign the first task**.
 
-A new team has **one director, one planner, one designer, TWO programmers and one QA participant**. Each new participant is a separate Codex chat. Setup starts with a written request in a Codex project chat.
+A new team has **one director, one planner, one designer, TWO programmers and one QA participant**. The chat where setup starts becomes the director, preserving its history and current model/effort. Only the other five participants get new chats. Setup starts with a written request in a Codex project chat.
 
 ## Jump to a step
 
 - [Check installation](#check-installation)
 - [Open the project you will work on](#open-the-project-you-will-work-on)
-- [Request six staff chats](#request-six-staff-chats)
+- [Use this chat as director](#use-this-chat-as-director)
 - [Choose models by role](#choose-models-by-role)
 - [Verify connection and open the room](#verify-connection-and-open-the-room)
 - [Assign work and send corrections](#assign-work-and-send-corrections)
@@ -52,16 +52,17 @@ Tell me the verified project name before creating staff or a meeting room.
 
 If several projects match, select the intended one. **You do not need to locate or type chat IDs or edit meeting configuration files.** The agent verifies actual project and chat information.
 
-## Request six staff chats
+## Use this chat as director
 
-For a first local connection, you may instead use **메뉴 → 기본 팀 만들기 → 설명 확인 · 요청문 준비**. Review the prepared request and send it yourself in the project chat, or copy/paste it there if editable drafts are unsupported. Direct submission starts creation of six chats with the displayed models/efforts and role initialization. Preparation invokes no AI; creation has normal usage. Existing setups are not duplicated. See [menu setup](skills/team-room/references/menu-team-setup.md). The conversational path below also supports explicit model selection.
+For a first local connection, you may instead use **메뉴 → 기본 팀 만들기 → 설명 확인 · 요청문 준비**. Review the prepared request and send it yourself in the project chat, or copy/paste it there if editable drafts are unsupported. Direct submission renames the original chat to `Project name · 총괄 디렉터` and creates only the five other staff chats with the displayed settings. After connection, assign work in the same original chat. Preparation invokes no AI; creation has normal usage. Existing setups are not duplicated. See [menu setup](skills/team-room/references/menu-team-setup.md). The conversational path below also supports explicit model selection.
 
 Paste this into the **Codex chat for the intended project**. A meeting room does not need to exist yet.
 
 ```text
 Set up Team Meeting Room for this project.
-Create separate chats for one director, one planner, one designer,
-TWO programmers and one QA participant.
+Use this chat as director and rename it to Project name · 총괄 디렉터.
+Preserve its history and current model/reasoning settings.
+Create only one planner, one designer, TWO programmers and one QA chat.
 Give new chats clear titles containing the project and role.
 First show a table of role names, new versus existing chats,
 recommended models and reasoning levels.
@@ -71,7 +72,7 @@ Check and preserve any participants already connected to this project.
 Only set up the team for now; do not start implementation yet.
 ```
 
-The agent checks the actual project, native chat-creation capability and available model options. The selection table appears **as a chat reply**. There is no separate team-creation button or dedicated model-selection screen in the plugin.
+The agent checks the actual project, native chat-creation capability and available model options. The selection table appears **as a chat reply**. You may use either the basic-team menu or this conversational workflow.
 
 | Role | Responsibility |
 | --- | --- |
@@ -121,12 +122,7 @@ Reasoning effort controls how much effort the model spends on judgment. Higher s
 
 Codex creates actual new chats, sets/verifies titles and role instructions, and connects their real IDs. A title could look like `My project · Programmer 1`; this is a synthetic title example, not a screenshot or an actual user's project.
 
-Open **this project's director chat** using its created-chat link or the Codex chat list. If you cannot identify it, ask the setup conversation:
-
-```text
-Identify the director chat actually connected to this project's meeting room.
-Open that chat for me.
-```
+**The original setup chat is now the director. Stay here to assign work.** Check its updated title and the five connected worker chats. Older in-progress plans and existing rooms keep their original director.
 
 After connection, opening the Team Meeting Room tab in that director chat automatically selects its single connected room on supported local Codex versions. New projects require initial connection; multiple rooms or unavailable/unsupported project context retain the chooser with guidance. Alternatively, in that director chat, ask:
 

@@ -8,7 +8,7 @@ import {Projects} from '../host-plugin/projects.mjs';
 import {MenuTeam} from '../host-plugin/menu-team.mjs';
 import {TeamSetup,TEAM_ROLES} from '../host-plugin/team-setup.mjs';
 import {handle,TOOLS} from '../host-plugin/server.mjs';
-const requested=[{slotId:'director',model:'gpt-6.1-sol',thinking:'xhigh'},{slotId:'planner',model:'default'},{slotId:'designer',model:'default'},{slotId:'programmer1',model:'gpt-6.1-sol',thinking:'high'},{slotId:'programmer2',model:'gpt-6.1-sol',thinking:'high'},{slotId:'qa',model:'gpt-6-luna',thinking:'medium'}];
+const requested=[{slotId:'director',model:'default'},{slotId:'planner',model:'default'},{slotId:'designer',model:'default'},{slotId:'programmer1',model:'gpt-6.1-sol',thinking:'high'},{slotId:'programmer2',model:'gpt-6.1-sol',thinking:'high'},{slotId:'qa',model:'gpt-6-luna',thinking:'medium'}];
 const observed=[{id:'gpt-6.1-sol',label:'Fixture observed Sol',family:'balanced',efforts:['medium','high','xhigh']},{id:'gpt-6-luna',label:'Fixture observed Luna',family:'light',efforts:['medium']}];
 
 function fixture(t){
@@ -25,20 +25,20 @@ const approve=(preview,requestId=randomUUID())=>({operation:'apply',previewId:pr
 test('menu preview is local, stable and cannot initialize chats or a room before confirmation',t=>{
  const f=fixture(t),first=ok(f,{operation:'preview'}),again=ok(f,{operation:'preview'});
  assert.equal(first.previewId,again.previewId);assert.equal(first.status,'preview');assert.equal(first.roles.length,6);assert.equal(first.roles.filter(r=>r.id.startsWith('programmer')).length,2);assert.equal(first.modelMode,'role-preset');assert.equal(first.prompt,undefined);
- assert.match(first.roles.find(r=>r.id==='director').modelLabel,/GPT-6.1 Sol · Extra High/);assert.match(first.roles.find(r=>r.id==='qa').modelLabel,/GPT-6 Luna · Medium/);
+ assert.match(first.roles.find(r=>r.id==='director').modelLabel,/현재 대화창 사용 · 현재 모델·추론 유지/);assert.match(first.roles.find(r=>r.id==='qa').modelLabel,/GPT-6 Luna · Medium/);
  assert(!fs.existsSync(f.team.file));assert(!fs.existsSync(f.registry.file));assert(!fs.existsSync(path.join(f.home,'rooms')));
  assert.deepEqual(TOOLS.find(t=>t.name==='room_team_setup')._meta.ui.visibility,['app']);
 });
 
 test('confirmed role models are verified before approval and reach native actions exactly without changing default roles',t=>{
  const f=fixture(t),preview=ok(f,{operation:'preview'}),args=approve(preview),receipt=ok(f,args);
- assert.equal(receipt.dispatch,true);assert.match(receipt.prompt,/프로그래머 2명/);assert.match(receipt.prompt,/역할별 모델/);
+ assert.equal(receipt.dispatch,true);assert.match(receipt.prompt,/프로그래머 2명/);assert.match(receipt.prompt,/역할별 모델/);assert.match(receipt.prompt,/새 대화창 5개만/);assert.match(receipt.prompt,/별도 초기화 메시지를 보내지/);
  assert.equal(ok(f,args).dispatch,false);assert.equal(new MenuTeam(f.registry).apply({...args,threadId:'alpha-one'}).dispatch,false);
  assert.equal(call(f,{...args,requestId:randomUUID()}).isError,true);
  const setup=f.team.status(receipt);assert.equal(setup.status,'planned');assert.deepEqual(setup.requestedChoices,requested);assert.throws(()=>f.team.claim({...receipt,slotId:'director'}),/승인/);
- const catalogReply=handle({method:'tools/call',params:{name:'room_team',arguments:{projectId:receipt.projectId,setupId:receipt.setupId,operation:'catalog',models:observed}}},f.registry);assert(!catalogReply.isError);f.team.approve({...receipt,confirmed:true,choices:requested});
- for(const role of setup.roles){const choice=requested.find(c=>c.slotId===role.slotId),claim=f.team.claim({...receipt,slotId:role.slotId});assert.equal(claim.dispatch,true);assert.equal(claim.action.model,choice.model==='default'?undefined:choice.model);assert.equal(claim.action.thinking,choice.thinking);assert.equal(claim.action.target.projectId,'native-alpha');assert.equal(f.team.claim({...receipt,slotId:role.slotId}).dispatch,false);f.team.record({...receipt,slotId:role.slotId,attemptId:claim.attemptId,threadId:'fixture-'+role.slotId,hostId:'local',codexProjectId:'native-alpha',verified:true,titleVerified:true});}
- f.team.connect(receipt);const members=f.registry.get(receipt.projectId).members;assert.equal(members.length,6);assert.equal(members.filter(m=>m.roleType==='programmer').length,2);assert.equal(members.find(m=>m.id==='director').threadId,'fixture-director');
+ const catalogReply=handle({method:'tools/call',params:{name:'room_team',arguments:{projectId:receipt.projectId,setupId:receipt.setupId,operation:'catalog',models:observed},_meta:{thread_id:'alpha-one'}}},f.registry);assert(!catalogReply.isError);f.team.approve({...receipt,confirmed:true,choices:requested});
+ for(const role of setup.roles){const choice=requested.find(c=>c.slotId===role.slotId),claim=f.team.claim({...receipt,slotId:role.slotId});assert.equal(claim.dispatch,true);assert.equal(claim.action.model,choice.model==='default'?undefined:choice.model);assert.equal(claim.action.thinking,choice.thinking);assert.equal(claim.nativeTool,role.slotId==='director'?'set_thread_title':'create_thread');if(role.slotId==='director'){assert.deepEqual(claim.action,{threadId:'alpha-one',title:'Fixture alpha · 총괄 디렉터'});assert.equal(claim.action.prompt,undefined);}else assert.equal(claim.action.target.projectId,'native-alpha');assert.equal(f.team.claim({...receipt,slotId:role.slotId}).dispatch,false);f.team.record({...receipt,slotId:role.slotId,attemptId:claim.attemptId,threadId:role.slotId==='director'?'alpha-one':'fixture-'+role.slotId,hostId:'local',codexProjectId:'native-alpha',verified:true,titleVerified:true});}
+ f.team.connect(receipt);const members=f.registry.get(receipt.projectId).members;assert.equal(members.length,6);assert.equal(members.filter(m=>m.roleType==='programmer').length,2);assert.equal(members.find(m=>m.id==='director').threadId,'alpha-one');
  assert.equal(ok(f,args).dispatch,false,'late exact replay cannot create another team after connection');
 });
 
@@ -71,19 +71,60 @@ test('missing models, unsupported effort and changed approvals block before crea
  const f=fixture(t),preview=ok(f,{operation:'preview'}),receipt=ok(f,approve(preview));
  assert.throws(()=>f.team.approve({...receipt,confirmed:true,choices:requested}),/호스트/);
  assert.throws(()=>f.team.catalog({...receipt,models:observed.slice(0,1)}),/지원하지 않습니다/);
- assert.throws(()=>f.team.catalog({...receipt,models:observed.map(m=>({...m,efforts:['medium','high']}))}),/지원하지 않습니다/);
+ assert.throws(()=>f.team.catalog({...receipt,models:observed.map(m=>({...m,efforts:['medium']}))}),/지원하지 않습니다/);
  f.team.catalog({...receipt,models:observed});const bytes=fs.readFileSync(f.team.file);f.team.catalog({...receipt,models:observed});assert(fs.readFileSync(f.team.file).equals(bytes));
  assert.throws(()=>f.team.catalog({...receipt,models:[...observed,{id:'fixture-other',label:'Other',family:'other',efforts:[]}]}),/덮어쓰지/);
- assert.throws(()=>f.team.approve({...receipt,confirmed:true,choices:requested.map(c=>c.slotId==='director'?{...c,thinking:'high'}:c)}),/그대로/);
+ assert.throws(()=>f.team.approve({...receipt,confirmed:true,choices:requested.map(c=>c.slotId==='programmer1'?{...c,thinking:'medium'}:c)}),/그대로/);
  assert(f.team.status(receipt).roles.every(r=>r.state==='planned'));assert(!fs.existsSync(f.registry.file));
 });
 
 test('an old default-only preview keeps its original consent after a role-preset update',t=>{
- const f=fixture(t),preview=ok(f,{operation:'preview'}),state=JSON.parse(fs.readFileSync(f.menu.file));delete state.requests[0].choices;fs.writeFileSync(f.menu.file,JSON.stringify(state));
+ const f=fixture(t),preview=ok(f,{operation:'preview'}),state=JSON.parse(fs.readFileSync(f.menu.file));delete state.requests[0].choices;delete state.requests[0].directorMode;fs.writeFileSync(f.menu.file,JSON.stringify(state));
  const receipt=ok(f,approve(preview)),setup=f.team.status(receipt);assert.equal(receipt.modelMode,'default');assert.equal(setup.status,'approved');assert.equal(setup.requestedChoices,undefined);assert(setup.roles.every(r=>r.model.model==='default'));const claim=f.team.claim({...receipt,slotId:'director'});assert.equal(claim.action.model,undefined);assert.equal(claim.action.thinking,undefined);
 });
 
 test('a denied native attempt reopens the same setup with explicit human continuation, never a new dispatch',t=>{
  const f=fixture(t),preview=ok(f,{operation:'preview'}),args=approve(preview),receipt=ok(f,args);f.team.catalog({...receipt,models:observed});f.team.approve({...receipt,confirmed:true,choices:requested});const claim=f.team.claim({...receipt,slotId:'director'});f.team.block({...receipt,slotId:'director',attemptId:claim.attemptId,reason:'Fixture host requires direct user confirmation'});
  const before=fs.readFileSync(f.team.file),again=ok(f,{operation:'preview'});assert.equal(again.setupId,receipt.setupId);assert.equal(again.status,'requested');assert.equal(again.setupStatus,'attention');assert.equal(again.readyCount,0);assert(again.continuationPrompt.includes(receipt.setupId));assert.match(again.continuationPrompt,/GPT-6 Luna · Medium/);assert.match(again.continuationPrompt,/기존 설정/);assert.equal(ok(f,args).dispatch,false);assert.equal(f.team.read().setups.length,1);assert(fs.readFileSync(f.team.file).equals(before));assert.equal(receipt.handoff,'editable-draft');
+});
+
+test('an original director is reserved before rename, cannot be replaced or reused as a worker, and survives interruption',t=>{
+ const f=fixture(t),receipt=ok(f,approve(ok(f,{operation:'preview'})));
+ f.team.catalog({...receipt,models:observed});f.team.approve({...receipt,confirmed:true,choices:requested});
+ const director=f.team.claim({...receipt,slotId:'director'});assert.equal(director.nativeTool,'set_thread_title');
+ const qa=f.team.claim({...receipt,slotId:'qa'}),record={...receipt,slotId:'director',attemptId:director.attemptId,threadId:'alpha-one',hostId:'local',codexProjectId:'native-alpha',verified:true,titleVerified:true};
+ assert.throws(()=>f.team.record({...record,slotId:'qa',attemptId:qa.attemptId}),/같은 대화창/);
+ assert.throws(()=>f.team.record({...record,threadId:'replacement'}),/처음 요청한/);
+ f.team.block({...record,reason:'Synthetic missing rename receipt'});
+ const resumed=new TeamSetup(f.registry);assert.equal(resumed.claim({...receipt,slotId:'director'}).dispatch,false);
+ assert.throws(()=>resumed.retry({...record,retryId:randomUUID(),confirmed:true,confirmedAbsent:true,reason:'Must not create another director'}),/기존 총괄/);
+ resumed.record(record);assert.equal(resumed.status(receipt).roles.find(r=>r.slotId==='director').threadId,'alpha-one');
+ const before=fs.readFileSync(f.team.file);resumed.record(record);assert(fs.readFileSync(f.team.file).equals(before));
+ const other=ok(f,{operation:'preview'},'alpha-two');assert.equal(other.directorMode,'opening-chat');assert.equal(other.setupId,receipt.setupId);
+});
+
+test('opening director membership is rechecked before native dispatch, record and initial connection',t=>{
+ const f=fixture(t),receipt=ok(f,approve(ok(f,{operation:'preview'}))),context=f.contexts.get('alpha-one');
+ f.team.catalog({...receipt,models:observed});f.team.approve({...receipt,confirmed:true,choices:requested});
+ f.contexts.set('alpha-one',f.contexts.get('beta-one'));assert.throws(()=>f.team.claim({...receipt,slotId:'director'}),/프로젝트 소속/);
+ assert(f.team.status(receipt).roles.every(r=>!r.attemptId));f.contexts.set('alpha-one',context);
+ for(const role of TEAM_ROLES){const claim=f.team.claim({...receipt,slotId:role.id}),args={...receipt,slotId:role.id,attemptId:claim.attemptId,threadId:role.id==='director'?'alpha-one':'fixture-'+role.id,hostId:'local',codexProjectId:'native-alpha',verified:true,titleVerified:true};
+  if(role.id==='director'){f.contexts.set('alpha-one',f.contexts.get('beta-one'));assert.throws(()=>f.team.record(args),/프로젝트 소속/);f.contexts.set('alpha-one',context);}f.team.record(args);
+ }
+ f.contexts.set('alpha-one',f.contexts.get('beta-one'));assert.throws(()=>f.team.connect(receipt),/프로젝트 소속/);assert(!fs.existsSync(f.registry.file));
+ f.contexts.set('alpha-one',context);f.team.connect(receipt);assert.equal(f.registry.get(receipt.projectId).members.find(m=>m.id==='director').threadId,'alpha-one');
+});
+
+test('explicit current-director plans require host identity and native scope, while older presets retain their original six-chat plan',t=>{
+ const f=fixture(t),plan={projectId:'direct-fixture',setupId:randomUUID(),name:'Fixture',codexProjectId:'native-alpha',hostId:'local',models:[],directorThreadId:'alpha-one',operation:'plan'};
+ const send=(meta,args=plan)=>handle({method:'tools/call',params:{name:'room_team',arguments:args,_meta:meta}},f.registry);
+ assert.equal(send({thread_id:'beta-one'}).isError,true);assert.equal(send({}).isError,true);assert(!fs.existsSync(f.team.file));
+ assert.equal(send({thread_id:'alpha-one'},{...plan,codexProjectId:'native-beta'}).isError,true);
+ assert(!send({thread_id:'alpha-one'}).isError);
+ const update={projectId:plan.projectId,setupId:plan.setupId,operation:'approve',confirmed:true,choices:TEAM_ROLES.map(r=>({slotId:r.id,model:'default'}))};
+ assert.equal(send({thread_id:'beta-one'},update).isError,true);assert.equal(send({},update).isError,true);assert(!send({thread_id:'alpha-one'},update).isError);
+ const g=fixture(t),preview=ok(g,{operation:'preview'}),state=JSON.parse(fs.readFileSync(g.menu.file));delete state.requests[0].directorMode;state.requests[0].choices[0]={slotId:'director',model:'gpt-6.1-sol',thinking:'xhigh'};fs.writeFileSync(g.menu.file,JSON.stringify(state));
+ const prior=ok(g,{operation:'preview'});assert.equal(prior.previewId,preview.previewId);assert.equal(prior.directorMode,'new-chat');
+ const receipt=ok(g,approve(prior)),choices=state.requests[0].choices;assert.match(receipt.prompt,/새 대화창 6개/);assert(!receipt.prompt.includes('새 대화창 5개'));
+ g.team.catalog({...receipt,models:observed});g.team.approve({...receipt,confirmed:true,choices});assert.equal(g.team.claim({...receipt,slotId:'director'}).nativeTool,'create_thread');
 });

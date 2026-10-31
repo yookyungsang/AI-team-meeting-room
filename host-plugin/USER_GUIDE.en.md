@@ -2,15 +2,15 @@
 
 **English** | [한국어](USER_GUIDE.ko.md)
 
-**First installation? Follow [Create and configure your team](SETUP.en.md) for project selection, six staff chats, model choices, room connection and the first assignment.** This guide covers everyday use and feature reference.
+**First installation? Follow [Create and configure your team](SETUP.en.md) for project selection, the original director chat and five new staff chats, model choices, room connection and the first assignment.** This guide covers everyday use and feature reference.
 
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.13.2. You can use the plugin across projects, with separate connections and records for each. The current meeting UI uses Korean labels; reports follow the user's requested or established conversation language. This guide includes the Korean control labels so you can find them; it does not add automatic UI translation or language switching to the app.
+This guide describes version 0.13.3. You can use the plugin across projects, with separate connections and records for each. The current meeting UI uses Korean labels; reports follow the user's requested or established conversation language. This guide includes the Korean control labels so you can find them; it does not add automatic UI translation or language switching to the app.
 
 ## Get started
 
-For a new local project, choose **메뉴 → 기본 팀 만들기**. Review the project, six roles, their model/effort settings and initial usage, then select **설명 확인 · 요청문 준비**. Review and send the editable draft yourself in the project chat, or copy/paste the visible request if draft insertion is unsupported. Direct submission requests six chats and their connection. Preparation invokes no AI; initialization has normal usage. Press the basic-team trigger again to close the explanation. Existing rooms/setups are not duplicated. After connection the room is displayed unless you manually selected another room or began typing. See [menu setup and compatibility](skills/team-room/references/menu-team-setup.md).
+For a new local project, choose **메뉴 → 기본 팀 만들기**. Review the project, six roles, their model/effort settings and initial usage, then select **설명 확인 · 요청문 준비**. Review and send the editable draft yourself in the project chat, or copy/paste the visible request if draft insertion is unsupported. Direct submission reuses and renames the original chat as director, preserving its history/model/effort, and creates only five worker chats. Stay in the original chat to start work after connection. Preparation invokes no AI; initialization has normal usage. Press the basic-team trigger again to close the explanation. Existing rooms/setups are not duplicated. After connection the room is displayed unless you manually selected another room or began typing. See [menu setup and compatibility](skills/team-room/references/menu-team-setup.md).
 
 Use the conversational workflow below for existing staff or specific models.
 
@@ -26,13 +26,13 @@ A new project needs an initial room connection. Unregistered projects, multiple 
 
 ## Create a team in new chats
 
-In the intended Codex project, ask: **“Create a director, planner, designer, TWO programmers and QA in new chats, connect them to a meeting room, and let me choose each role's model.”** Review one table of names, existing/new status and model/reasoning choices. You may instead request **“Keep my default model for every role.”** Concrete selections already provided do not need another confirmation.
+In the intended Codex project, ask: **“Use and rename this chat as director, preserve its settings, and create only a planner, designer, TWO programmers and QA. Connect them to a meeting room and let me choose models for the new chats.”** Review one table of names, existing/new status and model/reasoning choices. You may instead request **“Keep my default model for every role.”** Concrete selections already provided do not need another confirmation.
 
 After selection, the agent uses the actual native chat tools to create the missing chats, set/verify titles, supply role instructions and connect their real IDs. Extending a room preserves its director and existing staff. The programmers are separate chats, initially oriented toward core logic/data and UI/interaction; the director assigns actual independent file scopes. Setup initializes roles rather than starting implementation work.
 
 Recommendations use models and efforts actually observed on that host. Balanced models are candidates for integration, planning, development and independent QA; a visual option may suit the designer. The [official OpenAI model guide](https://learn.chatgpt.com/docs/models) describes current model strengths. Role mappings are this plugin's recommendations, not guaranteed savings or quality. Suggested models are never applied without the human's specific choice. Existing chats keep their current settings.
 
-This is a conversational setup workflow, not a separate creation-button UI or background AI service. It requires supported native chat tools. A saved journal resumes interrupted setup without duplicate creation; missing receipts do not authorize retries. A retry requires verified absence and an explicit human request. Native initial role turns have ordinary usage; setup adds no recurring AI checks.
+This is a conversational setup workflow, with a menu that prepares a request for direct human submission, rather than a background AI service. It requires supported native chat tools. A saved journal resumes interrupted setup without duplicate creation; missing receipts do not authorize retries. A retry requires verified absence and an explicit human request. Native initial role turns have ordinary usage; setup adds no recurring AI checks.
 
 ## Change the team
 

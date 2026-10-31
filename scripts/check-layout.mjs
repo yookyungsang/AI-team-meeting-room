@@ -363,11 +363,11 @@ try{
   const opening={project:null,projects:[],members:[],requests:[],messages:[],paused:true,opening:{status:'unregistered',projectName:'처음 시작하는 예시 프로젝트'}};
   const page=await browser.newPage(),frame=await mount(page,fs.readFileSync(path.join(root,'host-plugin/widget.html'),'utf8'),width,opening);
   await frame.waitForFunction(()=>document.querySelector('#project option').textContent.includes('팀 연결 전'));
-  await page.evaluate(roles=>{window.menuTeamFixture={previewId:crypto.randomUUID(),setupId:crypto.randomUUID(),projectId:'created',projectName:'처음 시작하는 예시 프로젝트',status:'preview',modelMode:'role-preset',roles};},TEAM_ROLES.map(r=>({id:r.id,name:r.name,modelLabel:r.id==='director'?'GPT-6.1 Sol · Extra High':r.id.startsWith('programmer')?'GPT-6.1 Sol · High':r.id==='qa'?'GPT-6 Luna · Medium':'Codex 기본 설정'})));
+  await page.evaluate(roles=>{window.menuTeamFixture={previewId:crypto.randomUUID(),setupId:crypto.randomUUID(),projectId:'created',projectName:'처음 시작하는 예시 프로젝트',status:'preview',modelMode:'role-preset',directorMode:'opening-chat',roles};},TEAM_ROLES.map(r=>({id:r.id,name:r.name,modelLabel:r.id==='director'?'현재 대화창 사용 · 현재 모델·추론 유지':r.id.startsWith('programmer')?'GPT-6.1 Sol · High':r.id==='qa'?'GPT-6 Luna · Medium':'Codex 기본 설정'})));
   await frame.locator('#open-menu').click();await frame.locator('#create-team').click();await frame.locator('#team-setup-apply').waitFor({state:'visible'});
   await frame.waitForFunction(()=>!document.querySelector('#team-setup-apply').disabled);
-  assert.equal(await frame.locator('#team-setup-roles li').count(),6);assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),0);
-  assert.match(await frame.locator('#team-setup-roles').textContent(),/GPT-6.1 Sol · Extra High/);assert.match(await frame.locator('#team-setup-roles').textContent(),/GPT-6 Luna · Medium/);
+  assert.equal(await frame.locator('#team-setup-roles li').count(),6);assert.match(await frame.locator('#team-setup-method').textContent(),/담당자 5명만/);assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),0);
+  assert.match(await frame.locator('#team-setup-roles').textContent(),/현재 대화창 사용 · 현재 모델·추론 유지/);assert.match(await frame.locator('#team-setup-roles').textContent(),/GPT-6 Luna · Medium/);
   await frame.locator('#create-team').click();assert.equal(await frame.locator('#team-setup').isVisible(),false);assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.params?.name==='room_team_setup'&&p.params.arguments.operation==='apply').length),0);
   await frame.locator('#create-team').click();await frame.waitForFunction(()=>!document.querySelector('#team-setup-apply').disabled);
   assert.equal(await frame.locator('#room-menu').evaluate(el=>el.scrollWidth>el.clientWidth),false);
