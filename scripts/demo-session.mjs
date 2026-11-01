@@ -8,7 +8,7 @@ import {RoomStore} from '../host-plugin/store.mjs';
 import {handle} from '../host-plugin/server.mjs';
 import {RoomExport} from '../host-plugin/exports.mjs';
 import {wav} from '../test/audio.fixture.mjs';
-export async function demoSession({recovery=false}={}){
+export async function demoSession({recovery=false,secretFixture=false}={}){
  const base=path.resolve('.local/demo-data');fs.mkdirSync(base,{recursive:true});const home=fs.mkdtempSync(path.join(base,'session-')),token=randomUUID();
  const openingThreadId=recovery?'synthetic-recovery-director':'synthetic-director',context=id=>{const recover=id?.startsWith('synthetic-recovery');return {scopeId:recover?'recovery-native':'demo-native',name:recover?'Recovery example':'Example project',nativeProjectIds:[recover?'recovery-native':'demo-native']};};
  const options={openingReader:(projects,id)=>{const scope=context(id).scopeId,matches=projects.filter(p=>context(p.members.find(m=>m.id==='director').threadId).scopeId===scope);return matches.length===1?{status:'selected',projectId:matches[0].id}:{status:'unregistered',projectName:context(id).name};},setupContextReader:context,catalogReader:project=>({scopeId:context(project.members[0].threadId).scopeId,candidates:project.members.map(m=>({threadId:m.threadId,hostId:m.hostId,chatTitle:m.name}))})};
@@ -20,6 +20,7 @@ export async function demoSession({recovery=false}={}){
  store.claim({requestId,memberId:'programmer'});store.post({requestId,memberId:'programmer',kind:'answer',replyTo:question.message.id,messageKey:'sample-answer',toMemberId:'designer',text:'Yes. I will keep the buttons and add space between the sections.'});
  store.post({requestId,memberId:'director',kind:'progress',messageKey:'sample-progress',text:'The layout decision is agreed. The programmer will check the change before handing it to QA.',details:'Example technical handoff\nEditable scope: ui/settings-layout.css\nPreserve existing button actions.\nDeveloper self-check precedes independent QA.\nThese are sample meeting records; no live agents were invoked.'});
  const audio=path.join(home,'example.wav');fs.writeFileSync(audio,wav());store.post({requestId,memberId:'designer',kind:'progress',messageKey:'sample-audio',text:'A short audio attachment can be previewed when needed. Click Play to listen.',audio:[{path:audio,caption:'Synthetic test tone — sample attachment'}]});
+ if(secretFixture){const fixtureToken='sk-'+'proj-'+('SyntheticFixture9').repeat(4);store.post({requestId,memberId:'director',kind:'progress',messageKey:'synthetic-secret',text:'Synthetic warning example; work continues.',details:'api_key=\"'+fixtureToken+'\"'});}
  const html=handle({method:'resources/read',params:{uri:'ui://team-room/meeting.html'}},registry).contents[0].text;
  let backupPath;
  if(recovery){

@@ -12,7 +12,7 @@
 #room-menu::backdrop{background:#0009}.menu-header{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;background:#181818;border-bottom:1px solid #333}.menu-header h2{font-size:14px;margin:0}.menu-content{padding:0 18px 12px}.menu-content .team{border-top:0}.menu-content .guide{margin-top:0}.menu-content .members{grid-template-columns:repeat(2,minmax(0,1fr))}
 @media(max-width:560px){.menu-trigger{padding:5px 8px}.menu-header{padding:10px 14px}.menu-content{padding:0 14px 10px}.menu-content .members{grid-template-columns:1fr}}
 textarea:focus,.records:focus:not(:focus-visible){outline:none}
-.status{max-height:120px;overflow:auto}
+.secret-warning,#secret-draft-warning{color:#e7cf91;border-left:2px solid #a3853d;padding-left:8px}.status{max-height:120px;overflow:auto}
 .delivery-panel{padding:14px 0;border-bottom:1px solid #333}.delivery-panel h3{font-size:13px;margin:0 0 10px}.delivery-panel .connection{display:block;margin:8px 0}.delivery-panel .status{max-height:240px}.delivery-panel #send-hint{font-size:12px;color:#aaa;margin:10px 0}
 /* Keep Korean prose, paragraphs and message boundaries easy to scan. */
 .messages{gap:26px}.records{padding-top:20px}.heading{font-size:13px;line-height:1.65;column-gap:12px}.heading time{font-size:11px}.message-meta{font-size:11px;line-height:1.7;margin-top:4px}
@@ -42,13 +42,13 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
 <p id="error" class="notice error" role="alert" hidden></p><p id="paused" class="notice" hidden data-i18n="새 요청이 일시정지됐습니다. 진행 중인 작업을 취소하지는 않습니다.">새 요청이 일시정지됐습니다. 진행 중인 작업을 취소하지는 않습니다.</p>
 <section id="team-progress" class="setup-progress" aria-labelledby="team-progress-title" hidden><h2 id="team-progress-title" data-i18n="팀을 준비하고 있어요">팀을 준비하고 있어요</h2><p id="team-progress-summary" role="status" aria-live="polite"></p><progress id="team-progress-bar" aria-label="새 담당자 준비 진행률" data-i18n-aria-label="새 담당자 준비 진행률" max="5" value="0"></progress><ul id="team-progress-roles" aria-label="담당자별 준비 상태" data-i18n-aria-label="담당자별 준비 상태"></ul><p id="team-progress-help" class="small"></p><details id="team-progress-errors" hidden><summary data-i18n="문제 자세히 보기">문제 자세히 보기</summary><p id="team-progress-error-text" class="small"></p></details><div class="roster-actions"><button id="team-progress-resume" class="button" type="button" data-i18n="중단·오류 후 이어하기">중단·오류 후 이어하기</button><button id="team-progress-refresh" class="button" type="button" data-i18n="상태 새로고침">상태 새로고침</button><button id="team-progress-dismiss" class="button" type="button" hidden data-i18n="닫기">닫기</button></div></section>
 <section id="records" class="records" aria-label="실제 회의 발언" data-i18n-aria-label="실제 회의 발언" tabindex="0"><div id="empty" class="empty"><strong data-i18n="무엇을 함께 진행할까요?">무엇을 함께 진행할까요?</strong><span data-i18n="총괄 디렉터에게 목표나 질문을 남겨 주세요.">총괄 디렉터에게 목표나 질문을 남겨 주세요.</span><br><span data-i18n="담당자들이 직접 기록한 질문·답변·진행을 이곳에서 확인합니다.">담당자들이 직접 기록한 질문·답변·진행을 이곳에서 확인합니다.</span></div><ol id="messages" class="messages"></ol></section>
-<form id="form" class="composer"><label id="input-label" class="input-label sr-only" for="text" data-i18n="프로젝트를 선택해 주세요">프로젝트를 선택해 주세요</label><textarea id="text" aria-describedby="send-hint" aria-keyshortcuts="Enter" maxlength="6000" rows="2" placeholder="목표, 질문 또는 수정 의견을 남겨 주세요." data-i18n-placeholder="목표, 질문 또는 수정 의견을 남겨 주세요." required></textarea><button id="send" class="button primary" type="submit" hidden tabindex="-1" disabled data-i18n="총괄에게 보내기 ↑">총괄에게 보내기 ↑</button></form>
+<form id="form" class="composer"><label id="input-label" class="input-label sr-only" for="text" data-i18n="프로젝트를 선택해 주세요">프로젝트를 선택해 주세요</label><p id="secret-draft-warning" class="small" role="status" hidden></p><textarea id="text" aria-describedby="send-hint" aria-keyshortcuts="Enter" maxlength="6000" rows="2" placeholder="목표, 질문 또는 수정 의견을 남겨 주세요." data-i18n-placeholder="목표, 질문 또는 수정 의견을 남겨 주세요." required></textarea><button id="send" class="button primary" type="submit" hidden tabindex="-1" disabled data-i18n="총괄에게 보내기 ↑">총괄에게 보내기 ↑</button></form>
 </main></div></div>
 <dialog id="room-menu" aria-labelledby="menu-title"><header class="menu-header"><h2 id="menu-title" data-i18n="회의실 메뉴">회의실 메뉴</h2><button id="close-menu" class="button" type="button" aria-label="회의실 메뉴 닫기" data-i18n-aria-label="회의실 메뉴 닫기" data-i18n="닫기 ×">닫기 ×</button></header><div class="menu-content">
 <section class="requests"><label for="ui-language" data-i18n="화면 언어 / Language">화면 언어 / Language</label><select id="ui-language" class="button"><option value="auto" data-i18n="자동 / Auto">자동 / Auto</option><option value="ko">한국어</option><option value="en">English</option><option value="ja">日本語</option><option value="zh-Hans">简体中文</option><option value="zh-Hant">繁體中文</option></select></section>
 <section id="team-setup-entry" class="requests"><button id="create-team" class="button" type="button" aria-expanded="false" aria-controls="team-setup" disabled data-i18n="기본 팀 만들기">기본 팀 만들기</button><section id="team-setup" class="roster-editor" aria-labelledby="team-setup-title" hidden><h3 id="team-setup-title" data-i18n="이 프로젝트에 기본 팀 만들기">이 프로젝트에 기본 팀 만들기</h3><p id="team-setup-project" class="small"></p><ul id="team-setup-roles"></ul><p id="team-setup-method" class="small" data-i18n="현재 대화창을 총괄로 사용하고 이름을 바꿉니다. 기획자·디자이너·프로그래머 2명·QA의 새 대화창 5개만 만듭니다. 총괄의 대화 내용과 현재 모델·추론은 유지합니다. 팀 연결 후 이 대화에서 바로 작업을 지시할 수 있습니다.">현재 대화창을 총괄로 사용하고 이름을 바꿉니다. 기획자·디자이너·프로그래머 2명·QA의 새 대화창 5개만 만듭니다. 총괄의 대화 내용과 현재 모델·추론은 유지합니다. 팀 연결 후 이 대화에서 바로 작업을 지시할 수 있습니다.</p><p class="small" data-i18n="설명을 보거나 취소할 때는 AI를 호출하지 않습니다. 요청문 준비까지는 AI를 호출하지 않습니다. 채팅 입력창에서 요청문을 확인하고 직접 전송하면 생성·초기화 사용량이 발생합니다. 기존 설정은 같은 요청문으로 이어갑니다.">설명을 보거나 취소할 때는 AI를 호출하지 않습니다. 요청문 준비까지는 AI를 호출하지 않습니다. 채팅 입력창에서 요청문을 확인하고 직접 전송하면 생성·초기화 사용량이 발생합니다. 기존 설정은 같은 요청문으로 이어갑니다.</p><div class="roster-actions"><button id="team-setup-apply" class="button primary" type="button" disabled data-i18n="설명 확인 · 요청문 준비">설명 확인 · 요청문 준비</button><button id="team-setup-cancel" class="button" type="button" data-i18n="취소">취소</button></div><section id="team-setup-handoff" hidden><label for="team-setup-request-text" class="input-label" data-i18n="현재 프로젝트 채팅에 직접 보낼 요청문">현재 프로젝트 채팅에 직접 보낼 요청문</label><textarea id="team-setup-request-text" rows="5" readonly></textarea><div class="roster-actions"><button id="team-setup-draft" class="button" type="button" data-i18n="채팅 입력창에 넣기">채팅 입력창에 넣기</button><button id="team-setup-copy" class="button" type="button" data-i18n="요청문 복사">요청문 복사</button></div><p class="small" data-i18n="입력창에서 내용을 확인하고 직접 전송하세요. 입력창 넣기가 지원되지 않으면 요청문을 복사해 같은 프로젝트 채팅에 붙여 넣어 보내세요. 직접 전송 전에는 대화창을 만들지 않습니다.">입력창에서 내용을 확인하고 직접 전송하세요. 입력창 넣기가 지원되지 않으면 요청문을 복사해 같은 프로젝트 채팅에 붙여 넣어 보내세요. 직접 전송 전에는 대화창을 만들지 않습니다.</p></section><p id="team-setup-status" class="status" role="status" aria-live="polite"></p></section></section>
 <section class="requests"><button id="check-connection" class="button" type="button" data-i18n="연결 점검">연결 점검</button><section id="connection-check" hidden><h3 data-i18n="연결 점검 결과">연결 점검 결과</h3><p id="check-status" class="status" role="status"></p><ul id="check-rows" class="roster-rows"></ul><p class="small" data-i18n="프로젝트·총괄·호스트 지원을 읽기 전용으로 확인합니다. 채팅 생성이나 AI 호출은 하지 않습니다. 실제 생성 권한은 팀 설정 때 확인합니다.">프로젝트·총괄·호스트 지원을 읽기 전용으로 확인합니다. 채팅 생성이나 AI 호출은 하지 않습니다. 실제 생성 권한은 팀 설정 때 확인합니다.</p></section></section>
-<section class="requests"><h3 data-i18n="회의 기록 백업·내보내기">회의 기록 백업·내보내기</h3><p class="small" data-i18n="회의 원문·작업 상세·이미지·음원을 ZIP으로 보관합니다. 압축을 푼 뒤 index.html을 열면 오프라인으로 볼 수 있습니다. 원본 기록은 유지하며 자동 복원은 포함되지 않습니다.">회의 원문·작업 상세·이미지·음원을 ZIP으로 보관합니다. 압축을 푼 뒤 index.html을 열면 오프라인으로 볼 수 있습니다. 원본 기록은 유지하며 자동 복원은 포함되지 않습니다.</p><button id="export-room" class="button" type="button" disabled data-i18n="ZIP으로 백업">ZIP으로 백업</button><section id="export-result" hidden><label for="export-path" data-i18n="저장된 ZIP 파일">저장된 ZIP 파일</label><textarea id="export-path" rows="2" readonly></textarea><div class="roster-actions"><button id="export-download" class="button" type="button" data-i18n="파일로 다운로드">파일로 다운로드</button><button id="export-open" class="button" type="button" data-i18n="ZIP 열기">ZIP 열기</button><button id="export-copy" class="button" type="button" data-i18n="경로 복사">경로 복사</button></div><p class="small" data-i18n="회의 내용과 연결 정보가 포함된 개인 백업입니다. 공개 저장소에 올리지 마세요.">회의 내용과 연결 정보가 포함된 개인 백업입니다. 공개 저장소에 올리지 마세요.</p></section><p id="export-status" class="status" role="status" aria-live="polite"></p></section>
+<p class="small" data-i18n="회의실 메시지와 공유 문서의 텍스트에서 비밀값 노출을 확인합니다. 다른 AI 도구로 직접 전달하는 내용에는 적용되지 않습니다. 의심값은 화면에만 알리고 작업을 중단하지 않습니다.">회의실 메시지와 공유 문서의 텍스트에서 비밀값 노출을 확인합니다. 다른 AI 도구로 직접 전달하는 내용에는 적용되지 않습니다. 의심값은 화면에만 알리고 작업을 중단하지 않습니다.</p><section class="requests"><h3 data-i18n="회의 기록 백업·내보내기">회의 기록 백업·내보내기</h3><p class="small" data-i18n="회의 원문·작업 상세·이미지·음원을 ZIP으로 보관합니다. 압축을 푼 뒤 index.html을 열면 오프라인으로 볼 수 있습니다. 원본 기록은 유지하며 자동 복원은 포함되지 않습니다.">회의 원문·작업 상세·이미지·음원을 ZIP으로 보관합니다. 압축을 푼 뒤 index.html을 열면 오프라인으로 볼 수 있습니다. 원본 기록은 유지하며 자동 복원은 포함되지 않습니다.</p><button id="export-room" class="button" type="button" disabled data-i18n="ZIP으로 백업">ZIP으로 백업</button><div class="roster-actions"><label class="small"><input id="share-mask" type="checkbox" checked> <span data-i18n="공유 사본에서 의심되는 비밀값 가리기">공유 사본에서 의심되는 비밀값 가리기</span></label><button id="share-room" class="button" type="button" disabled data-i18n="공유용 ZIP 만들기">공유용 ZIP 만들기</button></div><p class="small" data-i18n="공유용 사본은 복구용 백업이 아닙니다. 가림을 선택해도 모든 비밀값을 찾는 것은 아니며 이미지·음원 내부는 검사하지 않습니다.">공유용 사본은 복구용 백업이 아닙니다. 가림을 선택해도 모든 비밀값을 찾는 것은 아니며 이미지·음원 내부는 검사하지 않습니다.</p><section id="export-result" hidden><label for="export-path" data-i18n="저장된 ZIP 파일">저장된 ZIP 파일</label><textarea id="export-path" rows="2" readonly></textarea><div class="roster-actions"><button id="export-download" class="button" type="button" data-i18n="파일로 다운로드">파일로 다운로드</button><button id="export-open" class="button" type="button" data-i18n="ZIP 열기">ZIP 열기</button><button id="export-copy" class="button" type="button" data-i18n="경로 복사">경로 복사</button></div><p id="export-notice" class="small" data-i18n="회의 내용과 연결 정보가 포함된 개인 백업입니다. 공개 저장소에 올리지 마세요.">회의 내용과 연결 정보가 포함된 개인 백업입니다. 공개 저장소에 올리지 마세요.</p></section><p id="export-status" class="status" role="status" aria-live="polite"></p></section>
 <details id="import-panel" class="requests"><summary data-i18n="백업 불러오기">백업 불러오기</summary>
 <p class="small" data-i18n="이 플러그인에서 만든 ZIP을 원래 프로젝트에서 확인하고, 없어진 회의실만 복구합니다. 기존 기록을 덮어쓰거나 진행 중인 작업을 다시 실행하지 않습니다.">이 플러그인에서 만든 ZIP을 원래 프로젝트에서 확인하고, 없어진 회의실만 복구합니다. 기존 기록을 덮어쓰거나 진행 중인 작업을 다시 실행하지 않습니다.</p>
 <label class="button file-picker" for="import-file" data-i18n="ZIP 파일 선택">ZIP 파일 선택</label><input id="import-file" class="sr-only" type="file" accept=".zip,application/zip" aria-label="불러올 ZIP 파일" data-i18n-aria-label="불러올 ZIP 파일">
@@ -79,6 +79,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
 (() => {
   const $ = id => document.getElementById(id);
   const TRANSLATIONS=/*ROOM_TRANSLATIONS*/{};
+  const secretText=/*ROOM_SECRET_TEXT*/null;
   const languages=['ko',...Object.keys(TRANSLATIONS)];
   let languagePreference='auto';try{languagePreference=localStorage.getItem('team-room-ui-language')||'auto';}catch{}
   if(!languages.includes(languagePreference))languagePreference='auto';
@@ -127,7 +128,8 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   const statuses = {reserved:'전달 예약 · 결과 확인 중',pending:'처리 대기',processing:'처리 중',completed:'완료',failed:'실패',running:'처리 중',active:'처리 중',queued:'처리 대기',passed:'통과',blocked:'차단',unverified:'미검증',superseded:'인계됨'};
   let seq = 0, initialized = false, canMessage = false, messageExtension = false, state = null;
   let polling = false, sending = false, pausing = false, timer = null;
-  let signature = '';
+  let signature = '', secretDraftValue=null, secretDraftFound=false;
+  $('share-mask').checked=true;
   const deliveries=new Map();
   let projectId=null, projects=[], switching=false, selectionEpoch=0;
   let openingAllowed=true, openingAttempted=false, openingInputSeen=false, initialProjectId=null, openingNotice='', openingProjectName='';
@@ -136,7 +138,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   let teamSetup=null, createdTeamTarget=null;
   let checkView=null,exportView=null,importView=null,importList=null,hostObservation={},canDownload=false,canOpenFile=false;
   function closeImport(){importView=null;importList=null;$('import-preview').hidden=true;$('import-status').textContent='';$('import-errors').hidden=true;$('import-retry').hidden=true;$('import-file').value='';$('import-path').value='';$('import-saved-list').replaceChildren();}
-  function closeUtilities(){checkView=null;exportView=null;closeImport();$('connection-check').hidden=true;$('export-result').hidden=true;$('export-status').textContent='';$('export-path').value='';if(!disposed)controls();}
+  function closeUtilities(){$('share-mask').checked=true;checkView=null;exportView=null;closeImport();$('connection-check').hidden=true;$('export-result').hidden=true;$('export-status').textContent='';$('export-path').value='';if(!disposed)controls();}
   let setupProgress=null, setupStale=false;const seenSetups=new Set(),dismissedSetups=new Set();
   let roomDelete=null, deletedView=null;
   let disposed=false, hostContext={}, reportedHeight=null, appliedHeight=null;
@@ -172,7 +174,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   }
   function dispose() {
     if(disposed)return;
-    disposed=true;initialized=false;canMessage=false;
+    disposed=true;initialized=false;canMessage=false;secretDraftValue=null;secretDraftFound=false;
     closeRoster();closeTeamSetup();closeLifecycle();closeUtilities();expandedDetails.clear();detailsEpoch++;
     if($('room-menu').open)$('room-menu').close();
     resetImages();imageCache.clear();imagePending.clear();
@@ -384,10 +386,18 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     $('result').textContent=rows.filter(d=>d.status!=='sent'||recent.includes(d)).map(d=>`${labels[d.status]} · ${d.id}\n${d.text.slice(0,60)}${d.text.length>60?'…':''}${d.error?' · '+d.error:''}`).join('\n');
   }
   function controls() {
+    const draft=$('text').value;
+    if(draft!==secretDraftValue){secretDraftValue=draft;secretDraftFound=secretText.find(draft).length>0;}
+    $('secret-draft-warning').hidden=!secretDraftFound;
+    const secretHint=secretDraftFound?t('비밀값으로 의심되는 내용이 있습니다. 원문은 유지하며 작업은 계속 진행됩니다.'):'';
+    if($('secret-draft-warning').textContent!==secretHint)$('secret-draft-warning').textContent=secretHint;
+    $('share-room').disabled=!initialized||!projectId||switching||Boolean(exportView?.busy);
+    $('share-mask').disabled=Boolean(exportView?.busy);
+    $('share-room').textContent=exportView?.format==='share'&&exportView.receipt?t('새 공유용 ZIP 만들기'):t('공유용 ZIP 만들기');
     const loaded=Boolean(projectId && state?.project?.id===projectId && !switching);
     $('check-connection').disabled=!initialized||switching||Boolean(checkView?.busy);
     $('export-room').disabled=!initialized||!loaded||switching||Boolean(exportView?.busy);
-    $('export-room').textContent=exportView?.receipt?t('새 백업 만들기'):t('ZIP으로 백업');
+    $('export-room').textContent=exportView?.format==='backup'&&exportView.receipt?t('새 백업 만들기'):t('ZIP으로 백업');
     $('export-download').hidden=!canDownload||!exportView?.receipt?.downloadable;$('export-open').hidden=!canOpenFile;
     $('export-download').disabled=Boolean(exportView?.busy);$('export-open').disabled=Boolean(exportView?.busy);
     const importBusy=Boolean(importView?.busy||importList?.busy),importDisabled=!initialized||switching||importBusy;
@@ -469,18 +479,28 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     catch(err){if(checkView===r&&utilityCurrent(r))$('check-status').textContent=t('점검 실패 · ')+err.message;}
     finally{r.busy=false;if(checkView===r&&!disposed)controls();}
   });
-  $('export-room').addEventListener('click',async()=>{
+  async function createExport(format='backup'){
     if(disposed||document.hidden||!initialized||switching||!projectId||exportView?.busy||!$('room-menu').open)return;
-    const r=exportView?.projectId===projectId&&!exportView.receipt?exportView:{projectId,exportId:crypto.randomUUID()};exportView=r;r.busy=true;$('export-status').textContent=t('회의와 첨부파일을 ZIP으로 저장하고 있습니다.');controls();
-    try{const response=await rpc('tools/call',{name:'room_export',arguments:{operation:'create',projectId:r.projectId,exportId:r.exportId}});if(exportView!==r||!utilityCurrent(r))return;const data=extract(response),file=response._meta?.['team-room/exportPath'];if(data.projectId!==r.projectId||data.exportId!==r.exportId||typeof file!=='string'||!/^([a-z]:[\\/]|\/)/i.test(file)||!file.endsWith('.zip'))throw new Error(t('백업 파일을 확인할 수 없습니다.'));r.receipt=data;r.path=file;$('export-result').hidden=false;$('export-path').value=file;$('export-status').textContent=uiLanguage==='en'?`ZIP saved. ${data.counts.messages} messages · ${data.counts.images} images · ${data.counts.audio} audio files`:t('ZIP을 저장했습니다. ')+data.counts.messages+t('개 발언 · 이미지 ')+data.counts.images+t('개 · 음원 ')+data.counts.audio+t('개');}
-    catch(err){if(exportView===r&&utilityCurrent(r))$('export-status').textContent=t('백업 확인 실패 · ')+err.message+t(' 자동 재시도하지 않습니다. 다시 누르면 같은 백업 ID로 확인합니다.');}
+    const redact=format==='share'&&$('share-mask').checked;
+    const r=exportView?.projectId===projectId&&exportView.format===format&&exportView.redact===redact&&!exportView.receipt?exportView:{projectId,exportId:crypto.randomUUID(),format,redact};
+    exportView=r;r.busy=true;$('export-status').textContent=t('회의와 첨부파일을 ZIP으로 저장하고 있습니다.');controls();
+    try{
+      const response=await rpc('tools/call',{name:'room_export',arguments:{operation:'create',projectId:r.projectId,exportId:r.exportId,...(format==='share'?{format,redact}:{})}});
+      if(exportView!==r||!utilityCurrent(r))return;const data=extract(response),file=response._meta?.['team-room/exportPath'];
+      if(data.projectId!==r.projectId||data.exportId!==r.exportId||format==='share'&&(data.format!=='share'||data.redacted!==redact)||typeof file!=='string'||!/^([a-z]:[\\/]|\/)/i.test(file)||!file.endsWith('.zip'))throw new Error(t('백업 파일을 확인할 수 없습니다.'));
+      r.receipt=data;r.path=file;$('export-result').hidden=false;$('export-path').value=file;
+      $('export-notice').textContent=format==='share'?t('공유 전 사본을 직접 검토하세요. 이미지·음원 내부는 가려지지 않으며 원본 기록은 그대로입니다.'):t('회의 내용과 연결 정보가 포함된 개인 백업입니다. 공개 저장소에 올리지 마세요.');
+      $('export-status').textContent=format==='share'?(redact?t('공유용 사본을 저장했습니다. 의심값 가림 적용 · '):t('공유용 사본을 저장했습니다. 의심값 가림 없음 · '))+(data.secretFindings||0)+t('건 감지'):uiLanguage==='en'?`ZIP saved. ${data.counts.messages} messages · ${data.counts.images} images · ${data.counts.audio} audio files`:t('ZIP을 저장했습니다. ')+data.counts.messages+t('개 발언 · 이미지 ')+data.counts.images+t('개 · 음원 ')+data.counts.audio+t('개');
+    }catch(err){if(exportView===r&&utilityCurrent(r))$('export-status').textContent=t('백업 확인 실패 · ')+secretText.redact(String(err.message))+t(' 자동 재시도하지 않습니다. 다시 누르면 같은 백업 ID로 확인합니다.');}
     finally{r.busy=false;if(exportView===r&&!disposed)controls();}
-  });
+  }
+  $('export-room').addEventListener('click',()=>createExport());
+  $('share-room').addEventListener('click',()=>createExport('share'));
   $('export-copy').addEventListener('click',async()=>{const r=exportView;if(!r?.path||!utilityCurrent(r))return;try{await navigator.clipboard.writeText(r.path);if(exportView===r&&utilityCurrent(r))$('export-status').textContent=t('저장 경로를 복사했습니다.');}catch{if(exportView===r&&utilityCurrent(r))$('export-status').textContent=t('위 저장 경로를 직접 복사해 주세요.');}});
   $('export-open').addEventListener('click',async()=>{const r=exportView;if(!canOpenFile||!r?.path||r.busy||!utilityCurrent(r))return;r.busy=true;controls();try{const result=await rpc('openai/files/open',{path:r.path});if(exportView===r&&utilityCurrent(r))$('export-status').textContent=result?.isError?t('파일 열기를 확인하지 못했습니다. 저장 경로는 유지됩니다.'):t('저장된 ZIP 열기를 요청했습니다.');}catch(err){if(exportView===r&&utilityCurrent(r))$('export-status').textContent=t('파일 열기 실패 · ')+err.message;}finally{r.busy=false;if(exportView===r&&!disposed)controls();}});
   $('export-download').addEventListener('click',async()=>{
     const r=exportView;if(!canDownload||!r?.receipt?.downloadable||r.busy||!utilityCurrent(r))return;r.busy=true;controls();
-    try{const response=await rpc('tools/call',{name:'room_export',arguments:{operation:'download',projectId:r.projectId,exportId:r.exportId}});if(exportView!==r||!utilityCurrent(r))return;const data=extract(response),bytes=response._meta?.['team-room/exportBytes'];if(data.projectId!==r.projectId||data.exportId!==r.exportId||typeof bytes!=='string'||bytes.length>24*1024*1024||!/^[A-Za-z0-9+/]*={0,2}$/.test(bytes))throw new Error(t('다운로드 데이터를 확인할 수 없습니다.'));const result=await rpc('ui/download-file',{contents:[{type:'resource',resource:{uri:'file:///'+encodeURIComponent(data.name),mimeType:'application/zip',blob:bytes}}]});if(exportView===r&&utilityCurrent(r))$('export-status').textContent=result?.isError?t('다운로드를 확인하지 못했습니다. 저장된 ZIP은 유지됩니다.'):t('호스트에 다운로드를 요청했습니다. 저장 위치는 호스트 안내를 확인하세요.');}
+    try{const response=await rpc('tools/call',{name:'room_export',arguments:{operation:'download',projectId:r.projectId,exportId:r.exportId,...(r.format==='share'?{format:'share'}:{})}});if(exportView!==r||!utilityCurrent(r))return;const data=extract(response),bytes=response._meta?.['team-room/exportBytes'];if(data.projectId!==r.projectId||data.exportId!==r.exportId||typeof bytes!=='string'||bytes.length>24*1024*1024||!/^[A-Za-z0-9+/]*={0,2}$/.test(bytes))throw new Error(t('다운로드 데이터를 확인할 수 없습니다.'));const result=await rpc('ui/download-file',{contents:[{type:'resource',resource:{uri:'file:///'+encodeURIComponent(data.name),mimeType:'application/zip',blob:bytes}}]});if(exportView===r&&utilityCurrent(r))$('export-status').textContent=result?.isError?t('다운로드를 확인하지 못했습니다. 저장된 ZIP은 유지됩니다.'):t('호스트에 다운로드를 요청했습니다. 저장 위치는 호스트 안내를 확인하세요.');}
     catch(err){if(exportView===r&&utilityCurrent(r))$('export-status').textContent=t('다운로드 실패 · ')+err.message+t(' 저장된 ZIP은 유지됩니다.');}
     finally{r.busy=false;if(exportView===r&&!disposed)controls();}
   });
@@ -763,6 +783,8 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
           else quote.append(make('p','',t('답변 대상 원문을 현재 기록에서 찾을 수 없습니다.')));
           body.append(quote);
         }
+        const fields=[m.text,m.details,...(Array.isArray(m.images)?m.images:[]).map(i=>i.caption),...(Array.isArray(m.audio)?m.audio:[]).map(a=>a.caption)];
+        if(fields.some(value=>secretText.find(value).length))body.append(make('p','small secret-warning',t('비밀값으로 의심되는 내용이 있습니다. 원문은 유지하며 작업은 계속 진행됩니다.')));
         body.append(messageText(m.text));
         if(m.images?.length)body.append(messageImages(m));
         if(m.audio?.length)body.append(messageAudio(m));
@@ -913,7 +935,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   async function initialize(){
     if(window.parent===window){$('connection').textContent=t('단독 창에서는 연결할 수 없습니다.');showError(t('기존 채팅의 MCP App 패널에서 팀 회의실을 열어 주세요.'));return;}
     try{
-      const result=await rpc('ui/initialize',{appInfo:{name:'team-room',version:'0.17.2'},appCapabilities:{availableDisplayModes:['inline','fullscreen']},protocolVersion:'2026-01-26'});
+      const result=await rpc('ui/initialize',{appInfo:{name:'team-room',version:'0.18.0'},appCapabilities:{availableDisplayModes:['inline','fullscreen']},protocolVersion:'2026-01-26'});
       if(disposed)return;
       if(result?.protocolVersion!=='2026-01-26')throw new Error(t('지원되는 호스트 통신 버전을 확인하지 못했습니다.'));
       hostObservation={protocol:result.protocolVersion,message:false,draft:false};canDownload=Boolean(result.hostCapabilities?.downloadFile);canOpenFile=Boolean(result.hostCapabilities?.experimental?.['openai/files']||result.hostCapabilities?.extensions?.['openai/files']);

@@ -2,9 +2,11 @@
 
 [한국어](SETUP.ko.md) | **English** | [Full user guide](USER_GUIDE.en.md)
 
-For version 0.17.2. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → use the room in the same chat → assign the first task**.
+For version 0.18.0. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → use the room in the same chat → assign the first task**.
 
 A new team has **one director, one planner, one designer, TWO programmers and one QA participant**. The chat where setup starts becomes the director, preserving its history and current model/effort. Only the other five participants get new chats. Setup starts with a written request in a Codex project chat.
+
+Possible secrets in meeting-message and sharing-document text are checked locally. Warnings do not stop work or change originals, and do not cover other AI tools or image/audio contents. Choose masking under Menu → Create sharing ZIP. This reading copy is separate from the exact private recovery backup.
 
 ## Jump to a step
 

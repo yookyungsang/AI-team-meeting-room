@@ -9,6 +9,7 @@ import {RoomExport} from '../host-plugin/exports.mjs';
 import {crc32,unzipOwn} from '../host-plugin/zip.mjs';
 import {handle,TOOLS} from '../host-plugin/server.mjs';
 import {wav} from './audio.fixture.mjs';
+import {inspectBackup} from '../host-plugin/imports.mjs';
 function fixture(t){
  const base=path.resolve('.local/test-data');fs.mkdirSync(base,{recursive:true});const home=fs.mkdtempSync(path.join(base,'export-check-'));t.after(()=>fs.rmSync(home,{recursive:true,force:true}));
  const registry=new Projects(home,{setupContextReader:id=>{assert(id.startsWith('alpha-')||id.startsWith('beta-'));const project=id.split('-')[0];return {scopeId:project,name:'Fixture '+project,nativeProjectIds:['native-'+project]};},openingReader:(_projects,id)=>({status:id?.startsWith('alpha-')?'selected':'unregistered',...(id?.startsWith('alpha-')?{projectId:'alpha'}:{})}),catalogReader:project=>({candidates:project.members.map(m=>({...m,chatTitle:m.name}))})});
@@ -60,4 +61,53 @@ test('damaged or missing media and corrupted saved archives fail without a parti
 
 test('export directory junctions cannot redirect writes outside runtime storage',t=>{
  const f=fixture(t),outside=path.join(f.home,'outside');fs.mkdirSync(outside);fs.symlinkSync(outside,path.join(f.home,'exports'),'junction');assert.throws(()=>f.exporter.create({projectId:'alpha',exportId:randomUUID()}),/runtime storage/);assert.equal(fs.readdirSync(outside).length,0);
+});
+
+function withSecret(f){
+ const token='sk-'+'proj-'+('SyntheticFixture9').repeat(4),requestId=randomUUID();
+ const text='  Keep original\n'+token+'\n한국어 원문  ';
+ f.store.submit({id:requestId,text,recipients:['director']});f.store.claim({requestId,memberId:'director'});
+ f.store.reply({requestId,memberId:'director',text:'Done without a pause: '+token,details:'api_key="'+token+'"',images:[{path:path.join(f.home,'sample.png'),caption:token}]});
+ return {token,requestId,text};
+}
+test('suspected secrets never block director completion; only the optional sharing copy is masked',t=>{
+ const f=fixture(t),{png}=post(f),{token,requestId,text}=withSecret(f);
+ assert.equal(f.store.get(requestId).request.status,'completed');assert.equal(f.store.get(requestId).request.text,text);
+ const before=fs.readFileSync(f.store.file),registry=fs.readFileSync(f.registry.file);
+ const backup=f.exporter.create({projectId:'alpha',exportId:randomUUID()}),original=new Map(unzipOwn(fs.readFileSync(backup.path)).map(e=>[e.name,e.bytes]));
+ assert(original.get('room.json').equals(before));assert(original.get('meeting.md').toString().includes(token));
+ const args={projectId:'alpha',exportId:randomUUID(),format:'share'},shared=f.exporter.create(args),entries=new Map(unzipOwn(fs.readFileSync(shared.path)).map(e=>[e.name,e.bytes]));
+ assert.equal(shared.redacted,true);assert(shared.secretFindings>=3);assert(!JSON.stringify(shared).includes(token));
+ assert(!entries.has('room.json'));assert(!entries.has('project.json'));
+ for(const [name,bytes] of entries)if(!name.startsWith('images/')&&!name.startsWith('audio/')){assert(!bytes.toString().includes(token),name);assert(!bytes.toString().includes('alpha-director'),name);}
+ assert(entries.get('meeting.md').toString().includes('[REDACTED]'));assert(entries.get([...entries.keys()].find(n=>n.startsWith('images/'))).equals(png));
+ assert.throws(()=>inspectBackup(fs.readFileSync(shared.path)),/공유용 사본/);
+ assert(fs.readFileSync(f.store.file).equals(before));assert(fs.readFileSync(f.registry.file).equals(registry));
+});
+test('keep/mask sharing choices are durable, immutable per ID and separate from raw backups',t=>{
+ const f=fixture(t);post(f);const {token}=withSecret(f),exportId=randomUUID(),args={projectId:'alpha',exportId,format:'share',redact:false};
+ const first=f.exporter.create(args),bytes=fs.readFileSync(first.path);assert.equal(first.redacted,false);
+ const entries=new Map(unzipOwn(bytes).map(e=>[e.name,e.bytes]));assert(entries.get('meeting.md').toString().includes(token));
+ const again=new RoomExport(f.registry,f.store).create(args);assert.equal(again.replayed,true);assert.equal(again.sha256,first.sha256);
+ assert.throws(()=>f.exporter.create({...args,redact:true}),/new export ID/);assert(fs.readFileSync(first.path).equals(bytes));
+ const backup=f.exporter.create({projectId:'alpha',exportId});assert.notEqual(backup.path,first.path);assert(inspectBackup(fs.readFileSync(backup.path)));
+ const download=f.exporter.download({projectId:'alpha',exportId,format:'share'});assert.equal(download.receipt.format,'share');assert.equal(download.data,bytes.toString('base64'));
+ assert.throws(()=>f.exporter.create({...args,exportId:randomUUID(),format:'invalid'}));assert.throws(()=>f.exporter.create({...args,exportId:randomUUID(),redact:'false'}));
+});
+test('MCP sharing metadata reveals counts and policy, never the detected values or archive bytes',t=>{
+ const f=fixture(t);post(f);const {token}=withSecret(f),args={projectId:'alpha',exportId:randomUUID(),format:'share',redact:true};
+ const created=call(f,'room_export',{...args,operation:'create'});assert(!created.isError);assert.equal(created.structuredContent.format,'share');assert.equal(created.structuredContent.redacted,true);
+ assert(!created.content[0].text.includes(token));assert(!created.content[0].text.includes(f.home));
+ const downloaded=call(f,'room_export',{...args,operation:'download'});assert(!downloaded.isError);assert(downloaded._meta['team-room/exportBytes']);assert.equal(downloaded.structuredContent.data,undefined);
+ assert.equal(call(f,'room_export',{...args,projectId:'beta',operation:'download'}).isError,true);
+});
+
+test('suspected secrets do not add a pause, approval or warning payload to model-facing completion receipts',t=>{
+ const f=fixture(t),requestId=randomUUID(),token='sk-'+'proj-'+('SyntheticFixture9').repeat(4),text='원문 '+token;
+ const submitted=call(f,'room_submit',{projectId:'alpha',id:requestId,text,recipients:['director']});assert(!submitted.isError);
+ const claimed=call(f,'room_claim',{projectId:'alpha',requestId,memberId:'director'});assert(!claimed.isError);
+ const replied=call(f,'room_reply',{projectId:'alpha',requestId,memberId:'director',text,details:'api_key="'+token+'"'});assert(!replied.isError);assert.equal(replied.structuredContent.saved,true);
+ assert.equal(replied.structuredContent.warning,undefined);assert.equal(replied.structuredContent.secretFindings,undefined);
+ assert.equal(f.store.get(requestId).request.status,'completed');assert.equal(f.store.read().paused,false);
+ assert.equal(f.store.get(requestId).messages.at(-1).text,text);
 });

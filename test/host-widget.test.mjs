@@ -49,7 +49,7 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
     result={structuredContent:args.operation==='list'?{imports:[]}:args.operation==='preview'?row:args.operation==='start'?{importId:args.importId,offset:0,size:args.size}:args.operation==='chunk'?{importId:args.importId,offset:args.offset+Buffer.from(args.data,'base64').length}:args.operation==='apply'?{importId:args.importId,projectId:'recovered',restored:true,paused:true}: {importId:args.importId,offset:100,size:100}};if(importBehavior.hold===args.operation)return;
    }
    if(name==='room_check'){utilityPackets.push(packet);result={structuredContent:{rows:[{id:'native-tools',status:'unverified',detail:'Native tools require actual setup.',detailKo:'실제 설정 때 도구 권한을 확인합니다.',action:'Do not create test chats.'}]}};if(utilityBehavior.hold===name)return;}
-   if(name==='room_export'){utilityPackets.push(packet);result={structuredContent:{projectId:args.projectId,exportId:args.exportId,name:'synthetic.zip',downloadable:true,counts:{messages:2,images:1,audio:1}},_meta:{'team-room/exportPath':'/synthetic/export.zip',...(args.operation==='download'?{'team-room/exportBytes':'UEsFBg=='}:{})}};if(utilityBehavior.hold===args.operation)return;}
+   if(name==='room_export'){utilityPackets.push(packet);result={structuredContent:{projectId:args.projectId,exportId:args.exportId,name:'synthetic.zip',...(args.format==='share'?{format:'share',redacted:args.redact!==false,secretFindings:2}:{}),downloadable:true,counts:{messages:2,images:1,audio:1}},_meta:{'team-room/exportPath':'/synthetic/export.zip',...(args.operation==='download'?{'team-room/exportBytes':'UEsFBg=='}:{})}};if(utilityBehavior.hold===args.operation)return;}
    if(name==='room_manage'){
     managePackets.push(packet);const room=states.get(args.projectId);
     if(args.operation==='preview_delete')result={structuredContent:{projectId:args.projectId,name:room.project.name,revision:1,canDelete:!busyRoom,reasons:busyRoom?['진행 중인 요청 1건']:[],counts:{members:room.members.length,requests:room.requests.length,messages:room.messages.length,images:0,audio:0}}};
@@ -687,5 +687,41 @@ test('recreated history frames only initialize and read state, with no automatic
   assert.equal(w.sent.filter(p=>p.method==='ui/request-display-mode'||p.method==='ui/message'||p.params?.name==='room_open'||p.params?.name==='room_submit').length,0);
   w.callbacks.pagehide();const count=w.sent.length;
   w.callbacks.visibilitychange();w.notify(w.state);await settle();assert.equal(w.sent.length,count);
+ }
+});
+
+test('secret hints are display-only and sending preserves the exact draft without extra model messages',async t=>{
+ const w=await widget(t),token='sk-'+'proj-'+('SyntheticFixture9').repeat(4),draft='  원문\n'+token+'\n  ';
+ const before=w.sent.length;w.elements.get('text').value=draft;w.elements.get('text').events.input();
+ const warning=w.elements.get('secret-draft-warning');assert.equal(warning.hidden,false);assert(!warning.textContent.includes(token));assert.match(warning.textContent,/작업은 계속/);assert.equal(w.elements.get('send').disabled,false);assert.equal(w.sent.length,before);
+ await w.elements.get('form').events.submit({preventDefault(){}});await settle();
+ assert.equal(w.sent.find(p=>p.params?.name==='room_submit').params.arguments.text,draft);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,1);assert.equal(warning.hidden,true);
+ w.state.messages.push({id:'secret-detail',authorId:'director',text:'완료 보고 원문',details:'api_key="'+token+'"'});w.notify(w.state);
+ const warnings=descendants(w.elements.get('messages')).filter(n=>n.className==='small secret-warning');assert(warnings.length);assert(warnings.every(n=>!n.textContent.includes(token)));
+ assert.equal(w.state.messages.at(-1).details,'api_key="'+token+'"');assert.equal(w.sent.filter(p=>p.method==='ui/message').length,1);
+});
+test('ordinary text produces no secret hint or extra tool request',async t=>{
+ const w=await widget(t),before=w.sent.length;w.elements.get('text').value='이미지와 음원을 그대로 사용해 주세요.';w.elements.get('text').events.input();
+ assert.equal(w.elements.get('secret-draft-warning').hidden,true);assert.equal(w.sent.length,before);assert.equal(w.elements.get('send').disabled,false);
+});
+test('sharing choice defaults to mask, persists per request and downloads the separate sharing archive',async t=>{
+ const w=await widget(t,{downloadSupport:true});w.elements.get('open-menu').events.click();
+ assert.equal(w.elements.get('share-mask').checked,true);await w.elements.get('share-room').events.click();
+ const first=w.utilityPackets.find(p=>p.params.arguments.operation==='create').params.arguments;assert.equal(first.format,'share');assert.equal(first.redact,true);assert.match(w.elements.get('export-status').textContent,/가림 적용/);
+ await w.elements.get('export-download').events.click();const download=w.utilityPackets.find(p=>p.params.arguments.operation==='download').params.arguments;assert.equal(download.format,'share');assert.equal(download.exportId,first.exportId);
+ w.elements.get('share-mask').checked=false;await w.elements.get('share-room').events.click();
+ const next=w.utilityPackets.filter(p=>p.params.arguments.operation==='create').at(-1).params.arguments;assert.equal(next.redact,false);assert.notEqual(next.exportId,first.exportId);assert.match(w.elements.get('export-status').textContent,/가림 없음/);
+ assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);w.elements.get('close-menu').events.click();assert.equal(w.elements.get('share-mask').checked,true);
+});
+test('sharing retries reuse their original choice and late results cannot reopen a closed view',async t=>{
+ for(const action of ['retry','close','switch','hide','teardown']){
+  const w=await widget(t,{holdUtility:'create'});w.elements.get('open-menu').events.click();const pending=w.elements.get('share-room').events.click();await settle();const first=w.utilityPackets.at(-1);
+  w.elements.get('text').value='총괄 작업은 계속';w.elements.get('text').events.input();assert.equal(w.elements.get('send').disabled,false);
+  if(action==='retry'){w.expire();await pending;w.utilityBehavior.hold=null;await w.elements.get('share-room').events.click();assert.deepEqual(w.utilityPackets.at(-1).params.arguments,first.params.arguments);}
+  else{
+   if(action==='close')w.elements.get('close-menu').events.click();if(action==='switch'){w.elements.get('project').value='second';await w.elements.get('project').events.change();}if(action==='hide'){w.document.hidden=true;w.callbacks.visibilitychange();}if(action==='teardown')w.callbacks.pagehide();
+   const count=w.sent.length;w.receive({id:first.id,result:{structuredContent:{projectId:'test',exportId:first.params.arguments.exportId,format:'share',redacted:true},_meta:{'team-room/exportPath':'/synthetic/late.share.zip'}}});await pending;assert.equal(w.sent.length,count);assert.equal(w.elements.get('export-result').hidden,true);
+  }
+  assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
  }
 });

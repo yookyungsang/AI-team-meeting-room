@@ -42,6 +42,7 @@ export function inspectBackup(bytes){
  const entries=unzipOwn(bytes),files=new Map(entries.map(e=>[e.name,e.bytes]));
  check(entries[0].name==='manifest.json','This is not a Team Room backup.');
  const manifest=parsed(entries[0].bytes);
+ check(manifest.purpose!=='share','공유용 사본은 복구용 백업이 아닙니다. 원본 백업 ZIP을 선택해 주세요.');
  check(manifest.version===1&&uuid(manifest.exportId)&&Array.isArray(manifest.files)&&manifest.files.length===entries.length-1,'Unsupported backup manifest.');
  for(let i=1;i<entries.length;i++){const expected=manifest.files[i-1],entry=entries[i];check(object(expected)&&expected.name===entry.name&&expected.size===entry.bytes.length&&expected.sha256===hash(entry.bytes),'Backup integrity verification failed.');}
  for(const name of ['project.json','room.json','index.html','meeting.md','README.txt'])check(files.has(name),'Incomplete Team Room backup.');

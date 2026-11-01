@@ -7,6 +7,7 @@ import {wav} from '../test/audio.fixture.mjs';
 import {roleCatalog} from '../host-plugin/roles.mjs';
 import {renderWidget} from '../host-plugin/ui.mjs';
 import {handle} from '../host-plugin/server.mjs';
+import {unzipOwn} from '../host-plugin/zip.mjs';
 import {demoSession} from './demo-session.mjs';
 import {TEAM_ROLES} from '../host-plugin/team-setup.mjs';
 const root=path.resolve(import.meta.dirname,'..');
@@ -465,6 +466,30 @@ try{
   await frame.locator('.shell').screenshot({path:path.join(output,`automatic-project-${project.id}.png`)});
   report.cases.push({automaticProject:project.id,selectedOnMount:true,manualSelection:false,modelCalls:0});await page.close();
  }
+ const secretSession=await demoSession({secretFixture:true});
+ try{for(const width of [1280,420]){
+  const fixtureToken='sk-'+'proj-'+('SyntheticFixture9').repeat(4);
+  const page=await browser.newPage({locale:'en-US',viewport:{width,height:900}});await page.goto(secretSession.url);
+  const frame=page.frames().find(f=>f!==page.mainFrame());await frame.waitForFunction(()=>document.querySelector('#project').value==='demo');
+  await frame.locator('.secret-warning').waitFor();assert(!(await frame.locator('.secret-warning').innerText()).includes(fixtureToken));
+  await frame.locator('#text').fill(fixtureToken);await frame.locator('#secret-draft-warning').waitFor({state:'visible'});
+  assert.equal(await frame.locator('#send').isDisabled(),false);assert(!(await frame.locator('#secret-draft-warning').innerText()).includes(fixtureToken));
+  const original=await frame.locator('#messages').innerText();await frame.locator('#open-menu').click();
+  assert.equal(await frame.locator('#share-mask').isChecked(),true);
+  for(const mask of [true,false]){
+   await frame.locator('#share-mask').setChecked(mask);await frame.locator('#share-room').click();
+   await frame.waitForFunction(mask=>document.querySelector('#export-status').textContent.includes(mask?'secrets masked':'secrets unmasked'),mask);
+   assert.equal(await frame.locator('#room-menu').evaluate(el=>el.scrollWidth>el.clientWidth),false);
+   const saving=page.waitForEvent('download');await frame.locator('#export-download').click();const download=await saving;
+   const file=path.join(output,`sharing-${width}-${mask?'mask':'keep'}.zip`);await download.saveAs(file);
+   const entries=new Map(unzipOwn(fs.readFileSync(file)).map(e=>[e.name,e.bytes]));assert(!entries.has('room.json'));assert(!entries.has('project.json'));
+   assert.equal(entries.get('meeting.md').toString().includes(fixtureToken),!mask);
+   if(mask)assert(entries.get('meeting.md').toString().includes('[REDACTED]'));
+  }
+  await frame.locator('#close-menu').click();assert.equal(await frame.locator('#text').inputValue(),fixtureToken);assert.equal(await frame.locator('#messages').innerText(),original);
+  assert.equal(await page.evaluate(()=>window.demoPackets.filter(p=>p.method==='ui/message'||p.params?.name==='room_submit').length),0);
+  report.cases.push({width,secretWarningNonBlocking:true,warningOmitsValues:true,maskAndKeepDownloads:true,sharingHasNoRecoveryJson:true,originalPostsAndDraftPreserved:true,modelCalls:0});await page.close();
+ }}finally{await secretSession.close();}
  const session=await demoSession();
  try{for(const width of [1280,420]){
   const page=await browser.newPage({locale:'en-US',viewport:{width,height:900}});await page.goto(session.url);const frame=page.frames().find(f=>f!==page.mainFrame());await frame.waitForFunction(()=>document.querySelector('#project').value==='demo');
