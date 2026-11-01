@@ -8,7 +8,7 @@ const live=new Map();
 const text=value=>typeof value==='string'&&value.trim().length>0&&value.length<=4000;
 const statuses=['passed','failed','blocked','unverified'];
 function reopen(state,c,args){
- c.decisions??=[];c.decisions.push({at:now(),reason:args.reason,action:args.operation,...(args.operation==='retest'?{requestId:args.requestId,toMemberId:args.toMemberId,key:args.key}:{})});
+ c.decisions??=[];c.decisions.push({at:now(),reason:args.reason,action:args.operation,...(args.requestId?{requestId:args.requestId}:{}),...(args.key?{key:args.key}:{}),...(args.operation==='retest'?{toMemberId:args.toMemberId}:{})});
  if(args.operation==='waive'){c.waived=true;c.blocked=false;}
  else{c.generation++;c.blocked=false;delete c.waived;if(state.unityBlocked?.caseId===c.id)delete state.unityBlocked;const errorKey=c.attempts.at(-1)?.errorKey;if(errorKey&&state.errorCounts)state.errorCounts[errorKey]=0;}
  return {caseId:c.id,generation:c.generation,waived:!!c.waived};
@@ -66,8 +66,23 @@ export class Validation{
   });
  }
  resume(args){
-  this.control.actor(args,{director:true});check(text(args.reason),'수정·환경 조치 또는 검증 예외의 구체적인 근거가 필요합니다.');
-  return this.control.change(state=>{const c=state.cases[args.caseId];check(c,'검증 항목을 지정해 주세요.');check(!c.attempts.some(a=>a.status==='running'),'실행 중이거나 상태 미확인인 검증은 먼저 확인해 주세요.');return reopen(state,c,args);});
+  this.control.actor(args,{director:true,active:false});
+  check(['resume','waive'].includes(args.operation)&&text(args.reason),'재개 또는 예외 승인과 수정·환경 조치의 구체적인 근거가 필요합니다.');
+  check(args.key===undefined||cleanKey(args.key),'새 승인에는 새 key를, 같은 승인 저장 재시도에는 원래 key와 내용을 사용하세요.');
+  const input=hash(JSON.stringify([args.operation,args.caseId,args.reason]));
+  // Legacy calls deduplicate the exact request/body. Do not bind this to the
+  // latest attempt: a delayed old call must never reopen a later failed run.
+  const receiptKey=hash(JSON.stringify([args.requestId,args.memberId,args.key===undefined?'legacy':'key',args.key??input]));
+  return this.control.change(state=>{
+   const c=Object.hasOwn(state.cases,args.caseId)?state.cases[args.caseId]:null;check(c,'검증 항목을 지정해 주세요.');
+   const old=state.resumeReceipts?.[receiptKey];
+   if(old){check(old.input===input,'같은 승인 key의 검증 항목·근거·승인 종류를 바꿀 수 없습니다.');return {...old.result,replayed:true,superseded:c.generation!==old.result.generation||!!c.waived!==old.result.waived||c.attempts.length!==old.attemptCount||c.decisions.length!==old.decisionCount};}
+   this.control.actor(args,{director:true});
+   check(!c.attempts.some(a=>a.status==='running'),'실행 중이거나 상태 미확인인 검증은 먼저 확인해 주세요.');
+   const result=reopen(state,c,args);state.resumeReceipts??={};
+   state.resumeReceipts[receiptKey]={input,result,attemptCount:c.attempts.length,decisionCount:c.decisions.length};
+   return result;
+  });
  }
  retest(args){
   this.control.actor(args,{director:true,active:false});

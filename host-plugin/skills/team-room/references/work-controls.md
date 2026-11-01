@@ -53,6 +53,18 @@ Old execution keys need no recovery or reissuance for a new test. If publication
 
 Legacy `resume`, `waive` and `reconcile` remain available for explicit director administration; use `retest` when issuing QA revalidation so the approval is not forgotten. No extra approval conversation, model, polling or automatic execution is added. Normal tool/instruction context still has usage; local batch persistence replaces separate approval/post calls rather than adding a monitoring turn.
 
+For `resume`/`waive`, a new director approval uses a new `key`. A storage retry
+keeps the same key, request, case, operation and reason; changed content under
+the same key is rejected. The durable receipt is saved atomically with the
+decision. Replays return the original generation and `replayed:true`; if work
+has since progressed, `superseded:true` means the old approval was not applied
+again. Old attempts and decisions remain intact. Legacy keyless calls deduplicate
+the exact request/body; use an explicit new key for a genuinely new approval
+with the same reason. Decisions made before this receipt format are retained,
+but cannot be retroactively matched to an unknown request/key. Inspect their
+saved generation before issuing a new approval. New approvals still require an
+active director assignment; a saved receipt does not authorize new work.
+
 ## Unity automation
 
 Configure the official **Unity CLI** executable, not the Unity Editor executable. Editors/licenses and the project's Unity Test Framework must already be available. The runner never installs an Editor, changes license settings or adds packages automatically. It uses `shell:false`, explicit project paths, hidden Windows helper processes and isolated external evidence directories.
