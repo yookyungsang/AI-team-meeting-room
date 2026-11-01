@@ -667,3 +667,25 @@ test('pagehide also disposes a view when the host omits teardown',async t=>{
  await w.intervals[0]();w.callbacks.visibilitychange();await settle();
  assert.equal(w.sent.length,count);assert.equal(w.document.body.hidden,true);
 });
+
+test('history replay, scroll resizes and visibility restoration never request another surface or restart work',async t=>{
+ const w=await widget(t),input=w.elements.get('text');input.value='보관할 입력 원문';
+ const initializations=()=>w.sent.filter(p=>p.method==='ui/initialize').length;
+ for(let i=0;i<15;i++){
+  w.document.hidden=true;w.callbacks.visibilitychange();
+  w.notify(w.state);w.receive({method:'ui/notifications/tool-input',params:{arguments:{projectId:'test'}}});
+  w.document.hidden=false;w.callbacks.visibilitychange();w.callbacks.resize();await settle();
+ }
+ assert.equal(initializations(),1);assert.equal(input.value,'보관할 입력 원문');
+ assert.equal(w.sent.filter(p=>p.method==='ui/request-display-mode'||p.method==='ui/message'||p.params?.name==='room_open'||p.params?.name==='room_submit').length,0);
+});
+
+test('recreated history frames only initialize and read state, with no automatic tab request',async t=>{
+ for(let i=0;i<4;i++){
+  const w=await widget(t,{initialInput:{projectId:'test'}});await settle();
+  assert.equal(w.elements.get('project').value,'test');
+  assert.equal(w.sent.filter(p=>p.method==='ui/request-display-mode'||p.method==='ui/message'||p.params?.name==='room_open'||p.params?.name==='room_submit').length,0);
+  w.callbacks.pagehide();const count=w.sent.length;
+  w.callbacks.visibilitychange();w.notify(w.state);await settle();assert.equal(w.sent.length,count);
+ }
+});

@@ -42,6 +42,16 @@ test('mutual exclusion prevents overwrites across MCP processes',t=>{const store
 test('MCP exposes fixed room/control tools, no thread/runtime execution or scheduled AI wake',()=>{assert.equal(TOOLS.length,24);assert.deepEqual(TOOLS.find(t=>t.name==='room_reply')._meta.ui.visibility,['model']);assert.deepEqual(TOOLS.find(t=>t.name==='room_image')._meta.ui.visibility,['app']);assert.deepEqual(TOOLS.find(t=>t.name==='room_members').inputSchema.properties.memberId.enum,['director']);assert.deepEqual(TOOLS.find(t=>t.name==='room_open')._meta['openai/ui'].entrypoints,[{type:'thread'}]);assert.throws(()=>handle({method:'turn/start'}));assert.equal(handle({method:'tools/list'}).tools.length,24);});
 
 const speech=(requestId,memberId,extra={})=>({requestId,memberId,text:'공개 발언 fixture',sourceThreadId:MEMBERS.find(m=>m.id===memberId).threadId,sourceTurnId:randomUUID(),sourceMessageId:randomUUID(),...extra});
+test('history resources prefer inline before mounting while explicit thread entry and fullscreen support remain available',()=>{
+ const read=()=>handle({method:'resources/read',params:{uri:'ui://team-room/meeting.html'}}).contents[0];
+ for(let i=0;i<5;i++){
+  const resource=read();assert.equal(resource._meta['openai/ui'].preferredDisplayMode,'inline');
+  assert.deepEqual(resource._meta['openai/ui'].availableDisplayModes,['inline','fullscreen']);
+  assert.equal(resource.uri,'ui://team-room/meeting.html');
+  assert(resource.text.includes("appCapabilities:{availableDisplayModes:['inline','fullscreen']}"));
+ }
+ assert.deepEqual(TOOLS.find(t=>t.name==='room_open')._meta['openai/ui'].entrypoints,[{type:'thread'}]);
+});
 test('new user submissions go only to director; delegation retains the original recipient',t=>{
  const store=fixture(t),r=request();assert.throws(()=>store.submit({...r,recipients:['planner']}));store.submit(r);
  assert.equal(store.claim({requestId:r.id,memberId:'planner'}).dispatch,true);

@@ -6,6 +6,7 @@ import {pathToFileURL} from 'node:url';
 import {wav} from '../test/audio.fixture.mjs';
 import {roleCatalog} from '../host-plugin/roles.mjs';
 import {renderWidget} from '../host-plugin/ui.mjs';
+import {handle} from '../host-plugin/server.mjs';
 import {demoSession} from './demo-session.mjs';
 import {TEAM_ROLES} from '../host-plugin/team-setup.mjs';
 const root=path.resolve(import.meta.dirname,'..');
@@ -14,13 +15,13 @@ const {chromium}=await import(modulePath?pathToFileURL(modulePath).href:'playwri
 const browser=await chromium.launch({headless:true,args:['--mute-audio'],...(process.env.BROWSER_EXECUTABLE?{executablePath:process.env.BROWSER_EXECUTABLE}:{})});
 const output=path.join(root,'.local');fs.mkdirSync(output,{recursive:true});
 const report={host:'isolated Chromium harness, not Codex',cases:[]};
-async function mount(page,html,width,openingRoom=null){
+async function mount(page,html,width,openingRoom=null,initialDisplayMode='fullscreen'){
  await page.setViewportSize({width,height:1000});
  // Intercept the entire fixture origin: no external server or network request.
  // A secure origin supplies native crypto.randomUUID used by explicit submits.
  await page.route('https://team-room.invalid/',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><html><body style="margin:0"><iframe title="Test meeting" style="display:block;border:0;width:100%;height:1000px"></iframe></body></html>'}));
  await page.goto('https://team-room.invalid/');
- await page.evaluate(({html,roles,openingRoom})=>{
+ await page.evaluate(({html,roles,openingRoom,initialDisplayMode})=>{
   window.fixtureRoles=roles;
   if(openingRoom)window.testRoomState=openingRoom;
   window.packets=[];
@@ -32,7 +33,7 @@ async function mount(page,html,width,openingRoom=null){
    if(p.id===undefined||!p.method)return;
    if(p.method==='ui/message'&&window.deferMessageReceipts){(window.delayedReceipts||=[]).push(p.id);return;}
    let result={};
-   if(p.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostCapabilities:{message:{text:{}},experimental:{'openai/message':{}}},hostContext:{displayMode:'fullscreen',containerDimensions:{height:1000}}};
+   if(p.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostCapabilities:{message:{text:{}},experimental:{'openai/message':{}}},hostContext:{displayMode:initialDisplayMode,containerDimensions:{height:1000}}};
    if(p.method==='tools/call'){
     const empty={project:null,projects:[],members:[],requests:[],messages:[],paused:true};
     if(p.params.name==='room_team_setup'){
@@ -63,7 +64,7 @@ async function mount(page,html,width,openingRoom=null){
    event.source.postMessage({jsonrpc:'2.0',id:p.id,result},'*');
   });
   iframe.srcdoc=html.replace('<head>','<head><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\'; img-src data:; media-src data:">');
- },{html,roles:roleCatalog(),openingRoom});
+ },{html,roles:roleCatalog(),openingRoom,initialDisplayMode});
  const frame=page.frames().find(f=>f!==page.mainFrame());
  await frame.waitForSelector('.shell');
  await page.waitForFunction(()=>window.packets.some(p=>p.method==='tools/call'));
@@ -90,6 +91,35 @@ try{
   await context(page,{displayMode:'inline',containerDimensions:{maxHeight:720}});
   report.baselineHeights=await measurements(page,frame);
   await page.close();
+ }
+ const historyResource=handle({method:'resources/read',params:{uri:'ui://team-room/meeting.html'}}).contents[0];
+ assert.equal(historyResource._meta['openai/ui'].preferredDisplayMode,'inline');
+ for(const width of [1280,420]){
+  const room={project:{id:'history',name:'Synthetic history'},projects:[{id:'history',name:'Synthetic history',directorName:'Fixture director'}],members:[{id:'director',name:'Fixture director',role:'Director'}],requests:[],messages:[{id:'synthetic-history-post',authorId:'director',text:'Synthetic original text retained.'}],paused:false};
+  const page=await browser.newPage({locale:'ko-KR'}),frame=await mount(page,historyResource.text,width,room,historyResource._meta['openai/ui'].preferredDisplayMode);
+  await frame.waitForFunction(()=>document.querySelector('#project').value==='history');
+  await frame.locator('#text').fill('Preserve this draft during visibility changes.');
+  for(let i=0;i<5;i++){
+   await page.locator('iframe').evaluate(el=>{el.style.display='none';});
+   await page.locator('iframe').evaluate(el=>{el.style.display='block';});
+   await frame.evaluate(()=>window.dispatchEvent(new Event('resize')));
+  }
+  assert.equal(await frame.locator('#text').inputValue(),'Preserve this draft during visibility changes.');
+  for(let i=0;i<3;i++){
+   await page.locator('iframe').evaluate(el=>{el.srcdoc=el.srcdoc;});
+   await frame.waitForFunction(()=>document.querySelector('#project')?.value==='history');
+   assert.match(await frame.locator('#messages').innerText(),/Synthetic original text retained/);
+  }
+  const before=await page.evaluate(()=>({mounts:window.packets.filter(p=>p.method==='ui/initialize').length,opens:window.packets.filter(p=>p.method==='ui/request-display-mode'||p.params?.name==='room_open').length,work:window.packets.filter(p=>p.method==='ui/message'||p.params?.name==='room_submit').length}));
+  assert.equal(before.mounts,4);assert.equal(before.opens,0);assert.equal(before.work,0);
+  await frame.locator('#text').fill('One explicit synthetic task');
+  await context(page,{displayMode:'fullscreen',containerDimensions:{height:900}});
+  assert.equal(await frame.locator('#text').inputValue(),'One explicit synthetic task');
+  await frame.locator('#text').press('Enter');
+  await page.waitForFunction(()=>window.packets.some(p=>p.method==='ui/message'));
+  assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.params?.name==='room_submit').length),1);
+  assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),1);
+  report.cases.push({width,historyRemounts:before.mounts,automaticTabRequests:0,automaticWorkRequests:0,preservedPosts:true,preservedDraftOnVisibility:true,explicitFullscreenAndSubmit:true,modelCalls:0});await page.close();
  }
  for(const width of (process.env.TEAM_ROOM_LAYOUT_NARROW_ONLY==='1'?[420]:[1280,420])){
   const page=await browser.newPage({locale:'ko-KR'}),frame=await mount(page,renderWidget(),width);
