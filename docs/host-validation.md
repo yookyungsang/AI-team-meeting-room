@@ -140,3 +140,46 @@ new submissions; explicit resume returned the complete room data to its original
 state. Other project settings, the control/validation ledger and the safety copy
 were unchanged. No worker AI was invoked. This does not establish native media
 restore, a crash during apply, or OS crash behavior.
+
+
+## 2026-11-02 · 재실행 후 데이터·탭 복구 확인
+
+사용자가 앱을 종료·재실행한 뒤 기존 앱 프로세스가 모두 새 프로세스로 바뀐 것을
+시작 시각과 함께 확인했습니다. 검증용 회의실의 원문·요청·원래 담당자 연결과 작업
+제어·검증 원장은 재시작 전과 일치했고, 회의실 등록도 한 건이었습니다. 종료 코드나
+OS 오류는 수집하지 않았으므로 정상 종료·강제 종료의 방식 자체를 인증하지 않습니다.
+
+처음에는 실제 상단 회의실 탭이 없고 이전 표시 예약만 남았습니다. 새 열기 카드가
+그 예약 때문에 blocked로 전환되는 것을 관측했습니다. 사용자가 기존 탭 없음 확인
+후 다시 열었고, 표시 기록의 확인 완료와 실제 MCP App 탭 **한 개**를 확인했습니다.
+복구된 실제 화면에 기존 5개 발언이 표시됐습니다. 이미 열린 뒤의 추가 열기 호출
+한 건은 도구 단계에서 실패해 반복 요청의 성공 증거에 포함하지 않습니다. 모든
+중복 탭·역사 스크롤·수동 호스트 진입 경로를 검증한 것으로 확대하지 않습니다.
+
+재시작 후 메뉴·입력창·연결 점검도 동작했습니다. 연결 점검의 프로젝트·총괄·담당자
+소속과 호스트 전송·초안·통신 버전은 정상이었고, 신규 대화 생성 등 실제 권한은
+도구 안내대로 미확인입니다. 검증 초안은 전송하지 않고 원래 입력값을 복원했습니다.
+이 후속 검사에서는 담당자를 다시 호출하거나 작업을 재전송하지 않았습니다.
+
+저장·복구 커밋 도중의 실제 앱 충돌, 실제 미디어 복원, 기본 팀 전체 온보딩과 긴
+기록의 실제 호스트 표시 등은 별도 검증 항목으로 남습니다. 이번 결과는 특정
+재실행 후 보존과 수동 확인을 통한 탭 복구의 증거이며 정식 배포 보장이 아닙니다.
+
+### English: restart follow-up
+
+After the human exited and relaunched the app, all observed app processes had new
+identities/start times. Original test-room records, routes and control/validation
+history matched; only one registration existed. Exit status was not collected, so
+this does not certify the shutdown method or an OS crash.
+
+No native room tab initially survived, while a saved reservation did. A fresh card
+was observed blocked; human no-existing-tab confirmation recovered one native MCP
+App tab with all five posts. One further opening call failed at the tool layer and
+is excluded from repeat-request success evidence. This is not universal duplicate,
+historical-scroll or manual-entrypoint validation.
+
+Native composer/menu/connection diagnostics worked. Membership, host messaging,
+draft and protocol checks passed; actual new-chat privileges remain unverified.
+The unsent test draft was restored. No worker was awakened or work resent.
+Crashes during a live commit, native media restore, complete onboarding and native
+long-history coverage remain separate release gates.
