@@ -21,6 +21,7 @@ import {RoomImport} from './imports.mjs';
 import {renderWidget} from './ui.mjs';
 import {toolAnnotations} from './tool-annotations.mjs';
 import {markRecords} from './record-trust.mjs';
+import {RoomView,roomViewScope} from './room-view.mjs';
 
 const root=path.dirname(fileURLToPath(import.meta.url));
 const version=JSON.parse(fs.readFileSync(path.join(root,'plugin.json'),'utf8')).version;
@@ -34,7 +35,7 @@ const images={type:'array',maxItems:4,items:schema({path:{type:'string',maxLengt
 const roleType={type:'string',enum:ROLE_TYPES,description:'Selected policy kind; custom uses common rules and assignment conditions only. It grants no permissions or model change.'};
 const audio={type:'array',maxItems:3,items:schema({path:{type:'string',maxLength:2000},caption:{type:'string',maxLength:300}},['path','caption'])};
 export const TOOLS=[
- {...tool('room_open','Open 팀 회의실 inline; use the host Expand control for a tab. Explicit projectId takes precedence. Without it, match the opening chat from host metadata to exactly one configured local project through read-only membership metadata; unavailable, unregistered or ambiguous context shows the chooser. Never guess from cwd/recency or create a room. State reads reconcile saved validation receipts; no run or AI is started.',schema({projectId:member}),false,['app','model']),title:'팀 회의실',_meta:{ui:{resourceUri:uri},'openai/ui':{entrypoints:[{type:'thread'}]}}},
+ {...tool('room_open','Open 팀 회의실 with a one-use automatic tab request. Past cards never reissue it. An occupied or uncertain display record requires human reconciliation in the card, not another room_open retry. Explicit projectId takes precedence; otherwise resolve only verified opening-chat metadata. Missing/unregistered/ambiguous context keeps the chooser. Never guess from cwd/recency or create a room. No AI or work starts.',schema({projectId:member}),false,['app','model']),title:'팀 회의실',_meta:{ui:{resourceUri:uri},'openai/ui':{entrypoints:[{type:'thread'}]}}},
  tool('room_state','Read the selected project and reconcile saved validation receipts (local writes, no new run). Without projectId return the chooser. The UI may set resolveCurrent:true once on initial mount to resolve the host-provided opening chat to one configured local project. No global selection, registration, AI or runtime calls.',schema({projectId:member,resolveCurrent:{type:'boolean'}}),false,['app','model']),
  tool('room_submit','Store an explicit human message, optionally linked to an active original request by followUpTo; does NOT start AI. The UI sends each wakePrompt once without blocking later messages.',schema({id:str,text:{type:'string',maxLength:6000},recipients:{type:'array',items:member,minItems:1,maxItems:6},followUpTo:str},['id','text','recipients']),false,['app']),
  tool('room_get','Read one request and its linked user follow-ups. Directors check these before decisions and completion, integrate additions without redispatching original jobs, and complete each follow-up. statusOnly:true omits text; unrelated history needs includePrevious:true.',schema({requestId:str,statusOnly:{type:'boolean'},includePrevious:{type:'boolean'}},['requestId']),true),
@@ -64,6 +65,7 @@ for(const definition of TOOLS){
  }
 }
 TOOLS.push(tool('room_projects','List configured project names and IDs without loading conversations or invoking AI.',schema(),true));
+TOOLS.push(tool('room_view','App-only one-use display guard. Claim before requesting fullscreen; confirm only after the human checks no old tab exists. Release only the matching view on explicit resource teardown or exit from fullscreen. No tab discovery, timer expiry, AI or work authorization.',schema({operation:{type:'string',enum:['claim','confirm','release']},intentId:str,instanceId:str,viewId:str,confirmedNoTab:{type:'boolean'}},['operation','intentId','instanceId']),false,['app']));
 TOOLS.push(tool('room_configure','Register a project with verified existing chat IDs and explicit human authorization. Never create chats or infer permission from this record. Same registration is idempotent; use room_members for explicit roster changes. This changes only meeting configuration, not filesystem access or projects in Codex.',schema({projectId:member,name:{type:'string',maxLength:120},workspacePath:{type:'string',maxLength:1000},members:{type:'array',minItems:1,maxItems:20,items:schema({id:member,name:str,role:str,roleType,threadId:str,hostId:str},['id','name','role','threadId','hostId'])}},['projectId','name','members']),false));
 TOOLS.push(tool('room_members','Director applies a human-authorized roster change to this room without deleting history or invoking AI. Read room_state first; send the complete desired active roster, its expectedRevision and a stable UUID changeId. Add, rename, change roles, remove idle members or reactivate them. Busy jobs/questions/leases/validation block removal. Existing IDs keep their thread/host forever; replacement chats use a new member ID. Keep director routing unchanged. Never retry or contact staff automatically.',schema({projectId:member,memberId:{type:'string',enum:['director']},expectedRevision:{type:'integer',minimum:1},changeId:str,members:{type:'array',minItems:1,maxItems:20,items:schema({id:member,name:str,role:str,roleType,threadId:str,hostId:str},['id','name','role','threadId','hostId'])}},['projectId','memberId','expectedRevision','changeId','members']),false));
 TOOLS.push(tool('room_roster','Menu roster editor; no AI/native execution. read returns project-scoped labels, choices and revisions. apply resolves selected IDs server-side and preserves membership guards/history. register is director-only after an explicit human request: verify this project’s existing chats with native tools, then save candidate names/roles/routes with verified:true and requestId. Never create/contact chats or change active members just to prepare choices.',schema({projectId:member,operation:{type:'string',enum:['read','register','apply']},memberId:{type:'string',enum:['director']},requestId:str,verified:{type:'boolean'},candidates:{type:'array',maxItems:100,items:schema({name:str,role:str,roleType,threadId:str,hostId:str},['name','role','threadId','hostId'])},expectedRevision:{type:'integer',minimum:1},optionsRevision:{type:'integer',minimum:1},changeId:str,selection:{type:'array',minItems:1,maxItems:20,items:schema({id:member,name:str,role:str,roleType},['id','name','role'])}},['projectId','operation']),false,['app','model']));
@@ -129,6 +131,7 @@ export function handle(request,registry=projects){
     const snapshot=()=>{if(!store||store.project.archivedAt)return {version:1,paused:true,requests:[],messages:[],members:[],project:null,projects:registry.list(),mode:'host-relay',...(store?{deletedProjectId:project.id,opening:{status:'deleted'}}:{})};new Validation(control).refresh();return {...store.snapshot(),projects:registry.list(),work:control.summary(),usageReports:usage.reports()};};
     if(project?.archivedAt&&(name==='room_validation'||name==='room_work'&&!['status','read'].includes(args.operation)||name==='room_usage'&&!['summary','report'].includes(args.operation)))throw new Error('삭제된 회의실은 복구한 뒤 작업을 변경해 주세요.');
     switch(name){
+     case 'room_view':data=new RoomView(registry.home).execute(args);break;
      case 'room_check':data=diagnose(registry,{...args,threadId:openingThread(request.params?._meta)});break;
      case 'room_import':{
       const importer=new RoomImport(registry),method={list:'list',start:'start',chunk:'chunk',from_path:'fromPath',preview:'preview',apply:'apply'}[args.operation];
@@ -229,7 +232,12 @@ export function handle(request,registry=projects){
     if(name==='room_team'&&['approve','record','block','retry'].includes(args.operation))data={projectId:data.projectId,setupId:data.setupId,status:data.status,saved:true};
     data=markRecords(name,compactResult(name,data),args);
     if(project&&name!=='room_state'&&name!=='room_open')data={...data,projectId:project.id};
-    return {content:[{type:'text',text:JSON.stringify(data)}],structuredContent:data};
+    let viewMeta;
+    if(name==='room_open'){
+     try{const scope=roomViewScope(registry,project,openingThread(request.params?._meta));viewMeta={'team-room/openIntent':scope?new RoomView(registry.home).issue(scope):{unavailable:true}};}
+     catch{viewMeta={'team-room/openIntent':{unavailable:true}};}
+    }
+    return {content:[{type:'text',text:JSON.stringify(data)}],structuredContent:data,...(viewMeta?{_meta:viewMeta}:{})};
    }catch(error){return {isError:true,content:[{type:'text',text:error.message}]};}
   }
   default:throw new Error('지원하지 않는 MCP 메서드입니다.');

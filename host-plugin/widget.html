@@ -8,6 +8,7 @@
 @media(max-width:560px){.shell{padding:0 15px 18px}.top{gap:5px 10px;padding:6px 0}.connection{margin-left:auto;font-size:9px}.records{padding-top:12px}.message{gap:9px}.text{font-size:13px}.avatar{width:24px;height:24px;font-size:9px}.members{grid-template-columns:repeat(2,minmax(0,1fr))}.heading{gap:6px}.heading time{width:100%;margin:0}.empty{padding:50px 5px}.empty strong{font-size:19px}.actions>span{max-width:100%}.toolbar{flex-wrap:wrap}.button{padding:10px 12px}}
 .project-picker{display:flex;align-items:center;gap:7px;font-size:10px;color:#aaa;min-width:0}.project-picker select{font:inherit;background:#222;color:#eee;border:1px solid #444;border-radius:5px;padding:4px 7px;max-width:220px;min-width:100px}.project-picker select:focus-visible{outline:2px solid #ddd;outline-offset:3px}.project-picker select:disabled{opacity:.5}@media(max-width:560px){.project-picker select{max-width:170px}.connection{flex-basis:100%;margin:0}}
 .menu-trigger{margin-left:auto;padding:5px 9px;font-size:10px}.connection{margin-left:0}
+.language-setting{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px}.language-setting select{max-width:100%}
 #room-menu{width:620px;max-width:calc(100% - 28px);max-height:calc(100% - 28px);padding:0;border:1px solid #444;border-radius:14px;background:#181818;color:#eee;overflow:auto;overscroll-behavior:contain}
 #room-menu::backdrop{background:#0009}.menu-header{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;background:#181818;border-bottom:1px solid #333}.menu-header h2{font-size:14px;margin:0}.menu-content{padding:0 18px 12px}.menu-content .team{border-top:0}.menu-content .guide{margin-top:0}.menu-content .members{grid-template-columns:repeat(2,minmax(0,1fr))}
 @media(max-width:560px){.menu-trigger{padding:5px 8px}.menu-header{padding:10px 14px}.menu-content{padding:0 14px 10px}.menu-content .members{grid-template-columns:1fr}}
@@ -40,12 +41,13 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
 <header class="top"><h1 data-i18n="팀 회의실">팀 회의실</h1><label class="project-picker" for="project"><span data-i18n="프로젝트">프로젝트</span><select id="project" disabled><option value="" data-i18n="프로젝트 선택">프로젝트 선택</option></select></label><button id="open-menu" class="button menu-trigger" type="button" aria-haspopup="dialog" aria-controls="room-menu" data-i18n="메뉴 ☰">메뉴 ☰</button></header>
 <div class="layout"><main class="main">
 <p id="error" class="notice error" role="alert" hidden></p><p id="paused" class="notice" hidden data-i18n="새 요청이 일시정지됐습니다. 진행 중인 작업을 취소하지는 않습니다.">새 요청이 일시정지됐습니다. 진행 중인 작업을 취소하지는 않습니다.</p>
+<section id="view-recovery" class="notice" hidden role="status"><p id="view-recovery-text"></p><button id="view-recover" class="button" type="button" hidden data-i18n="기존 탭 없음 · 다시 열기">기존 탭 없음 · 다시 열기</button></section>
 <section id="team-progress" class="setup-progress" aria-labelledby="team-progress-title" hidden><h2 id="team-progress-title" data-i18n="팀을 준비하고 있어요">팀을 준비하고 있어요</h2><p id="team-progress-summary" role="status" aria-live="polite"></p><progress id="team-progress-bar" aria-label="새 담당자 준비 진행률" data-i18n-aria-label="새 담당자 준비 진행률" max="5" value="0"></progress><ul id="team-progress-roles" aria-label="담당자별 준비 상태" data-i18n-aria-label="담당자별 준비 상태"></ul><p id="team-progress-help" class="small"></p><details id="team-progress-errors" hidden><summary data-i18n="문제 자세히 보기">문제 자세히 보기</summary><p id="team-progress-error-text" class="small"></p></details><div class="roster-actions"><button id="team-progress-resume" class="button" type="button" data-i18n="중단·오류 후 이어하기">중단·오류 후 이어하기</button><button id="team-progress-refresh" class="button" type="button" data-i18n="상태 새로고침">상태 새로고침</button><button id="team-progress-dismiss" class="button" type="button" hidden data-i18n="닫기">닫기</button></div></section>
 <section id="records" class="records" aria-label="실제 회의 발언" data-i18n-aria-label="실제 회의 발언" tabindex="0"><div id="empty" class="empty"><strong data-i18n="무엇을 함께 진행할까요?">무엇을 함께 진행할까요?</strong><span data-i18n="총괄 디렉터에게 목표나 질문을 남겨 주세요.">총괄 디렉터에게 목표나 질문을 남겨 주세요.</span><br><span data-i18n="담당자들이 직접 기록한 질문·답변·진행을 이곳에서 확인합니다.">담당자들이 직접 기록한 질문·답변·진행을 이곳에서 확인합니다.</span></div><ol id="messages" class="messages"></ol></section>
 <form id="form" class="composer"><label id="input-label" class="input-label sr-only" for="text" data-i18n="프로젝트를 선택해 주세요">프로젝트를 선택해 주세요</label><p id="secret-draft-warning" class="small" role="status" hidden></p><textarea id="text" aria-describedby="send-hint" aria-keyshortcuts="Enter" maxlength="6000" rows="2" placeholder="목표, 질문 또는 수정 의견을 남겨 주세요." data-i18n-placeholder="목표, 질문 또는 수정 의견을 남겨 주세요." required></textarea><button id="send" class="button primary" type="submit" hidden tabindex="-1" disabled data-i18n="총괄에게 보내기 ↑">총괄에게 보내기 ↑</button></form>
 </main></div></div>
 <dialog id="room-menu" aria-labelledby="menu-title"><header class="menu-header"><h2 id="menu-title" data-i18n="회의실 메뉴">회의실 메뉴</h2><button id="close-menu" class="button" type="button" aria-label="회의실 메뉴 닫기" data-i18n-aria-label="회의실 메뉴 닫기" data-i18n="닫기 ×">닫기 ×</button></header><div class="menu-content">
-<section class="requests"><label for="ui-language" data-i18n="화면 언어 / Language">화면 언어 / Language</label><select id="ui-language" class="button"><option value="auto" data-i18n="자동 / Auto">자동 / Auto</option><option value="ko">한국어</option><option value="en">English</option><option value="ja">日本語</option><option value="zh-Hans">简体中文</option><option value="zh-Hant">繁體中文</option></select></section>
+<section class="requests language-setting"><label for="ui-language" data-i18n="화면 언어 / Language">화면 언어 / Language</label><select id="ui-language" class="button"><option value="auto" data-i18n="자동 / Auto">자동 / Auto</option><option value="ko">한국어</option><option value="en">English</option><option value="ja">日本語</option><option value="zh-Hans">简体中文</option><option value="zh-Hant">繁體中文</option></select></section>
 <section id="team-setup-entry" class="requests"><button id="create-team" class="button" type="button" aria-expanded="false" aria-controls="team-setup" disabled data-i18n="기본 팀 만들기">기본 팀 만들기</button><section id="team-setup" class="roster-editor" aria-labelledby="team-setup-title" hidden><h3 id="team-setup-title" data-i18n="이 프로젝트에 기본 팀 만들기">이 프로젝트에 기본 팀 만들기</h3><p id="team-setup-project" class="small"></p><ul id="team-setup-roles"></ul><p id="team-setup-method" class="small" data-i18n="현재 대화창을 총괄로 사용하고 이름을 바꿉니다. 기획자·디자이너·프로그래머 2명·QA의 새 대화창 5개만 만듭니다. 총괄의 대화 내용과 현재 모델·추론은 유지합니다. 팀 연결 후 이 대화에서 바로 작업을 지시할 수 있습니다.">현재 대화창을 총괄로 사용하고 이름을 바꿉니다. 기획자·디자이너·프로그래머 2명·QA의 새 대화창 5개만 만듭니다. 총괄의 대화 내용과 현재 모델·추론은 유지합니다. 팀 연결 후 이 대화에서 바로 작업을 지시할 수 있습니다.</p><p class="small" data-i18n="설명을 보거나 취소할 때는 AI를 호출하지 않습니다. 요청문 준비까지는 AI를 호출하지 않습니다. 채팅 입력창에서 요청문을 확인하고 직접 전송하면 생성·초기화 사용량이 발생합니다. 기존 설정은 같은 요청문으로 이어갑니다.">설명을 보거나 취소할 때는 AI를 호출하지 않습니다. 요청문 준비까지는 AI를 호출하지 않습니다. 채팅 입력창에서 요청문을 확인하고 직접 전송하면 생성·초기화 사용량이 발생합니다. 기존 설정은 같은 요청문으로 이어갑니다.</p><div class="roster-actions"><button id="team-setup-apply" class="button primary" type="button" disabled data-i18n="설명 확인 · 요청문 준비">설명 확인 · 요청문 준비</button><button id="team-setup-cancel" class="button" type="button" data-i18n="취소">취소</button></div><section id="team-setup-handoff" hidden><label for="team-setup-request-text" class="input-label" data-i18n="현재 프로젝트 채팅에 직접 보낼 요청문">현재 프로젝트 채팅에 직접 보낼 요청문</label><textarea id="team-setup-request-text" rows="5" readonly></textarea><div class="roster-actions"><button id="team-setup-draft" class="button" type="button" data-i18n="채팅 입력창에 넣기">채팅 입력창에 넣기</button><button id="team-setup-copy" class="button" type="button" data-i18n="요청문 복사">요청문 복사</button></div><p class="small" data-i18n="입력창에서 내용을 확인하고 직접 전송하세요. 입력창 넣기가 지원되지 않으면 요청문을 복사해 같은 프로젝트 채팅에 붙여 넣어 보내세요. 직접 전송 전에는 대화창을 만들지 않습니다.">입력창에서 내용을 확인하고 직접 전송하세요. 입력창 넣기가 지원되지 않으면 요청문을 복사해 같은 프로젝트 채팅에 붙여 넣어 보내세요. 직접 전송 전에는 대화창을 만들지 않습니다.</p></section><p id="team-setup-status" class="status" role="status" aria-live="polite"></p></section></section>
 <section class="requests"><button id="check-connection" class="button" type="button" data-i18n="연결 점검">연결 점검</button><section id="connection-check" hidden><h3 data-i18n="연결 점검 결과">연결 점검 결과</h3><p id="check-status" class="status" role="status"></p><ul id="check-rows" class="roster-rows"></ul><p class="small" data-i18n="프로젝트·총괄·호스트 지원을 읽기 전용으로 확인합니다. 채팅 생성이나 AI 호출은 하지 않습니다. 실제 생성 권한은 팀 설정 때 확인합니다.">프로젝트·총괄·호스트 지원을 읽기 전용으로 확인합니다. 채팅 생성이나 AI 호출은 하지 않습니다. 실제 생성 권한은 팀 설정 때 확인합니다.</p></section></section>
 <p class="small" data-i18n="회의실 메시지와 공유 문서의 텍스트에서 비밀값 노출을 확인합니다. 다른 AI 도구로 직접 전달하는 내용에는 적용되지 않습니다. 의심값은 화면에만 알리고 작업을 중단하지 않습니다.">회의실 메시지와 공유 문서의 텍스트에서 비밀값 노출을 확인합니다. 다른 AI 도구로 직접 전달하는 내용에는 적용되지 않습니다. 의심값은 화면에만 알리고 작업을 중단하지 않습니다.</p><section class="requests"><h3 data-i18n="회의 기록 백업·내보내기">회의 기록 백업·내보내기</h3><p class="small" data-i18n="회의 원문·작업 상세·이미지·음원을 ZIP으로 보관합니다. 압축을 푼 뒤 index.html을 열면 오프라인으로 볼 수 있습니다. 원본 기록은 유지하며 자동 복원은 포함되지 않습니다.">회의 원문·작업 상세·이미지·음원을 ZIP으로 보관합니다. 압축을 푼 뒤 index.html을 열면 오프라인으로 볼 수 있습니다. 원본 기록은 유지하며 자동 복원은 포함되지 않습니다.</p><button id="export-room" class="button" type="button" disabled data-i18n="ZIP으로 백업">ZIP으로 백업</button><div class="roster-actions"><label class="small"><input id="share-mask" type="checkbox" checked> <span data-i18n="공유 사본에서 의심되는 비밀값 가리기">공유 사본에서 의심되는 비밀값 가리기</span></label><button id="share-room" class="button" type="button" disabled data-i18n="공유용 ZIP 만들기">공유용 ZIP 만들기</button></div><p class="small" data-i18n="공유용 사본은 복구용 백업이 아닙니다. 가림을 선택해도 모든 비밀값을 찾는 것은 아니며 이미지·음원 내부는 검사하지 않습니다.">공유용 사본은 복구용 백업이 아닙니다. 가림을 선택해도 모든 비밀값을 찾는 것은 아니며 이미지·음원 내부는 검사하지 않습니다.</p><section id="export-result" hidden><label for="export-path" data-i18n="저장된 ZIP 파일">저장된 ZIP 파일</label><textarea id="export-path" rows="2" readonly></textarea><div class="roster-actions"><button id="export-download" class="button" type="button" data-i18n="파일로 다운로드">파일로 다운로드</button><button id="export-open" class="button" type="button" data-i18n="ZIP 열기">ZIP 열기</button><button id="export-copy" class="button" type="button" data-i18n="경로 복사">경로 복사</button></div><p id="export-notice" class="small" data-i18n="회의 내용과 연결 정보가 포함된 개인 백업입니다. 공개 저장소에 올리지 마세요.">회의 내용과 연결 정보가 포함된 개인 백업입니다. 공개 저장소에 올리지 마세요.</p></section><p id="export-status" class="status" role="status" aria-live="polite"></p></section>
@@ -102,7 +104,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   $('ui-language').addEventListener('change',()=>{
     if(disposed)return;languagePreference=languages.includes($('ui-language').value)?$('ui-language').value:'auto';uiLanguage=languagePreference==='auto'?detectedLanguage():languagePreference;
     try{localStorage.setItem('team-room-ui-language',languagePreference);}catch{}
-    translateStatic();signature='';if(state)accept(state,{expected:projectId});renderProjects();renderDeliveries();controls();if(roster)renderRoster(roster);
+    translateStatic();signature='';if(state)accept(state,{expected:projectId});renderProjects();renderDeliveries();controls();renderViewNotice();if(roster)renderRoster(roster);
     if(checkView?.data)renderConnectionCheck(checkView.data);
     if(importView?.preview)renderImportPreview(importView.preview);
     if(importList?.rows)renderImportList(importList);
@@ -142,6 +144,55 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   let setupProgress=null, setupStale=false;const seenSetups=new Set(),dismissedSetups=new Set();
   let roomDelete=null, deletedView=null;
   let disposed=false, hostContext={}, reportedHeight=null, appliedHeight=null;
+  const viewInstance=crypto.randomUUID();
+  let viewIntent=null,viewHandled=false,viewHandle=null,viewRecovery=null,viewBusy=false,viewNotice='';
+  function renderViewNotice(){
+    $('view-recovery').hidden=!viewNotice||hostContext.displayMode==='fullscreen';
+    $('view-recovery-text').textContent=t(viewNotice);
+    $('view-recover').hidden=!viewRecovery;$('view-recover').disabled=viewBusy;
+  }
+  function receiveViewIntent(meta){
+    if(disposed||viewIntent||viewHandled)return;
+    const intent=meta?.['team-room/openIntent'];
+    if(intent?.unavailable){viewHandled=true;viewNotice='자동 열기 상태를 확인하지 못했습니다. 기존 상단 탭을 확인하거나 카드의 펼치기를 사용해 주세요.';renderViewNotice();return;}
+    if(typeof intent?.id==='string'&&/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(intent.id)){viewIntent=intent.id;void openView();}
+  }
+  async function openView(confirm=false){
+    if(disposed||!initialized||document.hidden||switching||viewBusy||!viewIntent||!confirm&&viewHandled)return;
+    if(confirm&&!viewRecovery)return;
+    const epoch=selectionEpoch,prior=viewRecovery;
+    viewHandled=true;viewBusy=true;renderViewNotice();
+    try{
+      const data=await tool('room_view',{operation:confirm?'confirm':'claim',intentId:viewIntent,instanceId:viewInstance,...(confirm?{viewId:prior.viewId,confirmedNoTab:true}:{})});
+      if(disposed||document.hidden||epoch!==selectionEpoch)return;
+      if(data.status==='uncertain'){
+        viewRecovery={viewId:data.viewId};viewNotice='회의실 탭이 이미 열려 있거나 이전 열기 상태가 남아 있습니다. 상단 탭을 먼저 확인하세요. 기존 탭이 없을 때만 아래 버튼으로 다시 열어 주세요.';
+      }else if(data.status==='open'){
+        viewHandle={intentId:viewIntent,instanceId:viewInstance,viewId:data.viewId};viewRecovery=null;viewNotice='';
+        if(hostContext.displayMode!=='fullscreen'){
+          try{
+            const result=await rpc('ui/request-display-mode',{mode:'fullscreen'});
+            if(disposed||document.hidden||epoch!==selectionEpoch)return;
+            if(result?.mode!=='fullscreen')throw new Error('Display mode unavailable');
+          }catch{
+            if(disposed||document.hidden||epoch!==selectionEpoch)return;
+            // An uncertain native receipt is never automatically resent.
+            viewRecovery=confirm?null:{viewId:data.viewId};viewNotice='탭 열기 결과를 확인하지 못했습니다. 상단 탭을 먼저 확인하세요. 탭이 없으면 다시 열기를 선택하거나 카드의 펼치기를 사용해 주세요.';
+          }
+        }
+      }else if(confirm){viewRecovery=null;viewNotice='다른 열기 요청이 먼저 처리됐거나 이 확인을 이미 사용했습니다. 기존 상단 탭을 확인해 주세요.';}
+    }catch{
+      if(!disposed&&epoch===selectionEpoch){viewRecovery=null;viewNotice='자동 열기 상태를 확인하지 못했습니다. 기존 상단 탭을 확인하거나 카드의 펼치기를 사용해 주세요.';}
+    }finally{viewBusy=false;if(!disposed)renderViewNotice();}
+  }
+  function releaseView(){
+    if(disposed||!viewHandle)return;
+    const args=viewHandle;viewHandle=null;
+    // Explicit teardown is cleanup, not a new call after disposal. Pagehide
+    // alone may be a crash/reload, so it deliberately keeps the record uncertain.
+    try{window.parent.postMessage({jsonrpc:'2.0',id:++seq,method:'tools/call',params:{name:'room_view',arguments:{operation:'release',...args}}},'*');}catch{}
+  }
+  $('view-recover').addEventListener('click',()=>openView(true));
   const expandedDetails=new Set();let detailsEpoch=0;
   // Inline height must not depend on the iframe's own viewport. Otherwise a
   // host measuring content can feed every resize back into the next height.
@@ -825,12 +876,13 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     // Host requests have their own ID space: handle teardown before matching
     // responses to our pending calls, even when the numeric IDs collide.
     if(message.method==='ui/resource-teardown'){
+      releaseView();
       dispose();
       if(message.id!==undefined)window.parent.postMessage({jsonrpc:'2.0',id:message.id,result:{}},'*');
       return;
     }
     if(disposed)return;
-    if(message.method==='ui/notifications/host-context-changed'){applyLayout(message.params||{});return;}
+    if(message.method==='ui/notifications/host-context-changed'){const previous=hostContext.displayMode;applyLayout(message.params||{});if(previous==='fullscreen'&&hostContext.displayMode==='inline')releaseView();renderViewNotice();return;}
     if(message.method==='ui/notifications/tool-input'){
       if(openingInputSeen)return;openingInputSeen=true;
       const id=message.params?.arguments?.projectId;
@@ -842,6 +894,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
       if(message.error)request.reject(Object.assign(new Error(t('호스트가 요청을 거절했습니다.')),{rejected:true}));else if(Object.hasOwn(message,'result'))request.resolve(message.result);else request.reject(new Error(t('호스트 응답을 확인할 수 없습니다.')));
     }else if(message.method==='ui/notifications/tool-result' && message.params?.structuredContent){
       try{accept(extract(message.params),{allowOpen:!projectId && !switching});}catch{/* unrelated tool results do not alter room data */}
+      receiveViewIntent(message.params._meta);
     }
   });
   async function poll(){
@@ -854,11 +907,11 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     finally{polling=false;if(!disposed)controls();}
   }
   function schedule(){if(timer)clearInterval(timer);timer=null;if(!disposed&&initialized&&!document.hidden)timer=setInterval(poll,4000);}
-  document.addEventListener('visibilitychange',()=>{schedule();if(document.hidden){resetAudio();closeRoster();closeTeamSetup();closeLifecycle();closeUtilities();}else{applyLayout();poll();}});
+  document.addEventListener('visibilitychange',()=>{schedule();if(document.hidden){resetAudio();closeRoster();closeTeamSetup();closeLifecycle();closeUtilities();}else{applyLayout();poll();void openView();}});
   async function selectProject(selected,{automatic=false}={}){
     if(disposed||!initialized||document.hidden||sending||pausing||switching){renderProjects();return;}
     if(automatic&&!openingAllowed)return;
-    if(!automatic)openingAllowed=false;openingAttempted=true;openingNotice='';openingProjectName='';
+    if(!automatic){openingAllowed=false;viewHandled=true;viewRecovery=null;viewNotice='';renderViewNotice();}openingAttempted=true;openingNotice='';openingProjectName='';
     if(projectId===selected&&state?.project?.id===selected)return;
     closeRoster();closeTeamSetup();closeLifecycle();closeUtilities();if(projectId)drafts.set(projectId,$('text').value);
     projectId=selected;setupProgress=null;setupStale=false;$('team-progress').hidden=true;
@@ -876,7 +929,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
       if(!accepted && expected)throw new Error(t('선택한 프로젝트의 기록을 확인하지 못했습니다.'));
       if(!expected)$('empty').textContent=t('상단에서 프로젝트를 선택해 주세요.');
     }catch(err){if(epoch===selectionEpoch)showError(t('프로젝트 전환 실패 · ')+err.message);}
-    finally{if(epoch===selectionEpoch){switching=false;controls();}}
+    finally{if(epoch===selectionEpoch){switching=false;controls();void openView();}}
   }
   $('project').addEventListener('change',()=>selectProject($('project').value||null));
   $('text').addEventListener('input',()=>{openingAllowed=false;controls();});
@@ -935,7 +988,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   async function initialize(){
     if(window.parent===window){$('connection').textContent=t('단독 창에서는 연결할 수 없습니다.');showError(t('기존 채팅의 MCP App 패널에서 팀 회의실을 열어 주세요.'));return;}
     try{
-      const result=await rpc('ui/initialize',{appInfo:{name:'team-room',version:'0.18.0'},appCapabilities:{availableDisplayModes:['inline','fullscreen']},protocolVersion:'2026-01-26'});
+      const result=await rpc('ui/initialize',{appInfo:{name:'team-room',version:'0.18.2'},appCapabilities:{availableDisplayModes:['inline','fullscreen']},protocolVersion:'2026-01-26'});
       if(disposed)return;
       if(result?.protocolVersion!=='2026-01-26')throw new Error(t('지원되는 호스트 통신 버전을 확인하지 못했습니다.'));
       hostObservation={protocol:result.protocolVersion,message:false,draft:false};canDownload=Boolean(result.hostCapabilities?.downloadFile);canOpenFile=Boolean(result.hostCapabilities?.experimental?.['openai/files']||result.hostCapabilities?.extensions?.['openai/files']);
@@ -943,7 +996,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
       const textCapability=result.hostCapabilities?.message?.text;
       canMessage=textCapability===true || (textCapability!==null && typeof textCapability==='object' && !Array.isArray(textCapability));hostObservation.message=canMessage;hostObservation.draft=messageExtension;
       window.parent.postMessage({jsonrpc:'2.0',method:'ui/notifications/initialized',params:{}},'*');
-      initialized=true;applyLayout(result.hostContext||{});controls();if(initialProjectId)await selectProject(initialProjectId,{automatic:true});else await poll();schedule();
+      initialized=true;applyLayout(result.hostContext||{});controls();if(initialProjectId)await selectProject(initialProjectId,{automatic:true});else await poll();schedule();void openView();
     }catch(err){if(!disposed){showError(t('회의실 연결 실패 · ')+err.message);$('connection').textContent=t('호스트 연결을 확인하지 못했습니다.');}}
   }
   translateStatic();initialize();

@@ -6,6 +6,7 @@ import {randomUUID} from 'node:crypto';
 import {roleCatalog,roleTypeOf} from '../host-plugin/roles.mjs';
 import {renderWidget} from '../host-plugin/ui.mjs';
 import {TEAM_ROLES} from '../host-plugin/team-setup.mjs';
+import {RoomView} from '../host-plugin/room-view.mjs';
 const script=renderWidget().match(/<script>([\s\S]*?)<\/script>/)[1];
 class Element {
  constructor(tag='div'){this.tag=tag;this.children=[];this.events={};this.value='';this.dataset={};this.disabled=false;this.hidden=false;this.scrollHeight=0;this.scrollTop=0;this.clientHeight=300;}
@@ -24,9 +25,9 @@ class Element {
  set innerHTML(value){throw new Error('unsafe HTML rendering');}
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
-async function widget(t,{capability={},messageFails=false,autoSelect=true,deferMessages=false,holdSubmit=false,holdImages=false,badImage=false,holdAudio=false,badAudio=false,holdRoster=null,rosterError=null,currentProject=null,openingStatus='unavailable',holdOpening=false,initialInput,holdTeam=null,teamStatus='preview',holdManage=null,busyRoom=false,draftSupport=true,openingProjectName,language='ko-KR',storedLanguage,fileSupport=false,downloadSupport=false,holdUtility=null,holdImport=null,importCanRestore=true}={}){
+async function widget(t,{capability={},messageFails=false,autoSelect=true,deferMessages=false,holdSubmit=false,holdImages=false,badImage=false,holdAudio=false,badAudio=false,holdRoster=null,rosterError=null,currentProject=null,openingStatus='unavailable',holdOpening=false,initialInput,holdTeam=null,teamStatus='preview',holdManage=null,busyRoom=false,draftSupport=true,openingProjectName,language='ko-KR',storedLanguage,fileSupport=false,downloadSupport=false,holdUtility=null,holdImport=null,importCanRestore=true,viewGuard=null,holdView=false,holdDisplay=false,displayReply='fullscreen',initialDisplayMode='inline'}={}){
  const elements=new Map(),sent=[],callbacks={},intervals=[],messagePackets=[],imagePackets=[],audioPackets=[],openingPackets=[],teamPackets=[],copied=[],timeouts=new Map();let timeoutSeq=0;
- const utilityPackets=[],utilityBehavior={hold:holdUtility};
+ const utilityPackets=[],utilityBehavior={hold:holdUtility},viewPackets=[],displayPackets=[];
  const importPackets=[],importBehavior={hold:holdImport,canRestore:importCanRestore};
  const teamData={previewId:randomUUID(),setupId:randomUUID(),projectId:'created',projectName:'가상 새 프로젝트',status:teamStatus,roles:TEAM_ROLES.map(r=>({id:r.id,name:r.name})),modelMode:'default',continuationPrompt:'Synthetic original team request',setupStatus:'planned',readyCount:0};
  const projects=[{id:'test',name:'Test',directorName:'테스트 총괄'},{id:'second',name:'Second',directorName:'다른 총괄'}];
@@ -41,9 +42,11 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
  const styles=new Map(),styleWrites=[];
  const document={hidden:false,body:{hidden:false},documentElement:{style:{setProperty:(key,value)=>{styleWrites.push({key,value});styles.set(key,value);}}},activeElement:null,getElementById:id=>{if(!elements.has(id))elements.set(id,new Element());return elements.get(id);},createElement:tag=>new Element(tag),addEventListener:(name,fn)=>callbacks[name]=fn};
  const parent={postMessage:packet=>{sent.push(packet);if(packet.id===undefined)return;let result={};
-  if(packet.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostCapabilities:{message:{text:capability},downloadFile:downloadSupport?{}:undefined,experimental:{...(draftSupport?{'openai/message':{}}:{}),...(fileSupport?{'openai/files':{}}:{})}}};
+  if(packet.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostCapabilities:{message:{text:capability},downloadFile:downloadSupport?{}:undefined,experimental:{...(draftSupport?{'openai/message':{}}:{}),...(fileSupport?{'openai/files':{}}:{})}},hostContext:{displayMode:initialDisplayMode}};
+  if(packet.method==='ui/request-display-mode'){displayPackets.push(packet);if(holdDisplay)return;result={mode:displayReply};}
   if(packet.method==='tools/call'){
    const {name,arguments:args}=packet.params;
+   if(name==='room_view'){viewPackets.push(packet);result={structuredContent:viewGuard?.execute(args)||{status:'expired'}};if(holdView)return;}
    if(name==='room_import'){
     importPackets.push(packet);const row={importId:args.importId,projectId:'recovered',name:'Backup fixture',sha256:'a'.repeat(64),counts:{requests:1,messages:2,images:0,audio:0},members:1,canRestore:importBehavior.canRestore,reasons:importBehavior.canRestore?[]:['exists']};
     result={structuredContent:args.operation==='list'?{imports:[]}:args.operation==='preview'?row:args.operation==='start'?{importId:args.importId,offset:0,size:args.size}:args.operation==='chunk'?{importId:args.importId,offset:args.offset+Buffer.from(args.data,'base64').length}:args.operation==='apply'?{importId:args.importId,projectId:'recovered',restored:true,paused:true}: {importId:args.importId,offset:100,size:100}};if(importBehavior.hold===args.operation)return;
@@ -96,10 +99,72 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
  const receive=data=>callbacks.message({source:parent,data:{jsonrpc:'2.0',...data}});
  const respondMessage=(index,result={})=>receive({id:messagePackets[index].id,result});
  const expire=()=>{for(const [id,fn] of [...timeouts]){timeouts.delete(id);fn();}};
- return {importPackets,importBehavior,utilityPackets,utilityBehavior,rosterPackets,rosterBehavior,catalogs,sent,elements,state,second,states,chooser,notify,callbacks,intervals,document,styles,styleWrites,receive,window,messagePackets,imagePackets,audioPackets,openingPackets,teamPackets,teamData,respondMessage,expire,managePackets,manageBehavior,archived,copied,storage};
+ return {viewPackets,displayPackets,importPackets,importBehavior,utilityPackets,utilityBehavior,rosterPackets,rosterBehavior,catalogs,sent,elements,state,second,states,chooser,notify,callbacks,intervals,document,styles,styleWrites,receive,window,messagePackets,imagePackets,audioPackets,openingPackets,teamPackets,teamData,respondMessage,expire,managePackets,manageBehavior,archived,copied,storage};
 }
 
 async function previewDelete(w){w.elements.get('open-menu').events.click();await w.elements.get('delete-room').events.click();}
+function viewFixture(t){
+ const base=new URL('../.local/test-data/',import.meta.url);fs.mkdirSync(base,{recursive:true});
+ const home=fs.mkdtempSync(new URL('view-widget-',base));t.after(()=>fs.rmSync(home,{recursive:true,force:true}));
+ return new RoomView(home);
+}
+function viewIntent(w,guard,scope='synthetic-project'){
+ const intent=guard.issue(scope);
+ w.receive({method:'ui/notifications/tool-result',params:{structuredContent:w.state,_meta:{'team-room/openIntent':intent}}});return intent;
+}
+test('fresh explicit open requests fullscreen once; remounted history and routine refresh never reopen it',async t=>{
+ const guard=viewFixture(t),w=await widget(t,{viewGuard:guard}),intent=viewIntent(w,guard);await settle();
+ assert.equal(w.displayPackets.length,1);assert.equal(w.viewPackets.length,1);
+ for(let i=0;i<5;i++){w.notify(w.state);for(const interval of w.intervals)interval();}await settle();
+ assert.equal(w.displayPackets.length,1);assert.equal(w.viewPackets.length,1);
+ const history=await widget(t,{viewGuard:guard});
+ history.receive({method:'ui/notifications/tool-result',params:{structuredContent:history.state,_meta:{'team-room/openIntent':intent}}});await settle();
+ assert.equal(history.displayPackets.length,0);assert.equal(history.elements.get('view-recovery').hidden,true);
+ assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+});
+test('uncertain occupancy shows nonmodal recovery and leaves the director composer usable',async t=>{
+ const guard=viewFixture(t),old=await widget(t,{viewGuard:guard});viewIntent(old,guard);await settle();old.callbacks.pagehide();
+ const w=await widget(t,{viewGuard:guard});viewIntent(w,guard);await settle();
+ assert.equal(w.displayPackets.length,0);assert.equal(w.elements.get('view-recovery').hidden,false);
+ assert.equal(w.elements.get('room-menu').open,undefined);assert.equal(w.state.paused,false);
+ w.elements.get('text').value='Continue authorized work';w.elements.get('text').events.input();assert.equal(w.elements.get('send').disabled,false);
+ await w.elements.get('view-recover').events.click();await settle();assert.equal(w.displayPackets.length,1);
+ await w.elements.get('view-recover').events.click();await settle();assert.equal(w.displayPackets.length,1);
+ assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+});
+test('explicit teardown releases its display; pagehide or a lost display receipt never resends',async t=>{
+ const guard=viewFixture(t),w=await widget(t,{viewGuard:guard});viewIntent(w,guard);await settle();
+ w.receive({method:'ui/resource-teardown',id:'synthetic-close'});await settle();
+ assert.equal(w.viewPackets.filter(p=>p.params.arguments.operation==='release').length,1);
+ const next=await widget(t,{viewGuard:guard,holdDisplay:true});viewIntent(next,guard);await settle();
+ assert.equal(next.displayPackets.length,1);next.expire();await settle();
+ for(const interval of next.intervals)interval();await settle();assert.equal(next.displayPackets.length,1);
+ assert.equal(next.elements.get('view-recovery').hidden,false);
+ const before=next.sent.length;next.callbacks.pagehide();next.receive({id:next.displayPackets[0].id,result:{mode:'fullscreen'}});await settle();assert.equal(next.sent.length,before);
+});
+test('hidden, closed or project-switched late claims cannot dispatch a fullscreen request',async t=>{
+ for(const interruption of ['hidden','closed','switch']){
+  const guard=viewFixture(t),w=await widget(t,{viewGuard:guard,holdView:true});viewIntent(w,guard);await settle();
+  const packet=w.viewPackets[0],saved=JSON.parse(fs.readFileSync(guard.file)),slot=Object.values(saved.scopes)[0];
+  if(interruption==='hidden')w.document.hidden=true;
+  if(interruption==='closed')w.callbacks.pagehide();
+  if(interruption==='switch'){w.elements.get('project').value='second';await w.elements.get('project').events.change();}
+  w.receive({id:packet.id,result:{structuredContent:{status:'open',viewId:slot.id}}});await settle();
+  assert.equal(w.displayPackets.length,0,interruption);assert.equal(w.sent.filter(p=>p.method==='ui/message').length,0);
+ }
+});
+test('restored fullscreen registers occupancy without requesting another tab and releases on explicit inline exit',async t=>{
+ const guard=viewFixture(t),w=await widget(t,{viewGuard:guard,initialDisplayMode:'fullscreen'});viewIntent(w,guard);await settle();assert.equal(w.displayPackets.length,0);
+ w.receive({method:'ui/notifications/host-context-changed',params:{displayMode:'inline'}});await settle();
+ assert.equal(w.viewPackets.filter(p=>p.params.arguments.operation==='release').length,1);
+ w.receive({method:'ui/notifications/host-context-changed',params:{displayMode:'fullscreen'}});await settle();assert.equal(w.displayPackets.length,0);
+});
+test('unavailable opening metadata keeps the card and composer usable without guessing another display scope',async t=>{
+ const w=await widget(t);w.elements.get('text').value='Original draft';w.elements.get('text').events.input();
+ w.receive({method:'ui/notifications/tool-result',params:{structuredContent:w.state,_meta:{'team-room/openIntent':{unavailable:true}}}});await settle();
+ assert.equal(w.displayPackets.length,0);assert.equal(w.viewPackets.length,0);assert.equal(w.elements.get('text').value,'Original draft');
+ assert.equal(w.elements.get('send').disabled,false);assert.equal(w.elements.get('view-recover').hidden,true);
+});
 test('English controls follow browser language; changing UI language preserves user prose and drafts without AI',async t=>{
  const w=await widget(t,{language:'en-US'});assert.equal(w.elements.get('pause').textContent,'Pause new requests');assert.equal(w.elements.get('text').placeholder,'Leave a goal, question or correction.');
  w.state.messages.push({id:'literal',authorId:'director',text:'프로젝트 선택'});w.notify(w.state);w.elements.get('text').value='내가 쓴 원문';const before=JSON.stringify(w.state);

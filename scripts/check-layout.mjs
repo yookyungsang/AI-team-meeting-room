@@ -10,34 +10,38 @@ import {handle} from '../host-plugin/server.mjs';
 import {unzipOwn} from '../host-plugin/zip.mjs';
 import {demoSession} from './demo-session.mjs';
 import {TEAM_ROLES} from '../host-plugin/team-setup.mjs';
+import {RoomView} from '../host-plugin/room-view.mjs';
 const root=path.resolve(import.meta.dirname,'..');
 const modulePath=process.env.PLAYWRIGHT_MODULE;
 const {chromium}=await import(modulePath?pathToFileURL(modulePath).href:'playwright');
 const browser=await chromium.launch({headless:true,args:['--mute-audio'],...(process.env.BROWSER_EXECUTABLE?{executablePath:process.env.BROWSER_EXECUTABLE}:{})});
 const output=path.join(root,'.local');fs.mkdirSync(output,{recursive:true});
 const report={host:'isolated Chromium harness, not Codex',cases:[]};
-async function mount(page,html,width,openingRoom=null,initialDisplayMode='fullscreen'){
+async function mount(page,html,width,openingRoom=null,initialDisplayMode='fullscreen',openIntent=null){
  await page.setViewportSize({width,height:1000});
  // Intercept the entire fixture origin: no external server or network request.
  // A secure origin supplies native crypto.randomUUID used by explicit submits.
  await page.route('https://team-room.invalid/',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><html><body style="margin:0"><iframe title="Test meeting" style="display:block;border:0;width:100%;height:1000px"></iframe></body></html>'}));
  await page.goto('https://team-room.invalid/');
- await page.evaluate(({html,roles,openingRoom,initialDisplayMode})=>{
+ await page.evaluate(({html,roles,openingRoom,initialDisplayMode,openIntent})=>{
   window.fixtureRoles=roles;
   if(openingRoom)window.testRoomState=openingRoom;
   window.packets=[];
   const iframe=document.querySelector('iframe');
-  window.addEventListener('message',event=>{
+  window.addEventListener('message',async event=>{
    if(event.source!==iframe.contentWindow)return;
    const p=event.data;window.packets.push(p);
+   if(p.method==='ui/notifications/initialized'&&openIntent&&!window.intentDelivered){window.intentDelivered=true;event.source.postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:openingRoom,_meta:{'team-room/openIntent':openIntent}}},'*');}
    if(p.method==='ui/notifications/size-changed' && p.params.height)iframe.style.height=p.params.height+'px';
    if(p.id===undefined||!p.method)return;
    if(p.method==='ui/message'&&window.deferMessageReceipts){(window.delayedReceipts||=[]).push(p.id);return;}
    let result={};
    if(p.method==='ui/initialize')result={protocolVersion:'2026-01-26',hostCapabilities:{message:{text:{}},experimental:{'openai/message':{}}},hostContext:{displayMode:initialDisplayMode,containerDimensions:{height:1000}}};
+   if(p.method==='ui/request-display-mode'){result={mode:'fullscreen'};event.source.postMessage({jsonrpc:'2.0',method:'ui/notifications/host-context-changed',params:{displayMode:'fullscreen',containerDimensions:{height:1000}}},'*');}
    if(p.method==='tools/call'){
     const empty={project:null,projects:[],members:[],requests:[],messages:[],paused:true};
-    if(p.params.name==='room_team_setup'){
+    if(p.params.name==='room_view')result={structuredContent:await window.fixtureViewTool(p.params.arguments)};
+    else if(p.params.name==='room_team_setup'){
      const fixture=window.menuTeamFixture,a=p.params.arguments;
      if(a.operation==='apply')fixture.status='requested';fixture.continuationPrompt='Synthetic original setup request';fixture.setupStatus='planned';fixture.readyCount=0;
      result={structuredContent:{...fixture,...(a.operation==='apply'?{dispatch:true,prompt:'Synthetic original setup request'}:{})}};
@@ -65,7 +69,7 @@ async function mount(page,html,width,openingRoom=null,initialDisplayMode='fullsc
    event.source.postMessage({jsonrpc:'2.0',id:p.id,result},'*');
   });
   iframe.srcdoc=html.replace('<head>','<head><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\'; img-src data:; media-src data:">');
- },{html,roles:roleCatalog(),openingRoom,initialDisplayMode});
+ },{html,roles:roleCatalog(),openingRoom,initialDisplayMode,openIntent});
  const frame=page.frames().find(f=>f!==page.mainFrame());
  await frame.waitForSelector('.shell');
  await page.waitForFunction(()=>window.packets.some(p=>p.method==='tools/call'));
@@ -95,6 +99,34 @@ try{
  }
  const historyResource=handle({method:'resources/read',params:{uri:'ui://team-room/meeting.html'}}).contents[0];
  assert.equal(historyResource._meta['openai/ui'].preferredDisplayMode,'inline');
+ for(const width of [1280,420]){
+  const dir=fs.mkdtempSync(path.join(output,'view-browser-')),guard=new RoomView(dir);
+  const room={project:{id:'example',name:'Example project'},projects:[{id:'example',name:'Example project'}],members:[{id:'director',name:'Example director',role:'Director'}],requests:[],messages:[],paused:false};
+  const page=await browser.newPage({locale:'ko-KR'});await page.exposeFunction('fixtureViewTool',args=>guard.execute(args));
+  const intent=guard.issue('synthetic-project');await mount(page,historyResource.text,width,room,'inline',intent);
+  await page.waitForFunction(()=>window.packets.filter(p=>p.method==='ui/request-display-mode').length===1);
+  // Closing a browser fixture supplies pagehide only, simulating uncertain
+  // cleanup rather than falsely certifying a native app crash or tab close.
+  await page.close();
+  const recovery=await browser.newPage({locale:'ko-KR'});await recovery.exposeFunction('fixtureViewTool',args=>guard.execute(args));
+  const frame=await mount(recovery,historyResource.text,width,room,'inline',guard.issue('synthetic-project'));
+  await frame.locator('#view-recovery').waitFor({state:'visible'});
+  assert.equal(await recovery.evaluate(()=>window.packets.filter(p=>p.method==='ui/request-display-mode').length),0);
+  await frame.locator('#text').fill('Synthetic draft stays editable');assert.equal(await frame.locator('#send').isEnabled(),true);
+  assert(await frame.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+  await recovery.screenshot({path:path.join(output,'view-recovery-'+width+'.png')});
+  await frame.locator('#view-recover').click();await recovery.waitForFunction(()=>window.packets.filter(p=>p.method==='ui/request-display-mode').length===1);
+  assert.equal(await frame.locator('#text').inputValue(),'Synthetic draft stays editable');
+  assert.equal(await recovery.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),0);
+  await recovery.close();
+  const history=await browser.newPage({locale:'ko-KR'});await history.exposeFunction('fixtureViewTool',args=>guard.execute(args));
+  const old=await mount(history,historyResource.text,width,room,'inline',intent);
+  await history.waitForFunction(()=>window.packets.some(p=>p.params?.name==='room_view'));
+  await history.waitForTimeout(60);assert.equal(await history.evaluate(()=>window.packets.filter(p=>p.method==='ui/request-display-mode').length),0);
+  assert.equal(await old.locator('#view-recovery').isVisible(),false);
+  report.cases.push({width,oneUseAutomaticFullscreen:true,historyReplaySuppressed:true,uncertainRecoveryExplicit:true,composerUnblocked:true,noHorizontalOverflow:true,modelCalls:0});
+  await history.close();fs.rmSync(dir,{recursive:true,force:true});
+ }
  for(const width of [1280,420]){
   const room={project:{id:'history',name:'Synthetic history'},projects:[{id:'history',name:'Synthetic history',directorName:'Fixture director'}],members:[{id:'director',name:'Fixture director',role:'Director'}],requests:[],messages:[{id:'synthetic-history-post',authorId:'director',text:'Synthetic original text retained.'}],paused:false};
   const page=await browser.newPage({locale:'ko-KR'}),frame=await mount(page,historyResource.text,width,room,historyResource._meta['openai/ui'].preferredDisplayMode);

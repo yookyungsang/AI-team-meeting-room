@@ -4,6 +4,7 @@
 const policy={
  room_open:[false,true,false,true],
  room_state:[false,true,false,true],
+ room_view:[false,false,false,false],
  room_submit:[false,false,true,false],
  room_get:[true,false,true,false],
  room_claim:[false,true,false,false],

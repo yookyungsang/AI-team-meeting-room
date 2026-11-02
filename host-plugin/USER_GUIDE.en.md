@@ -6,9 +6,9 @@
 
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.18.0. Japanese, Simplified Chinese and Traditional Chinese installation/user guides are linked below. You can use the plugin across projects, with separate connections and records for each. The meeting UI supports Korean, English, Japanese, Simplified Chinese and Traditional Chinese. Choose Auto or a specific language under Menu → Language. Reports retain the user's requested or established conversation language. Older Korean control labels remain documented below alongside English names.
+This guide describes version 0.18.2. Japanese, Simplified Chinese and Traditional Chinese installation/user guides are linked below. You can use the plugin across projects, with separate connections and records for each. The meeting UI supports Korean, English, Japanese, Simplified Chinese and Traditional Chinese. Choose Auto or a specific language under Menu → Language. Reports retain the user's requested or established conversation language. Older Korean control labels remain documented below alongside English names.
 
-Room cards in chat history stay inline instead of automatically opening another tab. Use the card’s host-provided Expand control for a larger view. Opening the room directly from the app menu is unchanged.
+Fresh opening requests ask for an upper tab once. Historical cards do not repeat that request. If an existing or uncertain opening record remains, check the upper tabs first; use **No existing tab · reopen** only if no room tab exists. The card remains usable. Manual host controls and older untracked tabs are outside this guard. [Opening behavior and limits](skills/team-room/references/room-opening.md).
 
 Possible secrets in meeting-message and sharing-document text are checked locally. Warnings do not stop work or change originals, and do not cover other AI tools or image/audio contents. Choose masking under Menu → Create sharing ZIP. This reading copy is separate from the exact private recovery backup.
 

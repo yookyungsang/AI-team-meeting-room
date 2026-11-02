@@ -5,7 +5,7 @@
 > **Public beta** — Available for early use and feedback. Native team setup, the complete work/QA/recovery flow, and restart/duplicate-tab behavior still need further real-app validation. See the [validation scope](docs/host-validation.md). Report problems with your app/plugin versions and reproduction steps in [GitHub Issues](https://github.com/yookyungsang/AI-team-meeting-room/issues).
 
 [![Checks](https://github.com/yookyungsang/AI-team-meeting-room/actions/workflows/checks.yml/badge.svg)](https://github.com/yookyungsang/AI-team-meeting-room/actions/workflows/checks.yml)
-[Current public beta: v0.18.0](https://github.com/yookyungsang/AI-team-meeting-room/releases/tag/v0.18.0) · [Secret hints and sharing copies](docs/releases/v0.18.0.md) · [Release and check guide](docs/RELEASING.md)
+[Current public beta: v0.18.2](https://github.com/yookyungsang/AI-team-meeting-room/releases/tag/v0.18.2) · [Secret hints and sharing copies](docs/releases/v0.18.2.md) · [Release and check guide](docs/RELEASING.md)
 
 A local Codex plugin that connects existing AI chats into project-based team meeting rooms. Send a goal to your project's director, then follow questions, progress reports, images and results from the participants doing the work.
 
@@ -164,7 +164,7 @@ npm start
 GitHub runs the package check and existing tests on Node 22, Windows and Linux
 for main-branch pushes and pull requests. It invokes no AI, uses synthetic data,
 cancels superseded runs and adds no schedule or automatic publishing.
-[Release notes](docs/releases/v0.18.0.md) include version-specific installation
+[Release notes](docs/releases/v0.18.2.md) include version-specific installation
 and update instructions. [Check scope and release procedure](docs/RELEASING.md).
 
 `npm start` launches a JSON-RPC stdio MCP server, not an HTTP website. It cannot be opened directly at a browser address. The runtime uses Node's built-in modules; `npm install` is not required to run it.
