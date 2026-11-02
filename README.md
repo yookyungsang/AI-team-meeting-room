@@ -5,7 +5,7 @@
 > **Public beta** — Available for early use and feedback. Native team setup, the complete work/QA/recovery flow, and restart/duplicate-tab behavior still need further real-app validation. See the [validation scope](docs/host-validation.md). Report problems with your app/plugin versions and reproduction steps in [GitHub Issues](https://github.com/yookyungsang/AI-team-meeting-room/issues).
 
 [![Checks](https://github.com/yookyungsang/AI-team-meeting-room/actions/workflows/checks.yml/badge.svg)](https://github.com/yookyungsang/AI-team-meeting-room/actions/workflows/checks.yml)
-[Current public beta: v0.19.1](https://github.com/yookyungsang/AI-team-meeting-room/releases/tag/v0.19.1) · [Primary team controls at the top](docs/releases/v0.19.1.md) · [Release and check guide](docs/RELEASING.md)
+[Current public beta: v0.19.1](https://github.com/yookyungsang/AI-team-meeting-room/releases/tag/v0.19.1) · [Team controls below language settings](docs/releases/v0.19.1.md) · [Release and check guide](docs/RELEASING.md)
 
 A local Codex plugin that connects existing AI chats into project-based team meeting rooms. Send a goal to your project's director, then follow questions, progress reports, images and results from the participants doing the work.
 
