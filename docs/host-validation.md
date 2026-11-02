@@ -106,3 +106,37 @@ project membership is still required and internal agent/review sources stay out.
 comparison measures local MCP payload and serialization, not native latency or
 model billing. Full onboarding, unexpected app/tab recovery, updated native long
 history and positive GUI restore remain stable-release gates.
+
+
+## 2026-11-02 · v0.19.0 native backup follow-up
+
+실제 Codex MCP App 메뉴에서 검증용 회의실의 개인 ZIP을 만들고, 같은 파일을
+불러왔을 때 기존 회의실의 덮어쓰기·병합을 거절하며 복구 버튼이 비활성화되는
+것을 확인했습니다. 진행 중 작업이 없는 검증용 회의실만 원본 안전 사본과 검증된
+ZIP을 보관한 뒤 일시 분리했습니다. 이 준비 과정은 테스트 장치이며 일반 사용자용
+회의실 삭제 기능이나 자동 복구 동작으로 소개하지 않습니다.
+
+그 다음 **실제 메뉴의 백업 내용 확인 → 확인한 회의실 복구**로 긍정 경로를
+실행했습니다. 성공 안내가 표시됐고 원문 5개·요청 1건·원래 담당자 3명의 연결이
+일치했습니다. 복원 직후 새 요청은 일시정지됐으며, 별도 재개 버튼으로 원래 접수
+상태를 되돌린 뒤 전체 회의 데이터가 원본과 같은지도 비교했습니다. 다른 프로젝트
+설정과 기존 작업 제어·검증 원장은 바뀌지 않았고 원본 안전 사본도 그대로입니다.
+검사 과정에서 새 담당자 AI를 호출하거나 원문을 다시 작성하지 않았습니다.
+
+이 검사는 실제 메뉴 복구의 증거입니다. 백업에 이미지·음원은 없었으므로 실제
+미디어 복원, 복구 도중 앱이 죽는 상황, 예기치 않은 OS 종료까지 통과한 것으로
+확대하지 않습니다. 미디어와 커밋 중단의 세부 사례는 기존 격리 검사 범위입니다.
+
+### English: native backup follow-up
+
+The real Codex MCP App created a private ZIP, refused to overwrite the existing
+room with a disabled restore action, and then restored the same finished test
+room through its actual preview/confirmation controls. A reversible test fixture
+preserved the original file and validated ZIP before temporarily disconnecting
+only that idle test room; it is not a public deletion/import workflow.
+
+All five messages, one request and three original routes matched. Restore paused
+new submissions; explicit resume returned the complete room data to its original
+state. Other project settings, the control/validation ledger and the safety copy
+were unchanged. No worker AI was invoked. This does not establish native media
+restore, a crash during apply, or OS crash behavior.
