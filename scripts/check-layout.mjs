@@ -371,7 +371,21 @@ try{
    window.testRoomState.members=window.rosterFixture.members;
    document.querySelector('iframe').contentWindow.postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{structuredContent:window.testRoomState}},'*');
   });
-  await frame.locator('#open-menu').click();await frame.locator('#edit-roster').click();await frame.waitForSelector('.roster-row');
+  await frame.locator('#open-menu').click();
+  const primaryMenu=await frame.locator('#room-menu').evaluate(menu=>{
+   const team=menu.querySelector('.team'),edit=menu.querySelector('#edit-roster'),language=menu.querySelector('.language-setting'),header=menu.querySelector('.menu-header');
+   return {beforeLanguage:!!(team.compareDocumentPosition(language)&Node.DOCUMENT_POSITION_FOLLOWING),summaryTop:team.querySelector('summary').getBoundingClientRect().top,editBottom:edit.getBoundingClientRect().bottom,headerBottom:header.getBoundingClientRect().bottom,menuBottom:menu.getBoundingClientRect().bottom};
+  });
+  assert(primaryMenu.beforeLanguage,'team controls precede secondary settings in reading and tab order');
+  assert(primaryMenu.summaryTop>=primaryMenu.headerBottom&&primaryMenu.summaryTop-primaryMenu.headerBottom<40,'primary controls appear at the top');
+  assert(primaryMenu.editBottom<primaryMenu.menuBottom,'member editing is visible without scrolling');
+  const menuDraft=await frame.locator('#text').inputValue();
+  await frame.locator('#room-menu').evaluate(menu=>menu.scrollTop=menu.scrollHeight);
+  await frame.locator('#close-menu').click();await frame.locator('#open-menu').click();
+  assert.equal(await frame.locator('#room-menu').evaluate(menu=>menu.scrollTop),0,'reopening returns to primary controls');
+  assert.equal(await frame.locator('#text').inputValue(),menuDraft);
+  await frame.locator('#room-menu').screenshot({path:path.join(output,`menu-primary-${width}.png`)});
+  await frame.locator('#edit-roster').click();await frame.waitForSelector('.roster-row');
   assert.equal(await frame.locator('#roster-prepare').count(),0,'legacy AI lookup button must be absent');
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.params?.name==='room_roster').at(-1).params.arguments.operation),'discover');
   assert.equal(await frame.locator('#roster-choice option[value="qa"]').textContent(),'예시 QA 대화창 · QA');
@@ -438,7 +452,7 @@ try{
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='tools/call').length),calls);
   assert.equal(await frame.evaluate(()=>document.body.hidden),true);assert.equal(await frame.locator('#audio-full').getAttribute('src'),null);
   assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message').length),2);
-  report.cases.push({width,transitions:20,heights,layout,typography,rosterAlignment,safeReadableMessages:true,foldedTechnicalDetails:true,audioPreview:{lazy:true,outsideDetails:true,decodedWav:true,manualPlay:true,refreshKeepsPlayback:true,cache:true,closeStops:true,lateAfterTeardown:'ignored'},detailsPreservedOnRefresh:true,naturalPeerExample:true,inlineImages:true,imageZoom:true,imageCache:true,finalUsageByParticipant:true,missingUsageNotZero:true,lateImagesAfterTeardown:'ignored',teardown:'acknowledged; no polling for 4.2 seconds',sendButtonVisible:false,keyboardSubmit:true,inFlightAddition:true,outOfOrderReceiptsPreserveDraft:true,simulatedHostMessages:2,modelCalls:0});
+  report.cases.push({width,transitions:20,heights,layout,typography,rosterAlignment,teamControlsFirst:true,reopenedMenuAtTop:true,safeReadableMessages:true,foldedTechnicalDetails:true,audioPreview:{lazy:true,outsideDetails:true,decodedWav:true,manualPlay:true,refreshKeepsPlayback:true,cache:true,closeStops:true,lateAfterTeardown:'ignored'},detailsPreservedOnRefresh:true,naturalPeerExample:true,inlineImages:true,imageZoom:true,imageCache:true,finalUsageByParticipant:true,missingUsageNotZero:true,lateImagesAfterTeardown:'ignored',teardown:'acknowledged; no polling for 4.2 seconds',sendButtonVisible:false,keyboardSubmit:true,inFlightAddition:true,outOfOrderReceiptsPreserveDraft:true,simulatedHostMessages:2,modelCalls:0});
   await page.close();
  }
  for(const width of [1280,420]){
