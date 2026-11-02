@@ -441,5 +441,8 @@
   "자동 열기 상태를 확인하지 못했습니다. 기존 상단 탭을 확인하거나 카드의 펼치기를 사용해 주세요.": "Automatic opening could not be verified. Check existing tabs or use the card’s Expand control.",
   "회의실 탭이 이미 열려 있거나 이전 열기 상태가 남아 있습니다. 상단 탭을 먼저 확인하세요. 기존 탭이 없을 때만 아래 버튼으로 다시 열어 주세요.": "A room tab may already be open, or an earlier opening record remains. Check the tabs first. Reopen below only if no room tab exists.",
   "탭 열기 결과를 확인하지 못했습니다. 상단 탭을 먼저 확인하세요. 탭이 없으면 다시 열기를 선택하거나 카드의 펼치기를 사용해 주세요.": "The tab-opening result could not be verified. Check the tabs first. If no tab exists, choose reopen or use the card’s Expand control.",
-  "다른 열기 요청이 먼저 처리됐거나 이 확인을 이미 사용했습니다. 기존 상단 탭을 확인해 주세요.": "Another opening request was processed first, or this confirmation was already used. Check existing tabs."
+  "다른 열기 요청이 먼저 처리됐거나 이 확인을 이미 사용했습니다. 기존 상단 탭을 확인해 주세요.": "Another opening request was processed first, or this confirmation was already used. Check existing tabs.",
+  "대화 기록 이동": "Conversation history navigation",
+  "이전 대화 보기": "Earlier messages",
+  "최근 대화 보기": "Latest messages"
 }

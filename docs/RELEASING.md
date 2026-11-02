@@ -12,8 +12,8 @@ Keep the [actual-host validation limits](host-validation.md) visible.
 ## What runs automatically
 
 `Checks` runs on pushes to `main`, pull requests targeting `main`, or an explicit
-manual Actions run. A funding-link-only edit is skipped. One Node 22 job runs on
-Windows and one on Linux, each with a six-minute limit. A newer run for the same
+manual Actions run. A funding-link-only edit is skipped. Node 22.13.0 (the minimum) and Node 24 jobs run on
+Windows and Linux, each with a six-minute limit. A newer run for the same
 branch/PR cancels the old run. There is no timer, automatic retry, AI review,
 dependency installation, browser download or automatic publishing step.
 
@@ -41,7 +41,7 @@ Passing checks are evidence for the covered cases, not a claim that all bugs are
    IDs, local paths, transcripts, tokens or conversation screenshots.
 3. Run `npm run check:package` and `npm test`. For UI changes, run the documented
    browser harness too. Inspect the diff and commit only the intended source.
-4. Push the commit to `main`. Wait for both GitHub check jobs on that exact commit
+4. Push the commit to `main`. Wait for all four GitHub check jobs on that exact commit
    to succeed; inspect failures instead of repeatedly rerunning unchanged tests.
 5. Publish a GitHub Release only within the human's existing publishing
    authorization, targeting that exact tested commit. GitHub CLI example:
@@ -76,3 +76,26 @@ ZIP은 저장소 사본이며 설치 프로그램은 아닙니다. 기존 기록
 
 베타 배포는 검사 통과한 커밋을 대상으로 명시적으로 게시합니다. 검사가 통과해도
 자동으로 사용자 설치를 바꾸거나 작업자를 호출하지 않습니다.
+
+## Runtime and release readiness
+
+The executable server requires **Node.js 22.13.0 or later** and the built-in
+`node:sqlite` `DatabaseSync.function` API. Older Node 22 minors are insufficient.
+Startup checks the capability before listening and explains an unsupported
+runtime on stderr; it does not install software or invoke a model. CI tests the
+exact minimum and Node 24 on Windows and Linux. The host must support local
+plugins, MCP Apps, and its native chat tools. The observed desktop version in the
+validation report is a tested environment, not a proven minimum host version.
+
+Run `node scripts/check-history.mjs` for a synthetic 100/1,000/10,000-record
+comparison. It measures local MCP read plus serialization, not native UI latency,
+AI billing or a token savings percentage. The UI requests bounded pages and
+unchanged revisions. Full originals, peer request reads and backups remain intact.
+The request menu shows active requests, the latest 20 completed/failed ones, and requests linked to the displayed message page;
+its count includes all requests. Use a private backup to inspect the full history.
+
+Before calling a release stable, record clean installs on supported hosts, the
+human-input → director → worker → independent QA path, controlled interruption
+and real app restart recovery, positive native backup restore, and a representative
+long-history native display. Keep uncovered cases visible in the host validation
+report. Passing isolated browser tests alone does not complete those host checks.

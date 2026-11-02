@@ -44,3 +44,65 @@ isolated fixtures. A second opening ticket was not yet consumed when observed:
 the single tab count is not proof of native deduplication. Crash restoration,
 historical scrolling and full team workflows remain unverified. No worker AI was
 invoked and no real transcripts, paths or screenshots were published.
+
+
+## 2026-11-02 · v0.19.0 readiness checks
+
+사용자의 명시 승인을 받은 검증용 개발자·QA 대화 두 개만 만들었습니다. 개발자가
+보호된 파일을 작성·자체 점검·체크포인트 저장 후 턴을 끝냈고, 총괄이 실제 native
+completed/idle을 확인한 뒤 같은 담당자에게 명시적으로 복구를 지시했습니다. 같은
+대화에서 최종 파일·점검·소유권 반환·완료 보고를 마쳤으며, 별도 QA가 원문·값·
+마지막 개행·최신 체크포인트·점유 없음·복구 횟수를 독립 확인했습니다. 실제 MCP
+App 화면에서 개발자·QA 각자의 보고 표시도 확인했습니다. 대기용 AI 호출이나
+자동 재전송·대화 재생성은 추가하지 않았습니다.
+
+이 과정에서 실제 사용자 입력은 로컬 서버를 통해 저장한 뒤 승인된 native 메시지
+도구로 전달했습니다. 실제 회의실 Enter 입력 전송, 기본 6인 팀 전체 생성,
+예기치 않은 OS/앱 강제 종료를 재현한 것으로 계산하지 않습니다.
+
+실제 검증용 회의실 백업과 실제 native 프로젝트 메타데이터를 사용해 **격리된
+빈 복구 대상**에서 원문·요청·담당자 연결의 일치, paused 복원, 작업 폴더 권한
+미복원, 같은 apply의 중복 방지를 확인했습니다. 레지스트리 커밋에서 통제된 오류를
+주입한 뒤 같은 복구 요청으로 이어지는 검사도 통과했고, 원본 설정·회의 파일은
+해시가 같았습니다. 기존 실제 회의실에 복구를 적용하거나 긍정 경로의 native GUI
+복구까지 실행한 것은 아닙니다. 실제 백업에는 미디어가 없으며 이미지·음원 복원은
+기존 가상 데이터 검사 범위입니다.
+
+복구 검사에서 **native create_thread로 만든 사용자 소유 대화가 목록에서 누락**되는
+문제를 발견해 수정했습니다. `agent_created_thread` 출처도 명시적인 원래 프로젝트
+소속을 확인한 경우에만 포함합니다. 내부 subagent·검토 대화, 다른 프로젝트·소속
+불명 대화는 계속 제외하며, 출처 표시는 실행 승인으로 사용하지 않습니다.
+
+로컬 자동 검사 277개와 격리 Chromium 검사 28개를 통과했습니다. 긴 기록 검사는
+1만 건에서도 메시지 DOM을 100개로 제한하고, 이전/최근 이동·초안·활성 요청 연결·
+변경 없는 DOM 보존을 확인했습니다. 100/1,000/10,000건 MCP 읽기+직렬화 비교에서
+1만 건 전체 응답은 약 29MB·82ms, 첫 페이지는 약 292KB·50ms, 캐시된 페이지의
+중앙값은 약 5ms, 변경 없는 갱신은 약 1.7KB·4ms였습니다. 한 환경의 가상 데이터
+측정이며 실제 Codex 렌더 지연·AI 토큰 절약률을 증명하지 않습니다.
+
+정식 배포 판단 전에는 지원 호스트의 깨끗한 신규 설치, 실제 메뉴 팀 구성부터
+입력 전송까지의 전체 경로, 예기치 않은 재시작·탭 복원, native GUI 백업 복구,
+긴 실제 기록 표시를 추가 확인해야 합니다. 이번 결과로 전부 검증됐다고 표시하지
+않으며 공개 베타를 유지합니다. 실제 대화 식별자·원문·경로·스크린샷은 공개하지
+않습니다.
+
+### English: current scope
+
+Two explicitly approved native worker chats completed a controlled checkpoint
+stop → same-worker recovery → self-check → independent QA handoff. Their own
+posts were observed in the real MCP App. The request was stored through local
+instrumentation; native composer submission and unexpected crash recovery were
+not exercised. No polling AI or replacement chats were added.
+
+A backup of that actual test room was restored to isolated empty destinations
+using real native membership, including a controlled registry-write interruption
+and explicit same-import recovery. Records/routes matched, restore was paused,
+workspace authority was absent, exact retries did not duplicate, and source hashes
+were unchanged. This is not a positive native GUI restore or real-media backup.
+The check revealed and fixed exclusion of native-created sidebar chats; explicit
+project membership is still required and internal agent/review sources stay out.
+
+277 local tests and 28 isolated browser cases passed. The 10,000-record load
+comparison measures local MCP payload and serialization, not native latency or
+model billing. Full onboarding, unexpected app/tab recovery, updated native long
+history and positive GUI restore remain stable-release gates.

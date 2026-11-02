@@ -11,6 +11,7 @@ import {unzipOwn} from '../host-plugin/zip.mjs';
 import {demoSession} from './demo-session.mjs';
 import {TEAM_ROLES} from '../host-plugin/team-setup.mjs';
 import {RoomView} from '../host-plugin/room-view.mjs';
+import {Projects} from '../host-plugin/projects.mjs';
 const root=path.resolve(import.meta.dirname,'..');
 const modulePath=process.env.PLAYWRIGHT_MODULE;
 const {chromium}=await import(modulePath?pathToFileURL(modulePath).href:'playwright');
@@ -40,7 +41,8 @@ async function mount(page,html,width,openingRoom=null,initialDisplayMode='fullsc
    if(p.method==='ui/request-display-mode'){result={mode:'fullscreen'};event.source.postMessage({jsonrpc:'2.0',method:'ui/notifications/host-context-changed',params:{displayMode:'fullscreen',containerDimensions:{height:1000}}},'*');}
    if(p.method==='tools/call'){
     const empty={project:null,projects:[],members:[],requests:[],messages:[],paused:true};
-    if(p.params.name==='room_view')result={structuredContent:await window.fixtureViewTool(p.params.arguments)};
+    if(p.params.name==='room_state'&&window.fixtureHistoryTool)result=await window.fixtureHistoryTool(p.params.arguments);
+    else if(p.params.name==='room_view')result={structuredContent:await window.fixtureViewTool(p.params.arguments)};
     else if(p.params.name==='room_team_setup'){
      const fixture=window.menuTeamFixture,a=p.params.arguments;
      if(a.operation==='apply')fixture.status='requested';fixture.continuationPrompt='Synthetic original setup request';fixture.setupStatus='planned';fixture.readyCount=0;
@@ -522,6 +524,28 @@ try{
   assert.equal(await page.evaluate(()=>window.demoPackets.filter(p=>p.method==='ui/message'||p.params?.name==='room_submit').length),0);
   report.cases.push({width,secretWarningNonBlocking:true,warningOmitsValues:true,maskAndKeepDownloads:true,sharingHasNoRecoveryJson:true,originalPostsAndDraftPreserved:true,modelCalls:0});await page.close();
  }}finally{await secretSession.close();}
+ const historyHome=fs.mkdtempSync(path.join(output,'history-browser-'));
+ const historyRegistry=new Projects(historyHome);historyRegistry.configure({id:'load',name:'Synthetic long history',members:[{id:'director',name:'Fixture director',role:'Director',threadId:'synthetic-director',hostId:'local'}]});
+ const historyRoom={version:1,paused:false,requests:[{id:'old-active',status:'processing',recipients:['director'],jobs:[]}],messages:Array.from({length:10000},(_,i)=>({id:'m'+i,authorId:'director',text:'Original message '+i,requestId:'old-active'}))};
+ fs.mkdirSync(path.dirname(historyRegistry.roomPath('load')),{recursive:true});fs.writeFileSync(historyRegistry.roomPath('load'),JSON.stringify(historyRoom));
+ const historyCall=args=>handle({method:'tools/call',params:{name:'room_state',arguments:{projectId:'load',...args}}},historyRegistry);
+ try{for(const width of [1280,420]){
+  const page=await browser.newPage({locale:'ko-KR'});await page.exposeFunction('fixtureHistoryTool',historyCall);
+  const frame=await mount(page,renderWidget(),width,historyCall({history:true}).structuredContent);
+  await frame.waitForFunction(()=>document.querySelectorAll('#messages>.message').length===100);
+  await frame.locator('#text').fill('Keep my long-history draft.');
+  assert.match(await frame.locator('#messages').innerText(),/Original message 9999/);
+  await frame.locator('#history-older').click();await frame.waitForFunction(()=>document.querySelector('#history-count').textContent==='9801–9900 / 10000');
+  assert.equal(await frame.locator('#messages>.message').count(),100);assert.match(await frame.locator('#messages').innerText(),/Original message 9899/);
+  assert.equal(await frame.locator('#text').inputValue(),'Keep my long-history draft.');assert.match(await frame.locator('#input-label').innerText(),/진행 중인 요청/);
+  await frame.locator('#history-latest').click();await frame.waitForFunction(()=>document.querySelector('#history-count').textContent==='9901–10000 / 10000');
+  await frame.locator('#messages>.message').first().evaluate(el=>el.dataset.retained='yes');
+  await frame.waitForFunction(()=>window.parent.packets.filter(p=>p.params?.arguments?.knownRevision).length>0);
+  assert.equal(await frame.locator('#messages>.message').first().getAttribute('data-retained'),'yes','unchanged poll preserves DOM');
+  assert.equal(await frame.locator('body').evaluate(el=>el.scrollWidth>el.clientWidth),false);
+  assert.equal(await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message'||p.params?.name==='room_submit').length),0);
+  report.cases.push({width,longHistoryRecords:10000,boundedMessages:100,pagingAndDraftPreserved:true,activeFollowUpRetained:true,unchangedPollPreservesDom:true,modelCalls:0});await page.close();
+ }}finally{fs.rmSync(historyHome,{recursive:true,force:true});}
  const session=await demoSession();
  try{for(const width of [1280,420]){
   const page=await browser.newPage({locale:'en-US',viewport:{width,height:900}});await page.goto(session.url);const frame=page.frames().find(f=>f!==page.mainFrame());await frame.waitForFunction(()=>document.querySelector('#project').value==='demo');

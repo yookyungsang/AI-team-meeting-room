@@ -84,6 +84,19 @@ sqliteTest('read-only catalog exposes only active user chat titles in the verifi
  assert.equal(result.candidates[2].chatTitle,'New project chat');assert(!JSON.stringify(result).includes('Do not expose'));assert.equal(hash(),before);
 });
 
+sqliteTest('native-created sidebar chats keep verified project discovery and opening, while internal sources stay excluded',t=>{
+ const f=fixture(t);
+ f.mutate("UPDATE threads SET thread_source='agent_created_thread' WHERE id='fixture-chat-one'; UPDATE threads SET project_id='alpha' WHERE id IN ('fixture-child','fixture-review')");
+ assert(readNativeProjectChats(f.project,{file:f.file}).candidates.some(c=>c.threadId==='fixture-chat-one'));
+ assert.equal(readNativeOpeningProject('fixture-chat-one',{file:f.file}).scopeId,'alpha');
+ assert.deepEqual(f.registry.opening('fixture-chat-one'),{status:'selected',projectId:'meeting'});
+ for(const id of ['fixture-child','fixture-review'])assert.deepEqual(f.registry.opening(id),{status:'unavailable'});
+ f.mutate("UPDATE threads SET project_id='beta' WHERE id='fixture-chat-one'");
+ assert(!readNativeProjectChats(f.project,{file:f.file}).candidates.some(c=>c.threadId==='fixture-chat-one'));
+ f.mutate("UPDATE threads SET project_id=NULL WHERE id='fixture-chat-one'");
+ assert.throws(()=>readNativeOpeningProject('fixture-chat-one',{file:f.file}),'created source alone grants no project membership');
+});
+
 sqliteTest('unsupported, remote, ambiguous and mismatched project metadata fails closed',t=>{
  const f=fixture(t);assert.throws(()=>readNativeProjectChats({...f.project,members:members.map(m=>({...m,hostId:'remote'}))},{file:f.file}));
  assert.throws(()=>readNativeProjectChats({...f.project,workspacePath:'/workspace/b'},{file:f.file}));

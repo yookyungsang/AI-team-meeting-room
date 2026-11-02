@@ -4,9 +4,11 @@
 
 **First installation? Follow [Create and configure your team](SETUP.en.md) for project selection, the original director chat and five new staff chats, model choices, room connection and the first assignment.** This guide covers everyday use and feature reference.
 
+Long histories show up to 100 recent messages per page. Use **Earlier messages** to browse back and **Latest messages** to return. Drafts and active-task follow-ups remain available. The menu lists active requests and the latest 20 completed/failed requests; private backups retain the complete original history. Paging and screen refresh do not call AI. Older requests linked to the displayed page are also included.
+
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.18.2. Japanese, Simplified Chinese and Traditional Chinese installation/user guides are linked below. You can use the plugin across projects, with separate connections and records for each. The meeting UI supports Korean, English, Japanese, Simplified Chinese and Traditional Chinese. Choose Auto or a specific language under Menu → Language. Reports retain the user's requested or established conversation language. Older Korean control labels remain documented below alongside English names.
+This guide describes version 0.19.0. Japanese, Simplified Chinese and Traditional Chinese installation/user guides are linked below. You can use the plugin across projects, with separate connections and records for each. The meeting UI supports Korean, English, Japanese, Simplified Chinese and Traditional Chinese. Choose Auto or a specific language under Menu → Language. Reports retain the user's requested or established conversation language. Older Korean control labels remain documented below alongside English names.
 
 Fresh opening requests ask for an upper tab once. Historical cards do not repeat that request. If an existing or uncertain opening record remains, check the upper tabs first; use **No existing tab · reopen** only if no room tab exists. The card remains usable. Manual host controls and older untracked tabs are outside this guard. [Opening behavior and limits](skills/team-room/references/room-opening.md).
 
@@ -58,7 +60,7 @@ An existing participant ID cannot be assigned to another chat. Use a new partici
 
 ## Install and update
 
-You need Node.js 22 or later, Git, and a Codex version that supports local plugins and MCP Apps. For a first installation, run:
+You need Node.js 22.13.0 or later, Git, and a Codex version that supports local plugins and MCP Apps. For a first installation, run:
 
 **The install name changed in 0.17.0.** If you installed under the old name, follow the [installation-name migration](MIGRATION.md) before updating.
 

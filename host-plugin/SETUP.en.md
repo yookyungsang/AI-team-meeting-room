@@ -2,7 +2,7 @@
 
 [한국어](SETUP.ko.md) | **English** | [Full user guide](USER_GUIDE.en.md)
 
-For version 0.18.2. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → use the room in the same chat → assign the first task**.
+For version 0.19.0. Follow this sequence: **install → open the project you will work on → request staff chats → choose models → use the room in the same chat → assign the first task**.
 
 A new team has **one director, one planner, one designer, TWO programmers and one QA participant**. The chat where setup starts becomes the director, preserving its history and current model/effort. Only the other five participants get new chats. Setup starts with a written request in a Codex project chat.
 
@@ -25,7 +25,7 @@ Possible secrets in meeting-message and sharing-document text are checked locall
 
 If the latest plugin is installed and you have restarted Codex, continue to [project selection](#open-the-project-you-will-work-on).
 
-For a first installation, you need Node.js 22 or later, Git, a Codex host supporting local plugins and MCP Apps, and the `codex` command. Run these commands in order in a terminal; PowerShell works on Windows.
+For a first installation, you need Node.js 22.13.0 or later, Git, a Codex host supporting local plugins and MCP Apps, and the `codex` command. Run these commands in order in a terminal; PowerShell works on Windows.
 
 ```sh
 git clone https://github.com/yookyungsang/AI-team-meeting-room.git

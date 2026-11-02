@@ -109,8 +109,8 @@ export class UsageLedger{
   for(const source of sources){for(const field of fields)total[field]+=source.total[field];for(const sample of source.samples){const activity=source.labels?.[sample.turnId]||group(source.turnTags[sample.turnId]||[]);byActivity[activity]??={...zero(),events:0};for(const field of fields)byActivity[activity][field]+=sample.usage[field];byActivity[activity].events++;}}
   return {available:sources.some(s=>s.samples.length>0),total:sources.some(s=>s.samples.length>0)?total:null,byActivity,sources:sources.map(s=>({sourceId:s.id,memberId:ids.get(s.threadId),events:s.samples.length,updatedAt:s.updatedAt||null,problem:s.problem||null,invalid:s.invalid,resets:s.resets})),scope:'Imported local chat usage; includes history in attached files. Activity groups describe whole turns, not exact per-action billing. Mixed/unknown turns are not guessed. Cached input is part of input; reasoning is part of output.'};
  }
- report(requestId){
-  const room=this.control.store.read(),request=room.requests.find(r=>r.id===requestId);check(request&&!request.followUpTo&&['completed','failed'].includes(request.status),'완료된 원래 요청의 사용량만 보고합니다.');
+ report(requestId,room=this.control.store.read()){
+  const request=room.requests.find(r=>r.id===requestId);check(request&&!request.followUpTo&&['completed','failed'].includes(request.status),'완료된 원래 요청의 사용량만 보고합니다.');
   const sources=Object.values(this.read().sources),rows=[],total=zero();let measured=0;
   for(const job of request.jobs){
    const member=this.control.store.members.find(m=>m.id===job.memberId),source=sources.find(s=>s.threadId===member?.threadId),start=Date.parse(job.memberId==='director'?request.createdAt:job.claimedAt||request.createdAt),end=Date.parse(job.completedAt||job.failedAt||job.supersededAt||room.messages.find(m=>m.requestId===request.id&&m.authorId===job.memberId&&m.kind==='final')?.createdAt||'');
@@ -136,8 +136,8 @@ export class UsageLedger{
   const rows=after.windows.map(window=>{const prior=before?.windows.find(w=>w.bucket===window.bucket&&w.window===window.window&&w.resetsAt!==null&&w.resetsAt===window.resetsAt&&w.windowDurationMins===window.windowDurationMins),delta=prior&&window.usedPercent>=prior.usedPercent?Math.round((window.usedPercent-prior.usedPercent)*100)/100:null;return {...window,remainingPercent:Math.max(0,Math.round((100-window.usedPercent)*100)/100),changePercentagePoints:delta};});
   return {available:true,rows,observedAt:after.at,beforeAt:before?.at||null,provisional,source:after.source,scope:'Account-wide observed quota, not per-participant attribution. Other chats may contribute. Different reset windows are not subtracted.'};
  }
- reports(){
+ reports(room=this.control.store.read()){
   if(fs.existsSync(this.file)&&Date.now()-(refreshed.get(this.file)||0)>10000){refreshed.set(this.file,Date.now());this.sync();}
-  return this.control.store.read().requests.filter(r=>r.usageRequested===true&&!r.followUpTo&&['completed','failed'].includes(r.status)).slice(-3).map(r=>this.report(r.id));
+  return room.requests.filter(r=>r.usageRequested===true&&!r.followUpTo&&['completed','failed'].includes(r.status)).slice(-3).map(r=>this.report(r.id,room));
  }
 }

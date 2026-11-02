@@ -59,7 +59,10 @@ function withNativeIndex({file=path.join(process.env.CODEX_HOME||path.join(os.ho
    if(project_id){if(!ids.has(project_id)||desktopId&&desktopId!==project_id)return null;return project_id;}
    return desktopId;
   };
-  const threadScope=id=>{const row=db.prepare('SELECT id,project_id,archived,thread_source FROM threads WHERE id=?').get(id);return row&&!row.archived&&row.thread_source==='user'?resolve(row.id,row.project_id):null;};
+  // Native create_thread produces a user-owned sidebar chat with this source.
+  // Include it only with the same verified project membership; internal
+  // subagents/other sources remain excluded. Source labels grant no authority.
+  const threadScope=id=>{const row=db.prepare('SELECT id,project_id,archived,thread_source FROM threads WHERE id=?').get(id);return row&&!row.archived&&['user','agent_created_thread'].includes(row.thread_source)?resolve(row.id,row.project_id):null;};
   const workspaceMatches=(project,scopeId)=>!project.workspacePath||projectForThread({cwd:project.workspacePath},roots.filter(r=>r.project_id===scopeId),ids)===scopeId;
   const nativeIds=scopeId=>[...Object.entries(mapping).filter(([,id])=>id===scopeId).map(([id])=>id),scopeId].filter(id=>typeof id==='string'&&id.length>0&&id.length<=200);
   return read({db,resolve,threadScope,workspaceMatches,nativeIds});
@@ -72,7 +75,7 @@ export function readNativeProjectChats(project,options){
   const scopeId=threadScope(director.threadId);check(scopeId,'연결된 총괄 대화의 프로젝트 소속을 확인할 수 없습니다.');
   check(workspaceMatches(project,scopeId),'회의실 작업 폴더와 총괄 대화의 프로젝트가 다릅니다.');
   db.function('room_project_match',{deterministic:true},(id,project_id)=>resolve(id,project_id)===scopeId?1:0);
-  const rows=db.prepare("SELECT id,name,title FROM threads WHERE archived=0 AND thread_source='user' AND room_project_match(id,project_id)=1 ORDER BY updated_at DESC,id LIMIT 501").all();
+  const rows=db.prepare("SELECT id,name,title FROM threads WHERE archived=0 AND thread_source IN ('user','agent_created_thread') AND room_project_match(id,project_id)=1 ORDER BY updated_at DESC,id LIMIT 501").all();
   const label=db.prepare('SELECT name FROM projects WHERE id=?').get(scopeId)?.name||project.name;
   return {scopeId,label,truncated:rows.length>500,candidates:rows.slice(0,500).map(row=>({threadId:row.id,hostId:'local',chatTitle:typeof row.name==='string'&&row.name.trim()?row.name:row.title})).filter(row=>typeof row.threadId==='string'&&row.threadId.length>0&&row.threadId.length<=160&&typeof row.chatTitle==='string'&&row.chatTitle.trim()&&row.chatTitle.length<=2000)};
  });

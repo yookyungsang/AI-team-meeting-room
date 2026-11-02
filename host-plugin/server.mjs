@@ -22,6 +22,8 @@ import {renderWidget} from './ui.mjs';
 import {toolAnnotations} from './tool-annotations.mjs';
 import {markRecords} from './record-trust.mjs';
 import {RoomView,roomViewScope} from './room-view.mjs';
+import {requireSupportedRuntime} from './runtime.mjs';
+import {historyRead,historyPage} from './history.mjs';
 
 const root=path.dirname(fileURLToPath(import.meta.url));
 const version=JSON.parse(fs.readFileSync(path.join(root,'plugin.json'),'utf8')).version;
@@ -36,7 +38,7 @@ const roleType={type:'string',enum:ROLE_TYPES,description:'Selected policy kind;
 const audio={type:'array',maxItems:3,items:schema({path:{type:'string',maxLength:2000},caption:{type:'string',maxLength:300}},['path','caption'])};
 export const TOOLS=[
  {...tool('room_open','Open 팀 회의실 with a one-use automatic tab request. Past cards never reissue it. An occupied or uncertain display record requires human reconciliation in the card, not another room_open retry. Explicit projectId takes precedence; otherwise resolve only verified opening-chat metadata. Missing/unregistered/ambiguous context keeps the chooser. Never guess from cwd/recency or create a room. No AI or work starts.',schema({projectId:member}),false,['app','model']),title:'팀 회의실',_meta:{ui:{resourceUri:uri},'openai/ui':{entrypoints:[{type:'thread'}]}}},
- tool('room_state','Read the selected project and reconcile saved validation receipts (local writes, no new run). Without projectId return the chooser. The UI may set resolveCurrent:true once on initial mount to resolve the host-provided opening chat to one configured local project. No global selection, registration, AI or runtime calls.',schema({projectId:member,resolveCurrent:{type:'boolean'}}),false,['app','model']),
+ tool('room_state','Read the selected project and reconcile saved validation receipts (local writes, no new run). Without projectId return the chooser. The UI may set resolveCurrent:true once on initial mount to resolve the host-provided opening chat to one configured local project. history:true returns bounded UI pages; before and knownRevision retain active work and avoid resending unchanged text. Default model reads remain complete. No global selection, registration, AI or runtime calls.',schema({projectId:member,resolveCurrent:{type:'boolean'},history:{type:'boolean'},before:{type:'string',maxLength:200},knownRevision:{type:'string',pattern:'^[a-f0-9]{64}$'}}),false,['app','model']),
  tool('room_submit','Store an explicit human message, optionally linked to an active original request by followUpTo; does NOT start AI. The UI sends each wakePrompt once without blocking later messages.',schema({id:str,text:{type:'string',maxLength:6000},recipients:{type:'array',items:member,minItems:1,maxItems:6},followUpTo:str},['id','text','recipients']),false,['app']),
  tool('room_get','Read one request and its linked user follow-ups. Directors check these before decisions and completion, integrate additions without redispatching original jobs, and complete each follow-up. statusOnly:true omits text; unrelated history needs includePrevious:true.',schema({requestId:str,statusOnly:{type:'boolean'},includePrevious:{type:'boolean'}},['requestId']),true),
  tool('room_claim','Reserve one existing participant before native dispatch. For an image/visual deliverable, set requireFinalImage:true on its creator: their own final reply must attach the final image. Can add this requirement to active work without redispatch; cannot remove it. For audio creation set requireFinalAudio:true; their own final reply must attach the audio. Only dispatch:true permits a new assignment.',schema({requestId:str,memberId:member,requireFinalImage:{type:'boolean'},requireFinalAudio:{type:'boolean'}},['requestId','memberId']),false),
@@ -128,7 +130,7 @@ export function handle(request,registry=projects){
     const project=selectedId&&!['room_configure','room_team','room_team_setup','room_check','room_import'].includes(name)?registry.get(selectedId):null;
     const store=project?new RoomStore(registry.roomPath(project.id),project,()=>registry.get(project.id)):null;
     const control=store?new WorkControl(store,registry.home):null,usage=control?new UsageLedger(control):null;
-    const snapshot=()=>{if(!store||store.project.archivedAt)return {version:1,paused:true,requests:[],messages:[],members:[],project:null,projects:registry.list(),mode:'host-relay',...(store?{deletedProjectId:project.id,opening:{status:'deleted'}}:{})};new Validation(control).refresh();return {...store.snapshot(),projects:registry.list(),work:control.summary(),usageReports:usage.reports()};};
+    const snapshot=(paged=false)=>{if(!store||store.project.archivedAt)return {version:1,paused:true,requests:[],messages:[],members:[],project:null,projects:registry.list(),mode:'host-relay',...(store?{deletedProjectId:project.id,opening:{status:'deleted'}}:{})};new Validation(control).refresh();const entry=paged?historyRead(store.file):null,page=entry?historyPage(entry,args):null,room=entry?.state||store.read();return {...store.snapshot(page?.state||room),...(page?{history:page.history}:{}),projects:registry.list(),work:control.summary(),usageReports:usage.reports(room)};};
     if(project?.archivedAt&&(name==='room_validation'||name==='room_work'&&!['status','read'].includes(args.operation)||name==='room_usage'&&!['summary','report'].includes(args.operation)))throw new Error('삭제된 회의실은 복구한 뒤 작업을 변경해 주세요.');
     switch(name){
      case 'room_view':data=new RoomView(registry.home).execute(args);break;
@@ -181,7 +183,8 @@ export function handle(request,registry=projects){
       data=args.operation==='status'?team.status(args):team.execute(args);break;
      }
      case 'room_open':case 'room_state':{
-      data={...snapshot(),...(opening?{opening}:{} )};
+      if(args.history!==undefined&&typeof args.history!=='boolean'||(args.before!==undefined||args.knownRevision!==undefined)&&args.history!==true)throw new Error('대화 조회 옵션을 확인해 주세요.');
+      data={...snapshot(name==='room_open'||args.history===true),...(opening?{opening}:{} )};
       try{data.teamProgress=new MenuTeam(registry).progress({threadId:openingThread(request.params?._meta),...(selectedId?{projectId:selectedId}:{})});}
       catch{data.teamProgressUnavailable=true;}
       break;
@@ -189,7 +192,7 @@ export function handle(request,registry=projects){
      case 'room_submit':{
       const setup=new TeamSetup(registry).read().setups.find(s=>s.projectId===args.projectId&&!s.existingRoom&&s.status!=='connected');
       if(setup&&!store.read().requests.some(r=>r.id===args.id))throw new Error('팀 구성 중입니다. 담당자와 회의실 연결을 마친 뒤 작업을 보내 주세요. 중단·오류 상담은 원래 Codex 채팅에서 할 수 있습니다.');
-      data=store.submit(args);data.state=snapshot();break;
+      data=store.submit(args,{snapshot:false});data.state=snapshot(true);break;
      }
      case 'room_get':{
       data=store.get(args.requestId,args);
@@ -227,7 +230,7 @@ export function handle(request,registry=projects){
       return {content:[],structuredContent:{projectId:project.id,audio},_meta:{'team-room/audioData':dataUrl}};
      }
      case 'room_fail':data=store.fail(args);break;
-     case 'room_pause':store.pause(args.paused);data=snapshot();break;
+     case 'room_pause':store.pause(args.paused);data=snapshot(true);break;
     }
     if(name==='room_team'&&['approve','record','block','retry'].includes(args.operation))data={projectId:data.projectId,setupId:data.setupId,status:data.status,saved:true};
     data=markRecords(name,compactResult(name,data),args);
@@ -244,6 +247,7 @@ export function handle(request,registry=projects){
  }
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
+ try{requireSupportedRuntime();}catch(error){process.stderr.write(error.message+'\n');process.exit(1);}
  const input=readline.createInterface({input:process.stdin,crlfDelay:Infinity});
  input.on('line',line=>{
   if(!line.trim())return;let request;

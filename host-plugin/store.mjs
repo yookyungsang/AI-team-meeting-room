@@ -47,7 +47,7 @@ export class RoomStore {
  get members(){return knownMembers(this.project);}
  active(){assert(!this.project.archivedAt,'삭제된 회의실은 복구한 뒤 새 작업을 진행해 주세요.');}
  read(){return fs.existsSync(this.file)?JSON.parse(fs.readFileSync(this.file,'utf8')):empty();}
- snapshot(){const state=this.read(),project=this.project;return {...state,messages:state.messages.map(m=>publicMessage(m,project.legacyMembers)),members:project.members,...(project.retiredMembers?.length?{formerMembers:project.retiredMembers.map(({id,name,role})=>({id,name,role}))}:{}),project:{id:project.id,name:project.name,workspacePath:project.workspacePath,revision:project.revision||1},mode:'host-relay'};}
+ snapshot(state=this.read()){const project=this.project;return {...state,messages:state.messages.map(m=>publicMessage(m,project.legacyMembers)),members:project.members,...(project.retiredMembers?.length?{formerMembers:project.retiredMembers.map(({id,name,role})=>({id,name,role}))}:{}),project:{id:project.id,name:project.name,workspacePath:project.workspacePath,revision:project.revision||1},mode:'host-relay'};}
  change(action){
   return transaction(this.file,empty,action);
  }
@@ -56,7 +56,7 @@ export class RoomStore {
   const member=this.members.find(m=>m.id===memberId),job=request.jobs.find(j=>j.memberId===memberId);
   assert(member&&job,'이 요청의 받는 사람이 아닙니다.');return {request,member,job};
  }
- submit({id,text,recipients,followUpTo}){
+ submit({id,text,recipients,followUpTo},{snapshot=true}={}){
   assert(uuid.test(id||''),'올바른 요청 ID가 필요합니다.');
   assert(typeof text==='string'&&text.trim()&&text.length<=6000,'메시지는 1~6000자여야 합니다.');
   assert(Array.isArray(recipients)&&recipients.length>0&&recipients.length<=20&&recipients.every(id=>this.members.some(m=>m.id===id)),'이 프로젝트에 연결한 담당자만 선택할 수 있습니다.');
@@ -79,7 +79,7 @@ export class RoomStore {
    if(parent)this.update(parent,state);
    return request;
   });
-  return {request,state:this.snapshot(),wakePrompt:wakePrompt(this.project,request)};
+  return {request,...(snapshot?{state:this.snapshot()}:{}),wakePrompt:wakePrompt(this.project,request)};
  }
  get(requestId,{statusOnly=false,includePrevious=false}={}){
   assert(typeof statusOnly==='boolean'&&typeof includePrevious==='boolean','조회 옵션을 확인해 주세요.');
