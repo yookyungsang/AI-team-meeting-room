@@ -29,7 +29,7 @@ function fixture(t){
 }
 
 test('all MCP tools declare reviewed boolean behavior hints and new tools fail closed',()=>{
- assert.equal(TOOLS.length,25);
+ assert.equal(TOOLS.length,26);
  for(const tool of TOOLS)for(const field of ['readOnlyHint','destructiveHint','idempotentHint','openWorldHint'])assert.equal(typeof tool.annotations[field],'boolean',tool.name+' '+field);
  assert.throws(()=>toolAnnotations('unreviewed_tool',true),/Review/);
  assert.throws(()=>toolAnnotations('room_work',true),/Review/);

@@ -14,6 +14,7 @@ const policy={
  room_pause:[false,true,false,false],
  room_image:[true,false,true,false],
  room_audio:[true,false,true,false],
+ room_recovery_guide:[true,false,true,false],
  room_projects:[true,false,true,false],
  room_configure:[false,false,true,false],
  room_members:[false,true,false,true],

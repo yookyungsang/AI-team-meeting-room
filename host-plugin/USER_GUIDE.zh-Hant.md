@@ -2,7 +2,7 @@
 
 **繁體中文** · [简体中文](USER_GUIDE.zh-Hans.md) · [日本語](USER_GUIDE.ja.md) · [English](USER_GUIDE.en.md) · [한국어](USER_GUIDE.ko.md)
 
-適用於 **0.19.1**。這是一個本機 Codex 插件，可將專案中的現有聊天連接成團隊，在同一會議室查看任務、提問、進度、圖片、音訊與結果。既可用於遊戲，也可用於其他專案。使用者向總負責人下達目標，需要參與的成員各自回報自己的工作。
+適用於 **0.20.0**。這是一個本機 Codex 插件，可將專案中的現有聊天連接成團隊，在同一會議室查看任務、提問、進度、圖片、音訊與結果。既可用於遊戲，也可用於其他專案。使用者向總負責人下達目標，需要參與的成員各自回報自己的工作。
 
 較長紀錄每頁最多顯示100則最近訊息。使用**查看較早的對話**瀏覽過去，使用**查看最新對話**返回。草稿和進行中任務的追加指示會保留。選單顯示進行中的請求及最近20筆已完成或失敗的請求；私人備份保留完整原文。翻頁和畫面更新不額外呼叫AI。 目前對話頁面所關聯的較早請求也會顯示。
 
@@ -137,3 +137,7 @@ codex plugin add team-room@team-room-local
 執行資料存放在 `~/.codex/team-room` 或 `TEAM_ROOM_HOME`，與原始碼資料夾分開。不要將真實連接、會議記錄、ZIP 或個人截圖提交至公開儲存庫。
 
 [協作規則全文（韓語）](skills/team-room/references/collaboration-policy.md) · [執行技能與英語摘要](skills/team-room/SKILL.md) · [驗證範圍及主機限制](skills/team-room/references/host-validation.md) · [GitHub 專案](https://github.com/yookyungsang/AI-team-meeting-room)
+
+## 工作狀態與中斷復原指南
+
+對話上方顯示已儲存的工作統計。開啟**工作與復原指南**，檢視檢查點、後續步驟、檔案占用權和驗證記錄。選擇**準備向總負責人確認的請求 → 複製請求**，然後在同一專案的總負責人聊天中檢查並自行傳送。輸入中的草稿會保留，不會自動恢復、傳送或解鎖。檢視和複製不會呼叫 AI。[狀態含義與復原範圍（英語）](skills/team-room/references/work-status.md#english)。

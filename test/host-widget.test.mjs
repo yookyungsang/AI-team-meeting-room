@@ -28,6 +28,7 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
 async function widget(t,{capability={},messageFails=false,autoSelect=true,deferMessages=false,holdSubmit=false,holdImages=false,badImage=false,holdAudio=false,badAudio=false,holdRoster=null,rosterError=null,currentProject=null,openingStatus='unavailable',holdOpening=false,initialInput,holdTeam=null,teamStatus='preview',holdManage=null,busyRoom=false,draftSupport=true,openingProjectName,language='ko-KR',storedLanguage,fileSupport=false,downloadSupport=false,holdUtility=null,holdImport=null,importCanRestore=true,viewGuard=null,holdView=false,holdDisplay=false,displayReply='fullscreen',initialDisplayMode='inline'}={}){
  const elements=new Map(),sent=[],callbacks={},intervals=[],messagePackets=[],imagePackets=[],audioPackets=[],openingPackets=[],teamPackets=[],copied=[],timeouts=new Map();let timeoutSeq=0;
  const utilityPackets=[],utilityBehavior={hold:holdUtility},viewPackets=[],displayPackets=[];
+ const guidePackets=[],guideBehavior={hold:false,error:null,data:{projectId:'test',requestId:'fixture-request',readOnly:true,status:'processing',choices:[{id:'fixture-request',label:'Synthetic recovery',status:'processing'}],choiceTotal:1,jobs:[{memberId:'dev',name:'Fixture developer',role:'Developer',state:'reserved',error:'',locks:['Example.cs'],lockTotal:1,checkpoint:{summary:'Part finished',nextSteps:['Finish the method'],updatedAt:'2026-01-01T00:00:00Z'}}],checks:[],questions:[]}};
  const importPackets=[],importBehavior={hold:holdImport,canRestore:importCanRestore};
  const teamData={previewId:randomUUID(),setupId:randomUUID(),projectId:'created',projectName:'가상 새 프로젝트',status:teamStatus,roles:TEAM_ROLES.map(r=>({id:r.id,name:r.name})),modelMode:'default',continuationPrompt:'Synthetic original team request',setupStatus:'planned',readyCount:0};
  const projects=[{id:'test',name:'Test',directorName:'테스트 총괄'},{id:'second',name:'Second',directorName:'다른 총괄'}];
@@ -46,6 +47,7 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
   if(packet.method==='ui/request-display-mode'){displayPackets.push(packet);if(holdDisplay)return;result={mode:displayReply};}
   if(packet.method==='tools/call'){
    const {name,arguments:args}=packet.params;
+   if(name==='room_recovery_guide'){guidePackets.push(packet);if(guideBehavior.hold)return;result=guideBehavior.error?{isError:true,content:[{type:'text',text:guideBehavior.error}]}:{structuredContent:guideBehavior.data};}
    if(name==='room_view'){viewPackets.push(packet);result={structuredContent:viewGuard?.execute(args)||{status:'expired'}};if(holdView)return;}
    if(name==='room_import'){
     importPackets.push(packet);const row={importId:args.importId,projectId:'recovered',name:'Backup fixture',sha256:'a'.repeat(64),counts:{requests:1,messages:2,images:0,audio:0},members:1,canRestore:importBehavior.canRestore,reasons:importBehavior.canRestore?[]:['exists']};
@@ -99,7 +101,7 @@ async function widget(t,{capability={},messageFails=false,autoSelect=true,deferM
  const receive=data=>callbacks.message({source:parent,data:{jsonrpc:'2.0',...data}});
  const respondMessage=(index,result={})=>receive({id:messagePackets[index].id,result});
  const expire=()=>{for(const [id,fn] of [...timeouts]){timeouts.delete(id);fn();}};
- return {viewPackets,displayPackets,importPackets,importBehavior,utilityPackets,utilityBehavior,rosterPackets,rosterBehavior,catalogs,sent,elements,state,second,states,chooser,notify,callbacks,intervals,document,styles,styleWrites,receive,window,messagePackets,imagePackets,audioPackets,openingPackets,teamPackets,teamData,respondMessage,expire,managePackets,manageBehavior,archived,copied,storage};
+ return {guidePackets,guideBehavior,viewPackets,displayPackets,importPackets,importBehavior,utilityPackets,utilityBehavior,rosterPackets,rosterBehavior,catalogs,sent,elements,state,second,states,chooser,notify,callbacks,intervals,document,styles,styleWrites,receive,window,messagePackets,imagePackets,audioPackets,openingPackets,teamPackets,teamData,respondMessage,expire,managePackets,manageBehavior,archived,copied,storage};
 }
 
 async function previewDelete(w){w.elements.get('open-menu').events.click();await w.elements.get('delete-room').events.click();}
@@ -484,6 +486,49 @@ test('closing while a submit receipt is pending never dispatches a late wake mes
 test('hidden panel does not poll and reply text is rendered without HTML execution',async t=>{const w=await widget(t);const count=w.sent.length;w.document.hidden=true;await w.intervals[0]();assert.equal(w.sent.length,count);w.document.hidden=false;w.state.messages.push({id:'fixture',authorId:'director',authorName:'테스트 총괄',text:'<img src=x onerror=alert(1)>'});await w.intervals[0]();assert.equal(w.elements.get('messages').children.length,1);});
 
 const visibleText=n=>[n.textContent||'',...n.children.map(visibleText)].join(' ');
+
+test('work overview updates from full saved counts and marks failed refreshes without extra AI calls',async t=>{
+ const w=await widget(t);w.state.activity={activeRequests:2,awaitingMembers:3,pendingJobs:1,openQuestions:4,failedRequests:1};w.notify(w.state);
+ assert.equal(w.elements.get('work-overview').hidden,false);assert.match(w.elements.get('activity-summary').textContent,/진행 요청 2.*결과 대기 3.*미답변 질문 4/);
+ for(const interval of w.intervals)interval();await settle();assert.equal(w.guidePackets.length,0);
+ w.states.set('test',null);for(const interval of w.intervals)interval();await settle();assert.match(w.elements.get('activity-note').textContent,/갱신 실패/);
+ assert.match(w.elements.get('activity-summary').textContent,/진행 요청 2/);
+ assert.equal(w.sent.filter(p=>p.method==='ui/message'||p.method==='openai/message').length,0);
+});
+
+test('work guide displays saved checkpoints and prepares only a copyable request, retaining the original draft',async t=>{
+ const w=await widget(t);w.elements.get('text').value='Original unsent draft';
+ w.elements.get('open-work-guide').events.click();await settle();
+ assert.equal(w.guidePackets.length,1);assert.equal(w.elements.get('work-guide').open,true);
+ assert.match(visibleText(w.elements.get('work-guide-jobs')),/Part finished.*Finish the method/);
+ w.elements.get('work-guide-prepare').events.click();await w.elements.get('work-guide-copy').events.click();
+ assert.equal(w.copied.length,1);assert.match(w.copied[0],/test \/ fixture-request/);assert.match(w.copied[0],/실제로 중단된 작업만/);
+ assert(!w.copied[0].includes('Part finished'),'checkpoint records are not promoted to instructions');
+ assert.equal(w.elements.get('text').value,'Original unsent draft');
+ assert.equal(w.sent.filter(p=>p.method==='ui/message'||p.method==='openai/message'||p.params?.name==='room_work'||p.params?.name==='room_validation').length,0);
+ w.elements.get('close-work-guide').events.click();assert.equal(w.elements.get('work-guide').open,false);
+});
+
+test('work guide rejects late results after closing, switching, hiding and teardown',async t=>{
+ for(const action of ['close','switch','hide','teardown']){
+  const w=await widget(t);w.guideBehavior.hold=true;w.elements.get('open-work-guide').events.click();await settle();const packet=w.guidePackets[0];
+  if(action==='close')w.elements.get('close-work-guide').events.click();
+  if(action==='switch'){w.elements.get('project').value='second';await w.elements.get('project').events.change();}
+  if(action==='hide'){w.document.hidden=true;w.callbacks.visibilitychange();}
+  if(action==='teardown')w.callbacks.pagehide();
+  const before=w.sent.length;w.receive({id:packet.id,result:{structuredContent:w.guideBehavior.data}});await settle();
+  assert.equal(w.elements.get('work-guide').open,false,action);assert.equal(w.sent.length,before,action);
+  assert.equal(w.elements.get('work-guide-prompt').hidden,true,action);
+ }
+});
+
+test('work guide fails closed for wrong projects and completed requests and keeps the director composer usable',async t=>{
+ const w=await widget(t);w.guideBehavior.data.projectId='second';w.elements.get('open-work-guide').events.click();await settle();
+ assert.match(w.elements.get('work-guide-status').textContent,/불러오지 못했습니다/);assert.equal(w.elements.get('work-guide-prepare').disabled,true);
+ w.guideBehavior.data.projectId='test';w.guideBehavior.data.status='completed';await w.elements.get('work-guide-refresh').events.click();await settle();
+ assert.equal(w.elements.get('work-guide-prepare').disabled,true);w.elements.get('work-guide-prepare').events.click();assert.equal(w.elements.get('work-guide-prompt').hidden,true);
+ w.elements.get('close-work-guide').events.click();w.elements.get('text').value='Another task';w.elements.get('text').events.input();assert.equal(w.elements.get('send').disabled,false);
+});
 test('usage is shown only for completed reports, per participant, without an AI message',async t=>{
  const w=await widget(t);assert.doesNotMatch(visibleText(w.elements.get('messages')),/측정 가능한 합계/);
  w.state.messages=[{id:'final',requestId:'done',authorId:'director',kind:'final',text:'완료 결과'}];

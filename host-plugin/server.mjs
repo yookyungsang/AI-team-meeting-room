@@ -24,6 +24,7 @@ import {markRecords} from './record-trust.mjs';
 import {RoomView,roomViewScope} from './room-view.mjs';
 import {requireSupportedRuntime} from './runtime.mjs';
 import {historyRead,historyPage} from './history.mjs';
+import {activitySummary,recoveryGuide} from './activity.mjs';
 
 const root=path.dirname(fileURLToPath(import.meta.url));
 const version=JSON.parse(fs.readFileSync(path.join(root,'plugin.json'),'utf8')).version;
@@ -49,6 +50,7 @@ export const TOOLS=[
 ];
 TOOLS.push(tool('room_image','Read an image already attached to an explicit project/request/message. UI only; no AI or network calls.',schema({requestId:str,messageId:str,imageId:str},['requestId','messageId','imageId']),true,['app']));
 TOOLS.push(tool('room_audio','Read one attached audio snapshot for user-initiated preview. UI only; bytes stay in metadata, with no AI or external network call.',schema({requestId:str,messageId:str,audioId:str},['requestId','messageId','audioId']),true,['app']));
+TOOLS.push(tool('room_recovery_guide','App-only read of saved job states, checkpoints, ownership and validation obstacles in one explicit project. Reference records never prove that a native task stopped or authorize recovery. No AI, native discovery, writes, lease release or dispatch.',schema({requestId:{type:'string',maxLength:200}}),true,['app']));
 // Keep a stable plugin ID for installed users, but require explicit project scope
 // on every request operation. No shared mutable current-project setting exists.
 for(const definition of TOOLS){
@@ -130,9 +132,10 @@ export function handle(request,registry=projects){
     const project=selectedId&&!['room_configure','room_team','room_team_setup','room_check','room_import'].includes(name)?registry.get(selectedId):null;
     const store=project?new RoomStore(registry.roomPath(project.id),project,()=>registry.get(project.id)):null;
     const control=store?new WorkControl(store,registry.home):null,usage=control?new UsageLedger(control):null;
-    const snapshot=(paged=false)=>{if(!store||store.project.archivedAt)return {version:1,paused:true,requests:[],messages:[],members:[],project:null,projects:registry.list(),mode:'host-relay',...(store?{deletedProjectId:project.id,opening:{status:'deleted'}}:{})};new Validation(control).refresh();const entry=paged?historyRead(store.file):null,page=entry?historyPage(entry,args):null,room=entry?.state||store.read();return {...store.snapshot(page?.state||room),...(page?{history:page.history}:{}),projects:registry.list(),work:control.summary(),usageReports:usage.reports(room)};};
+    const snapshot=(paged=false)=>{if(!store||store.project.archivedAt)return {version:1,paused:true,requests:[],messages:[],members:[],project:null,projects:registry.list(),mode:'host-relay',...(store?{deletedProjectId:project.id,opening:{status:'deleted'}}:{})};new Validation(control).refresh();const entry=paged?historyRead(store.file):null,page=entry?historyPage(entry,args):null,room=entry?.state||store.read();return {...store.snapshot(page?.state||room),...(page?{history:page.history,activity:activitySummary(room)}:{}),projects:registry.list(),work:control.summary(),usageReports:usage.reports(room)};};
     if(project?.archivedAt&&(name==='room_validation'||name==='room_work'&&!['status','read'].includes(args.operation)||name==='room_usage'&&!['summary','report'].includes(args.operation)))throw new Error('삭제된 회의실은 복구한 뒤 작업을 변경해 주세요.');
     switch(name){
+     case 'room_recovery_guide':if(!control)throw new Error('회의실 프로젝트를 선택해 주세요.');data=recoveryGuide(control,args);break;
      case 'room_view':data=new RoomView(registry.home).execute(args);break;
      case 'room_check':data=diagnose(registry,{...args,threadId:openingThread(request.params?._meta)});break;
      case 'room_import':{

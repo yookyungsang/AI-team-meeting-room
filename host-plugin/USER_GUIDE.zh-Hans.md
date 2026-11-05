@@ -2,7 +2,7 @@
 
 **简体中文** · [繁體中文](USER_GUIDE.zh-Hant.md) · [日本語](USER_GUIDE.ja.md) · [English](USER_GUIDE.en.md) · [한국어](USER_GUIDE.ko.md)
 
-适用于 **0.19.1**。这是一个本地 Codex 插件，可将项目中的现有聊天连接成团队，在一个会议室中查看任务、提问、进度、图片、音频和结果。既可用于游戏，也可用于其他项目。用户向总负责人下达目标，需要参与的成员分别报告自己的工作。
+适用于 **0.20.0**。这是一个本地 Codex 插件，可将项目中的现有聊天连接成团队，在一个会议室中查看任务、提问、进度、图片、音频和结果。既可用于游戏，也可用于其他项目。用户向总负责人下达目标，需要参与的成员分别报告自己的工作。
 
 较长记录每页最多显示100条最近消息。使用**查看更早的对话**浏览过去，使用**查看最新对话**返回。草稿和进行中任务的追加指示会保留。菜单显示进行中的请求及最近20条已完成或失败的请求；私人备份保留完整原文。翻页和画面更新不额外调用AI。 当前对话页面所关联的较早请求也会显示。
 
@@ -137,3 +137,7 @@ codex plugin add team-room@team-room-local
 运行数据存放在 `~/.codex/team-room` 或 `TEAM_ROOM_HOME`，与源码文件夹分开。不要把真实连接、会议记录、ZIP 或个人截图提交到公开仓库。
 
 [协作规则全文（韩语）](skills/team-room/references/collaboration-policy.md) · [运行技能与英语摘要](skills/team-room/SKILL.md) · [验证范围及主机限制](skills/team-room/references/host-validation.md) · [GitHub 项目](https://github.com/yookyungsang/AI-team-meeting-room)
+
+## 工作状态与中断恢复指南
+
+对话上方显示已保存的任务统计。打开**工作与恢复指南**，查看检查点、后续步骤、文件占用权和验证记录。选择**准备向总负责人确认的请求 → 复制请求**，然后在同一项目的总负责人聊天中检查并自行发送。输入中的草稿会保留，不会自动恢复、发送或解锁。查看和复制不会调用 AI。[状态含义与恢复范围（英语）](skills/team-room/references/work-status.md#english)。

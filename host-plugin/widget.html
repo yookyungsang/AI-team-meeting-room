@@ -36,10 +36,13 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
 #deleted-rooms-list{grid-template-columns:minmax(0,1fr)}#deleted-rooms-list .member{justify-content:space-between}#deleted-rooms-list .member>div{min-width:0;overflow-wrap:anywhere}#deleted-rooms-list button{flex:none}
 .setup-progress{border:1px solid #484848;border-radius:10px;padding:12px 14px;margin-top:12px;background:#191919;overflow-wrap:anywhere}.setup-progress h2{font-size:15px;margin:0 0 6px}.setup-progress p{margin:7px 0;line-height:1.8}.setup-progress progress{display:block;width:100%;height:10px;accent-color:#d2d2d2}.setup-progress ul{list-style:none;padding:0;margin:10px 0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 16px;font-size:12px}.setup-progress li{display:flex;flex-wrap:wrap;justify-content:space-between;gap:3px 8px}.setup-progress li span:last-child{color:#bbb}.setup-progress summary{cursor:pointer;font-size:12px}.setup-progress .roster-actions{margin-top:10px}@media(max-width:560px){.setup-progress ul{grid-template-columns:minmax(0,1fr)}.setup-progress{padding:10px 12px}}
 #import-error-text{white-space:pre-wrap;overflow-wrap:anywhere}.file-picker{display:inline-block;cursor:pointer}.import-path{display:block;width:100%;background:#222;color:#eee;border:1px solid #444;border-radius:8px;padding:9px;margin:6px 0 10px}.import-path:focus-visible{outline:2px solid #ddd}
+.work-overview{padding:8px 0;border-bottom:1px solid #292929;display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap}.work-overview p{margin:0}.work-overview>div{flex:1;min-width:0}.activity-summary{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;overflow-wrap:anywhere}.work-overview .button{padding:6px 10px;white-space:normal}.work-overview .small{font-size:10px;line-height:1.6}
+#work-guide{width:660px;max-width:calc(100% - 28px);max-height:calc(100% - 28px);padding:0;border:1px solid #444;border-radius:14px;background:#181818;color:#eee;overflow:auto;overscroll-behavior:contain}#work-guide::backdrop{background:#0009}.work-guide-content{padding:0 18px 18px}.work-guide-content select{display:block;width:100%;font:inherit;background:#222;color:#eee;border:1px solid #555;border-radius:7px;padding:8px;margin:6px 0;min-width:0}.work-guide-content h3{font-size:13px;margin:15px 0 5px}.work-guide-content p,.work-guide-content li{font-size:12px;line-height:1.85;overflow-wrap:anywhere}.guide-job{border-bottom:1px solid #333;padding:10px 0}.guide-job p{margin:6px 0;white-space:pre-wrap}.guide-job ul{margin:6px 0;padding-inline-start:20px}.guide-job strong{font-size:13px}.guide-job details{font-size:12px;overflow-wrap:anywhere}.guide-job summary{cursor:pointer}.guide-job .small{color:#bbb}#work-guide-prompt{font-size:12px;min-height:140px;margin-top:12px}#close-work-guide{flex:none}#work-guide h2{min-width:0}@media(max-width:560px){.work-overview{align-items:flex-start}.activity-summary{font-size:11px}.work-guide-content{padding:0 14px 14px}}
 </style></head>
 <body><div class="shell">
 <header class="top"><h1 data-i18n="팀 회의실">팀 회의실</h1><label class="project-picker" for="project"><span data-i18n="프로젝트">프로젝트</span><select id="project" disabled><option value="" data-i18n="프로젝트 선택">프로젝트 선택</option></select></label><button id="open-menu" class="button menu-trigger" type="button" aria-haspopup="dialog" aria-controls="room-menu" data-i18n="메뉴 ☰">메뉴 ☰</button></header>
 <div class="layout"><main class="main">
+<section id="work-overview" class="work-overview" aria-label="작업 현황" data-i18n-aria-label="작업 현황" hidden><div><p id="activity-summary" class="activity-summary" role="status" aria-live="polite"></p><p id="activity-note" class="small"></p></div><button id="open-work-guide" class="button" type="button" aria-haspopup="dialog" aria-controls="work-guide" data-i18n="작업·복구 안내">작업·복구 안내</button></section>
 <p id="error" class="notice error" role="alert" hidden></p><p id="paused" class="notice" hidden data-i18n="새 요청이 일시정지됐습니다. 진행 중인 작업을 취소하지는 않습니다.">새 요청이 일시정지됐습니다. 진행 중인 작업을 취소하지는 않습니다.</p>
 <section id="view-recovery" class="notice" hidden role="status"><p id="view-recovery-text"></p><button id="view-recover" class="button" type="button" hidden data-i18n="기존 탭 없음 · 다시 열기">기존 탭 없음 · 다시 열기</button></section>
 <section id="team-progress" class="setup-progress" aria-labelledby="team-progress-title" hidden><h2 id="team-progress-title" data-i18n="팀을 준비하고 있어요">팀을 준비하고 있어요</h2><p id="team-progress-summary" role="status" aria-live="polite"></p><progress id="team-progress-bar" aria-label="새 담당자 준비 진행률" data-i18n-aria-label="새 담당자 준비 진행률" max="5" value="0"></progress><ul id="team-progress-roles" aria-label="담당자별 준비 상태" data-i18n-aria-label="담당자별 준비 상태"></ul><p id="team-progress-help" class="small"></p><details id="team-progress-errors" hidden><summary data-i18n="문제 자세히 보기">문제 자세히 보기</summary><p id="team-progress-error-text" class="small"></p></details><div class="roster-actions"><button id="team-progress-resume" class="button" type="button" data-i18n="중단·오류 후 이어하기">중단·오류 후 이어하기</button><button id="team-progress-refresh" class="button" type="button" data-i18n="상태 새로고침">상태 새로고침</button><button id="team-progress-dismiss" class="button" type="button" hidden data-i18n="닫기">닫기</button></div></section>
@@ -77,6 +80,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
 <h3 data-i18n="어려운 설명은 작업 상세에서 볼 수 있어요">어려운 설명은 작업 상세에서 볼 수 있어요</h3><p data-i18n="새 보고는 완성한 것, 아직 확인할 것, 다음 할 일을 쉬운 말로 먼저 안내합니다. 담당자가 함께 남긴 파일명·검사 기록은 ‘작업 상세 보기’를 눌러 확인할 수 있습니다. 펼치기는 AI를 호출하지 않습니다. 기존 글을 자동으로 번역하거나 다시 쓰지는 않습니다.">새 보고는 완성한 것, 아직 확인할 것, 다음 할 일을 쉬운 말로 먼저 안내합니다. 담당자가 함께 남긴 파일명·검사 기록은 ‘작업 상세 보기’를 눌러 확인할 수 있습니다. 펼치기는 AI를 호출하지 않습니다. 기존 글을 자동으로 번역하거나 다시 쓰지는 않습니다.</p>
 <h3 data-i18n="일시정지는 새 요청만 막아요">일시정지는 새 요청만 막아요</h3><p data-i18n="이미 진행 중인 작업을 취소하지는 않습니다. 확인이 필요한 전송이 있어도 다른 추가 내용은 계속 보낼 수 있습니다.">이미 진행 중인 작업을 취소하지는 않습니다. 확인이 필요한 전송이 있어도 다른 추가 내용은 계속 보낼 수 있습니다.</p></details>
 </div></dialog>
+<dialog id="work-guide" aria-labelledby="work-guide-title"><header class="menu-header"><h2 id="work-guide-title" data-i18n="작업 현황·복구 안내">작업 현황·복구 안내</h2><button id="close-work-guide" class="button" type="button" data-i18n="닫기 ×">닫기 ×</button></header><div class="work-guide-content"><p id="work-guide-project" class="small"></p><label for="work-guide-choice" data-i18n="확인할 작업">확인할 작업</label><select id="work-guide-choice"></select><p id="work-guide-range" class="small"></p><p id="work-guide-status" role="status" aria-live="polite"></p><div id="work-guide-jobs"></div><div id="work-guide-checks"></div><div id="work-guide-questions"></div><h3 data-i18n="안전하게 이어가려면">안전하게 이어가려면</h3><ol><li data-i18n="총괄이 원래 채팅과 실행 중인 검증을 확인합니다. 조용하거나 오래됐다는 이유만으로 중단됐다고 판단하지 않습니다.">총괄이 원래 채팅과 실행 중인 검증을 확인합니다. 조용하거나 오래됐다는 이유만으로 중단됐다고 판단하지 않습니다.</li><li data-i18n="실제로 중단된 경우에만 기존 승인 범위에서 체크포인트와 현재 파일을 확인하고 기존 담당자에게 이어서 배정합니다. 파일 소유권은 편집 전에 다시 확보합니다.">실제로 중단된 경우에만 기존 승인 범위에서 체크포인트와 현재 파일을 확인하고 기존 담당자에게 이어서 배정합니다. 파일 소유권은 편집 전에 다시 확보합니다.</li><li data-i18n="차단된 검증은 총괄이 수정 근거와 재개 승인을 함께 기록합니다. 완료한 작업과 통과한 검사는 필요한 변경 근거 없이 반복하지 않습니다.">차단된 검증은 총괄이 수정 근거와 재개 승인을 함께 기록합니다. 완료한 작업과 통과한 검사는 필요한 변경 근거 없이 반복하지 않습니다.</li></ol><p class="small" data-i18n="이 안내는 불러온 시점의 참고 기록입니다. 작업을 자동으로 재개하거나 소유권을 해제하지 않습니다. 안내 확인·요청문 준비·복사는 AI를 호출하지 않습니다.">이 안내는 불러온 시점의 참고 기록입니다. 작업을 자동으로 재개하거나 소유권을 해제하지 않습니다. 안내 확인·요청문 준비·복사는 AI를 호출하지 않습니다.</p><div class="roster-actions"><button id="work-guide-refresh" class="button" type="button" data-i18n="상태 새로고침">상태 새로고침</button><button id="work-guide-prepare" class="button" type="button" disabled data-i18n="총괄에게 확인할 요청문 준비">총괄에게 확인할 요청문 준비</button><button id="work-guide-copy" class="button" type="button" hidden data-i18n="요청문 복사">요청문 복사</button></div><textarea id="work-guide-prompt" readonly hidden aria-label="총괄 확인 요청문" data-i18n-aria-label="총괄 확인 요청문"></textarea><p id="work-guide-prompt-status" class="small" role="status"></p></div></dialog>
 <dialog id="image-viewer" aria-labelledby="image-title"><header class="menu-header"><h2 id="image-title" data-i18n="이미지 미리보기">이미지 미리보기</h2><button id="close-image" class="button" type="button" data-i18n="닫기 ×">닫기 ×</button></header><img id="image-full" alt=""></dialog>
 <dialog id="audio-viewer" aria-labelledby="audio-title"><header class="menu-header"><h2 id="audio-title" data-i18n="음원 미리듣기">음원 미리듣기</h2><button id="close-audio" class="button" type="button" data-i18n="닫기 ×">닫기 ×</button></header><div class="audio-content"><audio id="audio-full" controls preload="none" aria-label="첨부 음원 재생" data-i18n-aria-label="첨부 음원 재생"></audio><p id="audio-status" role="status" data-i18n="재생 버튼을 눌러 들어 보세요.">재생 버튼을 눌러 들어 보세요.</p></div></dialog>
 <script>
@@ -107,7 +111,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   $('ui-language').addEventListener('change',()=>{
     if(disposed)return;languagePreference=languages.includes($('ui-language').value)?$('ui-language').value:'auto';uiLanguage=languagePreference==='auto'?detectedLanguage():languagePreference;
     try{localStorage.setItem('team-room-ui-language',languagePreference);}catch{}
-    translateStatic();signature='';if(state)accept(state,{expected:projectId});renderProjects();renderDeliveries();controls();renderViewNotice();if(roster)renderRoster(roster);
+    translateStatic();signature='';if(state)accept(state,{expected:projectId});renderProjects();renderDeliveries();controls();renderViewNotice();if(roster)renderRoster(roster);if(workGuide?.data)renderWorkGuide(workGuide);
     if(checkView?.data)renderConnectionCheck(checkView.data);
     if(importView?.preview)renderImportPreview(importView.preview);
     if(importList?.rows)renderImportList(importList);
@@ -131,6 +135,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   $('room-menu').addEventListener('close',()=>{closeRoster();closeTeamSetup();closeLifecycle();closeUtilities();});
   $('room-menu').addEventListener('click',event=>{if(event.target===$('room-menu')){const rect=$('room-menu').getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)$('room-menu').close();}});
   const statuses = {reserved:'전달 예약 · 결과 확인 중',pending:'처리 대기',processing:'처리 중',completed:'완료',failed:'실패',running:'처리 중',active:'처리 중',queued:'처리 대기',passed:'통과',blocked:'차단',unverified:'미검증',superseded:'인계됨'};
+  let workGuide=null;
   let seq = 0, initialized = false, canMessage = false, messageExtension = false, state = null;
   let polling = false, sending = false, pausing = false, timer = null;
   let historyBefore=null,historyLoading=false;
@@ -230,7 +235,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   function dispose() {
     if(disposed)return;
     disposed=true;initialized=false;canMessage=false;secretDraftValue=null;secretDraftFound=false;
-    closeRoster();closeTeamSetup();closeLifecycle();closeUtilities();expandedDetails.clear();detailsEpoch++;
+    closeWorkGuide();closeRoster();closeTeamSetup();closeLifecycle();closeUtilities();expandedDetails.clear();detailsEpoch++;
     if($('room-menu').open)$('room-menu').close();
     resetImages();imageCache.clear();imagePending.clear();
     resetAudio();audioCache.clear();audioPending.clear();
@@ -431,6 +436,74 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   const role = id => [...(state?.members||[]),...(state?.formerMembers||[])].find(m=>m.id===id)?.role || (id==='user'?t('사용자'):id==='system'?t('회의 안내'):t('역할 미기록'));
   function showError(text) { $('error').textContent=text; $('error').hidden=!text; }
   function activeRequest(){return state?.requests?.filter(r=>!r.followUpTo&&!['completed','failed'].includes(r.status)).at(-1);}
+  function renderActivity(stale=false){
+    const visible=Boolean(projectId&&state?.project?.id===projectId&&!switching);
+    $('work-overview').hidden=!visible;if(!visible)return;
+    const a=state.activity;
+    const text=a?[['진행 요청',a.activeRequests],['결과 대기',a.awaitingMembers],['배정 대기',a.pendingJobs],['미답변 질문',a.openQuestions],['실패 기록',a.failedRequests]].map(([key,value])=>t(key)+' '+value).join(' · '):t('작업 현황을 아직 확인하지 못했습니다.');
+    if($('activity-summary').textContent!==text)$('activity-summary').textContent=text;
+    $('activity-note').textContent=stale?t('갱신 실패 · 마지막으로 받은 기록입니다. 실제 실행 상태는 확인되지 않았습니다.'):t('저장된 배정 상태입니다. 실제 채팅의 실행·중단을 자동 확인하지 않습니다.');
+  }
+  function closeWorkGuide(){workGuide=null;if($('work-guide').open)$('work-guide').close();$('work-guide-prompt').value='';$('work-guide-prompt').hidden=true;$('work-guide-copy').hidden=true;}
+  const guideCurrent=r=>!disposed&&!document.hidden&&workGuide===r&&projectId===r.projectId&&selectionEpoch===r.epoch&&$('work-guide').open;
+  function renderWorkGuide(r){
+    if(!guideCurrent(r))return;const data=r.data;
+    $('work-guide-project').textContent=state?.project?.name||r.projectId;
+    $('work-guide-choice').replaceChildren();
+    for(const choice of data.choices){const option=make('option','',status(choice.status)+' · '+choice.label);option.value=choice.id;$('work-guide-choice').append(option);}
+    $('work-guide-choice').value=data.requestId||'';
+    $('work-guide-range').textContent=data.choiceTotal>20?t('진행·실패 요청 중 최근 20개를 표시합니다. 원문은 그대로 보관됩니다.'):'';
+    $('work-guide-status').textContent=data.requestId?t('저장된 요청 상태')+' · '+status(data.status):t('진행 중이거나 실패한 요청이 없습니다.');
+    $('work-guide-jobs').replaceChildren();$('work-guide-checks').replaceChildren();$('work-guide-questions').replaceChildren();
+    for(const job of data.jobs){
+      const row=make('section','guide-job');row.append(make('strong','',job.name+(job.role?' · '+job.role:'')),make('p','',status(job.state)));
+      if(job.error)row.append(make('p','',t('마지막 문제')+' · '+job.error));
+      if(job.checkpoint){row.append(make('p','',t('마지막 저장 내용')+' · '+job.checkpoint.summary),make('p','small',time(job.checkpoint.updatedAt)));
+        if(job.checkpoint.nextSteps.length){const list=make('ul');for(const step of job.checkpoint.nextSteps)list.append(make('li','',step));row.append(make('p','',t('기록된 다음 작업')),list);}
+      }else if(!['completed','superseded'].includes(job.state))row.append(make('p','small',t('체크포인트가 없습니다. 원래 요청과 실제 파일을 먼저 확인해야 합니다.')));
+      if(job.lockTotal){const details=make('details'),list=make('ul');details.append(make('summary','',t('보유 중인 파일·Editor')+' · '+job.lockTotal));for(const file of job.locks)list.append(make('li','',file));details.append(list);row.append(details);}
+      const fields=[job.error,job.checkpoint?.summary,...(job.checkpoint?.nextSteps||[]),...job.locks];
+      if(fields.some(value=>secretText.find(value).length))row.append(make('p','small secret-warning',t('비밀값으로 의심되는 내용이 있습니다. 원문은 유지하며 작업은 계속 진행됩니다.')));
+      $('work-guide-jobs').append(row);
+    }
+    if(data.checks.length){$('work-guide-checks').append(make('h3','',t('검증 기록')));for(const item of data.checks)$('work-guide-checks').append(make('p','',item.label+' · '+status(item.status)+(item.blocked?t(' · 총괄 조치 필요'):'')+(item.waived?t(' · 예외 사유 기록됨'):'')+(item.summary?'\n'+item.summary:'')));}
+    if(data.checks.some(item=>item.running))$('work-guide-checks').append(make('p','notice',t('실행 중으로 기록된 검증이 있습니다. 실제 실행 상태와 결과를 먼저 확인해야 합니다.')));
+    if(data.checkTotal>data.checks.length)$('work-guide-checks').append(make('p','small',t('일부 기록만 표시합니다. 전체 기록은 총괄이 확인합니다.')));
+    if(data.questionTotal){$('work-guide-questions').append(make('h3','',t('아직 답변이 없는 질문')+' · '+data.questionTotal));for(const q of data.questions)$('work-guide-questions').append(make('p','',q.author+' · '+q.text));}
+    $('work-guide-prepare').disabled=r.busy||!data.requestId||data.status==='completed';
+    $('work-guide-prompt').hidden=true;$('work-guide-prompt').value='';$('work-guide-copy').hidden=true;$('work-guide-prompt-status').textContent='';
+  }
+  async function loadWorkGuide(requestId){
+    if(disposed||document.hidden||!initialized||!projectId||switching||workGuide?.busy)return;
+    const r={projectId,epoch:selectionEpoch,busy:true};workGuide=r;
+    for(const id of ['work-guide-choice','work-guide-refresh','work-guide-prepare'])$(id).disabled=true;
+    $('work-guide-status').textContent=t('저장된 작업 기록을 확인하고 있습니다.');
+    for(const id of ['work-guide-jobs','work-guide-checks','work-guide-questions'])$(id).replaceChildren();
+    $('work-guide-prompt').value='';$('work-guide-prompt').hidden=true;$('work-guide-copy').hidden=true;$('work-guide-prompt-status').textContent='';
+    try{
+      const data=await tool('room_recovery_guide',{projectId:r.projectId,...(requestId?{requestId}:{})});
+      if(!guideCurrent(r))return;
+      if(data.projectId!==r.projectId||data.readOnly!==true||!Array.isArray(data.choices)||!Array.isArray(data.jobs)||!Array.isArray(data.checks)||!Array.isArray(data.questions)||requestId&&data.requestId!==requestId)throw new Error(t('선택한 프로젝트의 기록을 확인하지 못했습니다.'));
+      r.busy=false;r.data=data;renderWorkGuide(r);
+    }catch(error){if(guideCurrent(r)){$('work-guide-status').textContent=t('작업 안내를 불러오지 못했습니다. ')+error.message;}}
+    finally{if(guideCurrent(r)){r.busy=false;$('work-guide-refresh').disabled=false;$('work-guide-choice').disabled=!r.data?.choices.length;}}
+  }
+  $('open-work-guide').addEventListener('click',()=>{if(disposed||document.hidden||!initialized||!projectId||switching)return;$('work-guide').showModal();$('work-guide').scrollTop=0;void loadWorkGuide();});
+  $('close-work-guide').addEventListener('click',closeWorkGuide);
+  $('work-guide').addEventListener('close',closeWorkGuide);
+  $('work-guide-refresh').addEventListener('click',()=>loadWorkGuide(workGuide?.data?.requestId));
+  $('work-guide-choice').addEventListener('change',()=>loadWorkGuide($('work-guide-choice').value));
+  $('work-guide-prepare').addEventListener('click',()=>{
+    const r=workGuide;if(!r||!guideCurrent(r)||r.busy||!r.data?.requestId||r.data.status==='completed')return;
+    $('work-guide-prompt').value=t('회의실의 다음 요청 상태와 복구 가능 여부를 확인해 주세요.')+'\n'+r.projectId+' / '+r.data.requestId+'\n'+t('원래 채팅과 실행 중인 검증을 먼저 확인하고, 진행 중이면 기존 작업을 유지해 주세요. 실제로 중단된 작업만 기존 승인 범위와 담당자를 유지해 체크포인트부터 이어 주세요. 재검증이 필요하면 총괄의 재개 승인과 실행 키를 함께 기록하고, 불확실한 전달은 자동 재전송하지 마세요.');
+    $('work-guide-prompt').hidden=false;$('work-guide-copy').hidden=false;
+    $('work-guide-prompt-status').textContent=t('요청문을 준비했습니다. 선택한 프로젝트의 총괄 채팅에서 확인하고 직접 보내세요. 아직 작업을 재개하지 않았습니다.');
+  });
+  $('work-guide-copy').addEventListener('click',async()=>{
+    const r=workGuide;if(!r||!guideCurrent(r)||$('work-guide-prompt').hidden)return;const prompt=$('work-guide-prompt').value;
+    try{if(!navigator.clipboard?.writeText)throw new Error();await navigator.clipboard.writeText(prompt);if(guideCurrent(r))$('work-guide-prompt-status').textContent=t('요청문을 복사했습니다. 총괄 채팅에서 확인하고 직접 전송하세요.');}
+    catch{if(guideCurrent(r)){$('work-guide-prompt').focus();$('work-guide-prompt').select?.();$('work-guide-prompt-status').textContent=t('위 요청문을 직접 선택해 복사한 뒤 같은 프로젝트 채팅에 보내세요.');}}
+  });
   function duplicateMessage(){return [...deliveries.values()].some(d=>d.projectId===projectId&&['saving','waiting','uncertain'].includes(d.status)&&d.text.trim()===$('text').value.trim());}
   function renderDeliveries(){
     if(disposed)return;
@@ -450,6 +523,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     $('share-mask').disabled=Boolean(exportView?.busy);
     $('share-room').textContent=exportView?.format==='share'&&exportView.receipt?t('새 공유용 ZIP 만들기'):t('공유용 ZIP 만들기');
     const loaded=Boolean(projectId && state?.project?.id===projectId && !switching);
+    $('open-work-guide').disabled=!initialized||!loaded;
     $('check-connection').disabled=!initialized||switching||Boolean(checkView?.busy);
     $('export-room').disabled=!initialized||!loaded||switching||Boolean(exportView?.busy);
     $('export-room').textContent=exportView?.format==='backup'&&exportView.receipt?t('새 백업 만들기'):t('ZIP으로 백업');
@@ -811,14 +885,14 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     }
     if(!Array.isArray(next?.members)||!Array.isArray(next?.messages)||!Array.isArray(next?.requests)||typeof next.paused!=='boolean')throw new Error(t('회의실 상태 형식이 올바르지 않습니다.'));
     if(Array.isArray(next.projects))projects=next.projects;
-    if(next.deletedProjectId&&next.deletedProjectId===projectId){drafts.set(projectId,$('text').value);projectId=null;expected=null;selectionEpoch++;openingAllowed=false;createdTeamTarget=null;closeRoster();closeTeamSetup();closeLifecycle();closeUtilities();signature='';resetImages();imageCache.clear();resetAudio();audioCache.clear();expandedDetails.clear();detailsEpoch++;$('text').value='';}
+    if(next.deletedProjectId&&next.deletedProjectId===projectId){drafts.set(projectId,$('text').value);projectId=null;expected=null;selectionEpoch++;openingAllowed=false;createdTeamTarget=null;closeWorkGuide();closeRoster();closeTeamSetup();closeLifecycle();closeUtilities();signature='';resetImages();imageCache.clear();resetAudio();audioCache.clear();expandedDetails.clear();detailsEpoch++;$('text').value='';}
     if(allowOpen && openingAllowed && !projectId && !sending && next.project?.id && (!initialProjectId||initialProjectId===next.project.id)){projectId=next.project.id;selectionEpoch++;expected=projectId;}
     renderProjects();
     if((next.project?.id||null)!==(expected||null) || projectId!==(expected||null))return false;
     if(state?.project && next.project && state.project.id===next.project.id && (state.project.revision||1)>(next.project.revision||1))return false;
     if(next.opening&&!next.project)openingProjectName=next.opening.status==='unregistered'&&typeof next.opening.projectName==='string'?next.opening.projectName:'';
     if(next.opening&&!next.project)openingNotice=next.opening.status==='deleted'?t('삭제된 회의실이 있습니다. 메뉴의 삭제된 회의실에서 복구할 수 있습니다.'):next.opening.status==='unregistered'?(openingProjectName?openingProjectName+t(' 프로젝트를 확인했습니다. '):'')+t('이 프로젝트는 팀 연결을 마치면 회의실이 자동 표시됩니다. 메뉴 → 기본 팀 만들기에서 기존 설정을 확인하거나 요청문을 준비하세요.'):next.opening.status==='ambiguous'?t('현재 프로젝트에 회의실이 여러 개 연결되어 있습니다. 상단에서 사용할 회의실을 선택해 주세요.'):t('현재 프로젝트를 자동으로 확인하지 못했습니다. 상단에서 프로젝트를 선택해 주세요.');
-    state=next;renderSetupProgress(next);
+    state=next;renderSetupProgress(next);renderActivity();
     $('history-nav').hidden=!next.history||!next.project||next.history.total<=next.messages.length;
     $('history-older').disabled=historyLoading||!next.history?.hasOlder;
     $('history-latest').disabled=historyLoading||historyBefore===null;
@@ -933,21 +1007,21 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
     const expected=projectId,epoch=selectionEpoch,resolveCurrent=!expected&&openingAllowed&&!openingAttempted;
     if(resolveCurrent)openingAttempted=true;
     try{const data=await tool('room_state',expected?{projectId:expected,...historyArgs()}:resolveCurrent?{resolveCurrent:true,history:true}:{});if(disposed||document.hidden||epoch!==selectionEpoch)return;accept(data,{expected,allowOpen:resolveCurrent&&openingAllowed});if(!projectId&&openingAllowed&&createdTeamTarget&&projects.some(p=>p.id===createdTeamTarget))await selectProject(createdTeamTarget,{automatic:true});$('connection').textContent=canMessage?t('호스트 연결됨 · 전송 지원 확인'):t('조회 전용 · 호스트가 메시지 전송 기능을 제공하지 않습니다.');}
-    catch{ if(!disposed&&!document.hidden&&epoch===selectionEpoch){$('connection').textContent=t('상태 조회 실패 · 기록이 최신이 아닐 수 있습니다.');renderSetupProgress({teamProgressUnavailable:true});} }
+    catch{ if(!disposed&&!document.hidden&&epoch===selectionEpoch){$('connection').textContent=t('상태 조회 실패 · 기록이 최신이 아닐 수 있습니다.');renderActivity(true);renderSetupProgress({teamProgressUnavailable:true});} }
     finally{polling=false;if(!disposed)controls();}
   }
   function schedule(){if(timer)clearInterval(timer);timer=null;if(!disposed&&initialized&&!document.hidden)timer=setInterval(poll,4000);}
-  document.addEventListener('visibilitychange',()=>{schedule();if(document.hidden){resetAudio();closeRoster();closeTeamSetup();closeLifecycle();closeUtilities();}else{applyLayout();poll();void openView();}});
+  document.addEventListener('visibilitychange',()=>{schedule();if(document.hidden){closeWorkGuide();resetAudio();closeRoster();closeTeamSetup();closeLifecycle();closeUtilities();}else{applyLayout();poll();void openView();}});
   async function selectProject(selected,{automatic=false}={}){
     if(disposed||!initialized||document.hidden||sending||pausing||switching){renderProjects();return;}
     if(automatic&&!openingAllowed)return;
     if(!automatic){openingAllowed=false;viewHandled=true;viewRecovery=null;viewNotice='';renderViewNotice();}openingAttempted=true;openingNotice='';openingProjectName='';
     if(projectId===selected&&state?.project?.id===selected)return;
-    closeRoster();closeTeamSetup();closeLifecycle();closeUtilities();if(projectId)drafts.set(projectId,$('text').value);
+    closeWorkGuide();closeRoster();closeTeamSetup();closeLifecycle();closeUtilities();if(projectId)drafts.set(projectId,$('text').value);
     projectId=selected;historyBefore=null;$('history-nav').hidden=true;setupProgress=null;setupStale=false;$('team-progress').hidden=true;
     $('text').value=drafts.get(projectId)||'';
     const expected=projectId,epoch=++selectionEpoch;
-    switching=true;state=null;signature='';showError('');renderDeliveries();
+    switching=true;state=null;signature='';showError('');renderDeliveries();$('work-overview').hidden=true;
     resetImages();imageCache.clear();expandedDetails.clear();detailsEpoch++;
     resetAudio();audioCache.clear();
     $('members').replaceChildren();$('messages').replaceChildren();$('requests').replaceChildren();$('work-status').replaceChildren();$('usage-reports').replaceChildren();
@@ -959,7 +1033,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
       if(!accepted && expected)throw new Error(t('선택한 프로젝트의 기록을 확인하지 못했습니다.'));
       if(!expected)$('empty').textContent=t('상단에서 프로젝트를 선택해 주세요.');
     }catch(err){if(epoch===selectionEpoch)showError(t('프로젝트 전환 실패 · ')+err.message);}
-    finally{if(epoch===selectionEpoch){switching=false;controls();void openView();}}
+    finally{if(epoch===selectionEpoch){switching=false;renderActivity();controls();void openView();}}
   }
   $('project').addEventListener('change',()=>selectProject($('project').value||null));
   $('text').addEventListener('input',()=>{openingAllowed=false;controls();});
@@ -1019,7 +1093,7 @@ textarea:focus,.records:focus:not(:focus-visible){outline:none}
   async function initialize(){
     if(window.parent===window){$('connection').textContent=t('단독 창에서는 연결할 수 없습니다.');showError(t('기존 채팅의 MCP App 패널에서 팀 회의실을 열어 주세요.'));return;}
     try{
-      const result=await rpc('ui/initialize',{appInfo:{name:'team-room',version:'0.19.1'},appCapabilities:{availableDisplayModes:['inline','fullscreen']},protocolVersion:'2026-01-26'});
+      const result=await rpc('ui/initialize',{appInfo:{name:'team-room',version:'0.20.0'},appCapabilities:{availableDisplayModes:['inline','fullscreen']},protocolVersion:'2026-01-26'});
       if(disposed)return;
       if(result?.protocolVersion!=='2026-01-26')throw new Error(t('지원되는 호스트 통신 버전을 확인하지 못했습니다.'));
       hostObservation={protocol:result.protocolVersion,message:false,draft:false};canDownload=Boolean(result.hostCapabilities?.downloadFile);canOpenFile=Boolean(result.hostCapabilities?.experimental?.['openai/files']||result.hostCapabilities?.extensions?.['openai/files']);

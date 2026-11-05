@@ -8,7 +8,7 @@ Long histories show up to 100 recent messages per page. Use **Earlier messages**
 
 Team Meeting Room connects a project's existing director and participant chats so you can follow requests, questions, progress reports and results in one place. Give your goal to the director; the needed participants post their own work directly.
 
-This guide describes version 0.19.1. Japanese, Simplified Chinese and Traditional Chinese installation/user guides are linked below. You can use the plugin across projects, with separate connections and records for each. The meeting UI supports Korean, English, Japanese, Simplified Chinese and Traditional Chinese. Choose Auto or a specific language under Menu → Language. Reports retain the user's requested or established conversation language. Older Korean control labels remain documented below alongside English names.
+This guide describes version 0.20.0. Japanese, Simplified Chinese and Traditional Chinese installation/user guides are linked below. You can use the plugin across projects, with separate connections and records for each. The meeting UI supports Korean, English, Japanese, Simplified Chinese and Traditional Chinese. Choose Auto or a specific language under Menu → Language. Reports retain the user's requested or established conversation language. Older Korean control labels remain documented below alongside English names.
 
 Fresh opening requests ask for an upper tab once. Historical cards do not repeat that request. If an existing or uncertain opening record remains, check the upper tabs first; use **No existing tab · reopen** only if no room tab exists. The card remains usable. Manual host controls and older untracked tabs are outside this guard. [Opening behavior and limits](skills/team-room/references/room-opening.md).
 
@@ -345,3 +345,7 @@ New requests are paused after recovery. Select the restored room above, inspect 
 Workspace authorization, project source files, QA/work-control ledgers, usage sources and native Codex chats are not imported. Existing local ownership, attempt history and usage records remain untouched; missing usage remains unavailable. See [recovery scope and guards](skills/team-room/references/backup-recovery.md).
 
 [日本語 guide](USER_GUIDE.ja.md) · [简体中文 guide](USER_GUIDE.zh-Hans.md) · [繁體中文 guide](USER_GUIDE.zh-Hant.md) · [Actual-host checks and duplicate-tab limitations](skills/team-room/references/host-validation.md)
+
+## Work status and interruption recovery
+
+The overview above the conversation shows saved task counts. Open **Work & recovery** for checkpoints, next steps, file ownership and validation obstacles. Choose **Prepare a director review request → Copy request**, then review and send it yourself in the same project’s director chat. Your composer draft is preserved; nothing is automatically resumed, sent or unlocked. Viewing and copying makes no AI calls. [Status meanings and recovery limits](skills/team-room/references/work-status.md).

@@ -43,6 +43,7 @@ async function mount(page,html,width,openingRoom=null,initialDisplayMode='fullsc
     const empty={project:null,projects:[],members:[],requests:[],messages:[],paused:true};
     if(p.params.name==='room_state'&&window.fixtureHistoryTool)result=await window.fixtureHistoryTool(p.params.arguments);
     else if(p.params.name==='room_view')result={structuredContent:await window.fixtureViewTool(p.params.arguments)};
+    else if(p.params.name==='room_recovery_guide')result={structuredContent:window.fixtureGuide};
     else if(p.params.name==='room_team_setup'){
      const fixture=window.menuTeamFixture,a=p.params.arguments;
      if(a.operation==='apply')fixture.status='requested';fixture.continuationPrompt='Synthetic original setup request';fixture.setupStatus='planned';fixture.readyCount=0;
@@ -101,6 +102,30 @@ try{
  }
  const historyResource=handle({method:'resources/read',params:{uri:'ui://team-room/meeting.html'}}).contents[0];
  assert.equal(historyResource._meta['openai/ui'].preferredDisplayMode,'inline');
+ for(const width of [1280,420])for(const language of ['ko','en']){
+  const room={project:{id:'guide',name:'Synthetic recovery'},projects:[{id:'guide',name:'Synthetic recovery'}],members:[{id:'director',name:'Fixture director',role:'Director'},{id:'dev',name:'Fixture developer',role:'Programmer'},{id:'qa',name:'Fixture QA',role:'QA'}],requests:[],messages:[],paused:false,activity:{activeRequests:1,awaitingMembers:1,pendingJobs:0,openQuestions:1,failedRequests:0}};
+  const page=await browser.newPage({locale:language==='ko'?'ko-KR':'en-US'}),frame=await mount(page,renderWidget(),width,room);
+  await frame.locator('#work-overview').waitFor({state:'visible'});
+  await context(page,{displayMode:'fullscreen',containerDimensions:{height:700}});
+  await frame.locator('#text').fill('Original unsent fixture draft');
+  const overview=await frame.locator('#work-overview').boundingBox(),records=await frame.locator('#records').boundingBox(),composer=await frame.locator('#text').boundingBox();
+  assert(overview.y+overview.height<=records.y+1);assert(composer.y+composer.height<=700);
+  assert.equal(await frame.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
+  await page.evaluate(()=>{window.fixtureGuide={projectId:'guide',requestId:'fixture-request',readOnly:true,status:'processing',choiceTotal:1,choices:[{id:'fixture-request',status:'processing',label:'Synthetic task'}],jobs:[{memberId:'dev',name:'Fixture developer',role:'Programmer',state:'failed',error:'Synthetic interruption',checkpoint:{summary:'Implementation saved',nextSteps:['Finish the method','Hand off to QA'],updatedAt:'2026-01-01T00:00:00Z'},locks:['Assets/Example.cs'],lockTotal:1}],checks:[{label:'Fixture check',status:'running',running:true,blocked:false}],checkTotal:1,questions:[{author:'Fixture QA',text:'Which option should remain?'}],questionTotal:1};});
+  await frame.locator('#open-work-guide').click();await frame.locator('.guide-job').waitFor();
+  assert.match(await frame.locator('#work-guide-jobs').innerText(),/Implementation saved/);
+  assert.match(await frame.locator('#work-guide-questions').innerText(),/Which option/);
+  await frame.locator('#work-guide-prepare').click();assert.match(await frame.locator('#work-guide-prompt').inputValue(),/guide \/ fixture-request/);
+  assert.equal(await frame.locator('#text').inputValue(),'Original unsent fixture draft');
+  assert.equal(await frame.evaluate(()=>document.querySelector('#work-guide').scrollWidth>document.querySelector('#work-guide').clientWidth+1),false);
+  await frame.locator('#work-guide').evaluate(e=>{e.scrollTop=0;});
+  await page.screenshot({path:path.join(output,'work-guide-'+width+'-'+language+'.png')});
+  await frame.locator('#close-work-guide').click();
+  assert.equal(await frame.locator('#text').inputValue(),'Original unsent fixture draft');
+  await page.screenshot({path:path.join(output,'work-overview-'+width+'-'+language+'.png')});
+  const actions=await page.evaluate(()=>window.packets.filter(p=>p.method==='ui/message'||p.method==='openai/message'||['room_work','room_claim','room_submit','room_validation'].includes(p.params?.name)).length);assert.equal(actions,0);
+  report.cases.push({width,language,savedWorkOverview:true,checkpointGuide:true,runningValidationWarning:true,copyableRequestOnly:true,draftPreserved:true,noHorizontalOverflow:true,automaticWorkActions:0,modelCalls:0});await page.close();
+ }
  for(const width of [1280,420]){
   const dir=fs.mkdtempSync(path.join(output,'view-browser-')),guard=new RoomView(dir);
   const room={project:{id:'example',name:'Example project'},projects:[{id:'example',name:'Example project'}],members:[{id:'director',name:'Example director',role:'Director'}],requests:[],messages:[],paused:false};

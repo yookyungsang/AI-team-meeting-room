@@ -1,6 +1,6 @@
 {
   "name": "team-room",
-  "version": "0.19.1",
+  "version": "0.20.0",
   "description": "Project-scoped meeting UI for existing chats. Explicit send only; no idle model invocation.",
   "author": {
     "name": "yookyungsang"

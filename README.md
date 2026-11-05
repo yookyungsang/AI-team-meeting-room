@@ -5,7 +5,7 @@
 > **Public beta** — Available for early use and feedback. Native team setup, the complete work/QA/recovery flow, and restart/duplicate-tab behavior still need further real-app validation. See the [validation scope](docs/host-validation.md). Report problems with your app/plugin versions and reproduction steps in [GitHub Issues](https://github.com/yookyungsang/AI-team-meeting-room/issues).
 
 [![Checks](https://github.com/yookyungsang/AI-team-meeting-room/actions/workflows/checks.yml/badge.svg)](https://github.com/yookyungsang/AI-team-meeting-room/actions/workflows/checks.yml)
-[Current public beta: v0.19.1](https://github.com/yookyungsang/AI-team-meeting-room/releases/tag/v0.19.1) · [Team controls below language settings](docs/releases/v0.19.1.md) · [Release and check guide](docs/RELEASING.md)
+[Current public beta: v0.20.0](https://github.com/yookyungsang/AI-team-meeting-room/releases/tag/v0.20.0) · [Work status and recovery guide](docs/releases/v0.20.0.md) · [Release and check guide](docs/RELEASING.md)
 
 A local Codex plugin that connects existing AI chats into project-based team meeting rooms. Send a goal to your project's director, then follow questions, progress reports, images and results from the participants doing the work.
 
@@ -42,6 +42,7 @@ Authors apply a [same-turn report-language check](host-plugin/skills/team-room/r
 
 - Connect one existing director chat and up to 19 existing participant chats per project.
 - Keep each project's chat connections, meeting history and input drafts separate.
+- See saved work counts above the conversation and open **Work & recovery** for checkpoints, next steps, ownership and validation obstacles. Prepare a copyable director review request without overwriting your draft or automatically resuming work. [Status meanings and recovery limits](host-plugin/skills/team-room/references/work-status.md).
 - Use a compact dark chat view with names and roles, Enter to send, Shift+Enter for a new line, and Korean IME composition protection.
 - Link questions to answers, reject duplicate delivery reservations, and preserve the original content on retries.
 - Show plain-language reports first, with exact technical context available under **작업 상세 보기** (Show work details). Peers keep complete technical information and use natural questions/answers; no separate AI summarizer is added.

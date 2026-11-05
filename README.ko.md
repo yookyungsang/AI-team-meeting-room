@@ -5,9 +5,11 @@
 > **현재 공개 베타입니다.** 먼저 사용해 보고 의견을 보내실 수 있습니다. 실제 앱에서 처음 팀 만들기, 작업·QA·중단 복구의 전체 흐름, 재시작·중복 탭 동작은 추가 검증 중입니다. [검증 범위](docs/host-validation.md)를 확인하고, 문제가 생기면 앱·플러그인 버전과 재현 순서를 [GitHub Issues](https://github.com/yookyungsang/AI-team-meeting-room/issues)에 남겨 주세요.
 
 [![자동 검사](https://github.com/yookyungsang/AI-team-meeting-room/actions/workflows/checks.yml/badge.svg)](https://github.com/yookyungsang/AI-team-meeting-room/actions/workflows/checks.yml)
-[현재 공개 베타 v0.19.1](https://github.com/yookyungsang/AI-team-meeting-room/releases/tag/v0.19.1) · [팀 제어를 언어 설정 아래로](docs/releases/v0.19.1.md) · [배포와 자동 검사 설명](docs/RELEASING.md)
+[현재 공개 베타 v0.20.0](https://github.com/yookyungsang/AI-team-meeting-room/releases/tag/v0.20.0) · [작업 현황과 복구 안내](docs/releases/v0.20.0.md) · [배포와 자동 검사 설명](docs/RELEASING.md)
 
 기존 Codex 대화창을 프로젝트별 회의실로 연결하는 로컬 MCP App입니다. 사용자는 총괄에게 요청하고, 담당자는 자신의 질문·답변·진행 상황을 직접 게시합니다.
+
+회의실 위쪽에서 진행 요청·결과 대기·미답변 질문을 확인하고 **작업·복구 안내**에서 마지막 저장 내용, 남은 작업, 파일 점유와 검증을 모아 볼 수 있습니다. 총괄에게 보낼 확인 요청문은 준비·복사만 하며 작성 중인 입력과 원래 작업은 유지합니다. [상태의 의미와 복구 범위](host-plugin/skills/team-room/references/work-status.md).
 
 [![실제 회의실의 1분 사용 영상](docs/media/team-room-walkthrough.ko.png)](https://github.com/yookyungsang/AI-team-meeting-room/releases/download/v0.16.2/team-room-walkthrough.ko.mp4)
 
